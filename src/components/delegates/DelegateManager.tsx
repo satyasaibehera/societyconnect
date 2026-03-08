@@ -25,7 +25,7 @@ interface Delegate {
 
 interface UnitResident {
   id: string;
-  user_id: string;
+  user_id: string | null;
   full_name: string;
   resident_type: string;
 }
