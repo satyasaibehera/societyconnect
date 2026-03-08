@@ -303,10 +303,10 @@ const DigitalIds = () => {
               <div className="flex flex-col items-center space-y-4 pt-2">
                 <div
                   ref={qrRef}
-                  className={`rounded-xl border-2 border-${colors.tw} shadow-sm w-full flex flex-col items-center overflow-hidden`}
+                  className={`rounded-xl border-2 ${colors.border} shadow-sm w-full flex flex-col items-center overflow-hidden`}
                 >
                   {/* Prominent color header */}
-                  <div className={`w-full py-2 bg-${colors.tw} flex items-center justify-center`}>
+                  <div className={`w-full py-2 ${colors.bg} flex items-center justify-center`}>
                     <span className="text-xs font-bold uppercase tracking-widest text-white">
                       {colors.label}
                     </span>
