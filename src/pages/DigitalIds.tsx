@@ -243,6 +243,7 @@ const DigitalIds = () => {
     { key: "helper", icon: <Briefcase className="mr-1.5 h-4 w-4" /> },
     { key: "visitor", icon: <Eye className="mr-1.5 h-4 w-4" /> },
     { key: "security", icon: <Shield className="mr-1.5 h-4 w-4" /> },
+    { key: "office_bearer", icon: <Award className="mr-1.5 h-4 w-4" /> },
   ];
 
   return (
