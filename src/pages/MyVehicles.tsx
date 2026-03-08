@@ -18,6 +18,7 @@ interface Vehicle {
   vehicle_type: string | null;
   parking_slot: string | null;
   status: string;
+  ownership_type: string | null;
 }
 
 const MyVehicles = () => {
