@@ -332,6 +332,7 @@ const Residents = () => {
                                   form: {
                                     full_name: r.full_name,
                                     phone: r.phone || "",
+                                    email: (r as any).email || "",
                                     resident_type: r.resident_type,
                                     date_of_birth: r.date_of_birth || "",
                                     unit_id: r.unit_id || "",
