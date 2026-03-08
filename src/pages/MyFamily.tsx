@@ -102,6 +102,27 @@ const MyFamily = () => {
     }
   };
 
+  const handleTransfer = async () => {
+    if (!transferTargetId || !myResidentId || !user) return;
+    setSaving(true);
+    const { error } = await supabase.rpc("transfer_ownership", {
+      _current_owner_id: myResidentId,
+      _new_owner_id: transferTargetId,
+      _invoker_user_id: user.id,
+    });
+    setSaving(false);
+    if (error) {
+      toast({ title: "Transfer failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Ownership transferred!", description: "You are now a regular resident." });
+      setTransferDialogOpen(false);
+      setTransferTargetId(null);
+      setIsOwner(false);
+      fetchMembers();
+      fetchMyUnit();
+    }
+  };
+
   const typeBadge = (type: string) => {
     const map: Record<string, string> = { owner: "bg-primary", tenant: "bg-id-tenant", family: "bg-id-resident" };
     return <Badge className={`${map[type] || "bg-muted"} text-white text-[10px]`}>{type}</Badge>;
