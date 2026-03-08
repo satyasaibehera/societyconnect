@@ -834,6 +834,15 @@ export type Database = {
         Args: { _unit_id: string; _user_id: string }
         Returns: boolean
       }
+      transfer_ownership: {
+        Args: {
+          _current_owner_id: string
+          _invoker_user_id: string
+          _new_owner_id: string
+        }
+        Returns: undefined
+      }
+      unit_has_approved_owner: { Args: { _unit_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:
