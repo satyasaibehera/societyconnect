@@ -21,6 +21,7 @@ import Complaints from "./pages/Complaints";
 import Voting from "./pages/Voting";
 import Meetings from "./pages/Meetings";
 import Resolutions from "./pages/Resolutions";
+import DigitalIds from "./pages/DigitalIds";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
