@@ -381,6 +381,7 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           full_name: string
+          gender: string | null
           id: string
           phone: string | null
           photo_url: string | null
@@ -398,6 +399,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           full_name: string
+          gender?: string | null
           id?: string
           phone?: string | null
           photo_url?: string | null
@@ -415,6 +417,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           full_name?: string
+          gender?: string | null
           id?: string
           phone?: string | null
           photo_url?: string | null

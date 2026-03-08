@@ -20,6 +20,8 @@ interface FamilyMember {
   resident_type: string;
   relationship: string | null;
   date_of_birth: string | null;
+  age: number | null;
+  gender: string | null;
   status: string;
 }
 
@@ -43,6 +45,8 @@ const MyFamily = () => {
     relationship: "",
     relationship_other: "",
     date_of_birth: "",
+    age: "",
+    gender: "",
     resident_type: "family",
   });
 
@@ -68,7 +72,7 @@ const MyFamily = () => {
     setLoading(true);
     const { data } = await supabase
       .from("residents")
-      .select("id, full_name, phone, resident_type, relationship, date_of_birth, status")
+      .select("id, full_name, phone, resident_type, relationship, date_of_birth, age, gender, status")
       .eq("unit_id", unitId);
     setMembers(data || []);
     setLoading(false);
@@ -85,6 +89,8 @@ const MyFamily = () => {
       phone: form.phone || null,
       relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
       date_of_birth: form.date_of_birth || null,
+      age: form.age ? parseInt(form.age) : null,
+      gender: form.gender || null,
       resident_type: form.resident_type,
       unit_id: unitId,
       society_id: societyId,
@@ -97,7 +103,7 @@ const MyFamily = () => {
     } else {
       toast({ title: "Family member added", description: "Pending approval." });
       setDialogOpen(false);
-      setForm({ full_name: "", phone: "", relationship: "", relationship_other: "", date_of_birth: "", resident_type: "family" });
+      setForm({ full_name: "", phone: "", relationship: "", relationship_other: "", date_of_birth: "", age: "", gender: "", resident_type: "family" });
       fetchMembers();
     }
   };
@@ -163,6 +169,8 @@ const MyFamily = () => {
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
+                  {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
+                  {m.age && <p>Age: {m.age}</p>}
                   {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                   {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
                 </div>
@@ -201,6 +209,20 @@ const MyFamily = () => {
               {form.relationship === "other" && (
                 <Input className="mt-2" placeholder="Specify relationship" value={form.relationship_other} onChange={(e) => setForm({ ...form, relationship_other: e.target.value })} />
               )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Age</Label><Input type="number" min={0} max={120} placeholder="e.g. 35" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} /></div>
+              <div>
+                <Label>Gender</Label>
+                <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {["male", "female", "other"].map((g) => (
+                      <SelectItem key={g} value={g}>{g.charAt(0).toUpperCase() + g.slice(1)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div><Label>Date of Birth</Label><Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} /></div>
             <div>
