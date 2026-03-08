@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useUserRole } from "@/hooks/useUserRole";
 import {
   Sidebar,
   SidebarContent,
@@ -60,6 +61,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { isManagement, loading: roleLoading } = useUserRole();
   const isActive = (path: string) => location.pathname === path;
 
   const renderGroup = (label: string, items: typeof mainItems) => (
@@ -109,7 +111,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2">
-        {renderGroup("Management", mainItems)}
+        {isManagement && renderGroup("Management", mainItems)}
         {renderGroup("Community", communityItems)}
         {renderGroup("System", systemItems)}
       </SidebarContent>
