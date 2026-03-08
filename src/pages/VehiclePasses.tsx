@@ -155,6 +155,10 @@ const VehiclePasses = () => {
       ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       : null;
 
+    // If owner creates a temp pass for their own unit, it's pre-approved
+    const isOwnerTempPass = passType === "temporary" && form.unit_id && form.unit_id === myUnitId;
+    const status = isOwnerTempPass ? "approved" : "pending";
+
     const { error } = await supabase.from("vehicle_passes").insert({
       vehicle_number: form.vehicle_number.toUpperCase(),
       vehicle_type: form.vehicle_type || null,
@@ -166,7 +170,8 @@ const VehiclePasses = () => {
       purpose: form.purpose || null,
       society_id: societyId,
       requested_by: user?.id,
-      status: "pending",
+      approved_by: isOwnerTempPass ? user?.id : null,
+      status,
       valid_until: validUntil,
     } as any);
 
@@ -174,7 +179,12 @@ const VehiclePasses = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Pass requested", description: passType === "temporary" ? "Sent to flat owner for approval." : "Sent to admin for approval." });
+      const desc = isOwnerTempPass
+        ? "Pre-approved. Valid for 24 hours."
+        : passType === "temporary"
+          ? "Sent to flat owner for approval."
+          : "Sent to admin for approval.";
+      toast({ title: "Pass requested", description: desc });
       setDialogOpen(false);
       fetchPasses();
     }
