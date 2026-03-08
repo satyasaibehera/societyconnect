@@ -50,7 +50,7 @@ const MyFamily = () => {
     if (!user) return;
     const { data } = await supabase
       .from("residents")
-      .select("unit_id, society_id")
+      .select("id, unit_id, society_id, resident_type")
       .eq("user_id", user.id)
       .eq("status", "approved")
       .limit(1)
@@ -58,6 +58,8 @@ const MyFamily = () => {
     if (data) {
       setUnitId(data.unit_id);
       setSocietyId(data.society_id);
+      setMyResidentId(data.id);
+      setIsOwner(data.resident_type === "owner");
     }
   }, [user]);
 
