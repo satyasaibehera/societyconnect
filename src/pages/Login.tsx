@@ -190,7 +190,7 @@ const Login = () => {
               </>
             ) : (
               <>
-                Need a Super Admin account?{" "}
+                Need an account?{" "}
                 <button onClick={() => setIsSignUp(true)} className="text-primary font-medium hover:underline">
                   Register here
                 </button>
