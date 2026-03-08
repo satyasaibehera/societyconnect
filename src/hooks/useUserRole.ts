@@ -31,6 +31,7 @@ export function useUserRole() {
 
   const hasRole = (...check: AppRole[]) => check.some((r) => roles.includes(r));
   const isManagement = hasRole("super_admin", "admin");
+  const isSecurity = hasRole("security");
 
-  return { roles, loading, hasRole, isManagement };
+  return { roles, loading, hasRole, isManagement, isSecurity };
 }
