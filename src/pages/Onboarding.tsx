@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Building2, CheckCircle2, ArrowRight, ArrowLeft, Plus, Trash2, Upload } from "lucide-react";
+import { Building2, CheckCircle2, ArrowRight, ArrowLeft, Plus, Trash2, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const STEPS = [
   { id: 1, title: "Society Details", description: "Basic information about your society" },
@@ -42,7 +45,11 @@ interface InviteEntry {
 
 const Onboarding = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [savedSocietyId, setSavedSocietyId] = useState<string | null>(null);
 
   // Step 1
   const [societyName, setSocietyName] = useState("");
@@ -119,6 +126,89 @@ const Onboarding = () => {
 
   const next = () => setCurrentStep((s) => Math.min(s + 1, 7));
   const prev = () => setCurrentStep((s) => Math.max(s - 1, 1));
+
+  const handleLaunchSociety = async () => {
+    if (!user) {
+      toast({ title: "Not authenticated", variant: "destructive" });
+      return;
+    }
+    if (!societyName.trim()) {
+      toast({ title: "Society name is required", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // 1. Create the society
+      const { data: society, error: societyError } = await supabase
+        .from("societies")
+        .insert({
+          name: societyName,
+          address,
+          city,
+          state,
+          created_by: user.id,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (societyError) throw societyError;
+
+      setSavedSocietyId(society.id);
+
+      // 2. Create buildings and collect their IDs
+      for (const building of buildings) {
+        const { data: buildingData, error: buildingError } = await supabase
+          .from("buildings")
+          .insert({
+            society_id: society.id,
+            name: building.name,
+            floors: building.floors,
+            units_per_floor: building.unitsPerFloor,
+          })
+          .select()
+          .single();
+
+        if (buildingError) throw buildingError;
+
+        // 3. Generate and insert units for this building
+        const unitRows = [];
+        for (let floor = 1; floor <= building.floors; floor++) {
+          for (let unit = 1; unit <= building.unitsPerFloor; unit++) {
+            unitRows.push({
+              building_id: buildingData.id,
+              unit_number: `${building.name}-${floor.toString().padStart(1, "0")}${unit.toString().padStart(2, "0")}`,
+              floor,
+            });
+          }
+        }
+
+        // Insert in batches of 100 to avoid payload limits
+        for (let i = 0; i < unitRows.length; i += 100) {
+          const batch = unitRows.slice(i, i + 100);
+          const { error: unitError } = await supabase.from("units").insert(batch);
+          if (unitError) throw unitError;
+        }
+      }
+
+      toast({
+        title: "Society launched! 🎉",
+        description: `${societyName} with ${buildings.length} building(s) and ${totalUnits} units created successfully.`,
+      });
+
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Onboarding error:", error);
+      toast({
+        title: "Error saving society",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const renderStep = () => {
     switch (currentStep) {
@@ -357,6 +447,16 @@ const Onboarding = () => {
             </div>
             <Card className="p-4 text-left space-y-3">
               <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Society</span>
+                <span className="font-medium">{societyName}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Location</span>
+                <span className="font-medium">{city}{state ? `, ${state}` : ""}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Buildings</span>
                 <span className="font-medium">{buildings.length}</span>
               </div>
@@ -444,10 +544,15 @@ const Onboarding = () => {
             </Button>
           ) : (
             <Button
-              onClick={() => navigate("/dashboard")}
+              onClick={handleLaunchSociety}
+              disabled={saving}
               className="gradient-primary text-primary-foreground"
             >
-              Launch Society <ArrowRight className="h-4 w-4 ml-2" />
+              {saving ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+              ) : (
+                <>Launch Society <ArrowRight className="h-4 w-4 ml-2" /></>
+              )}
             </Button>
           )}
         </div>
