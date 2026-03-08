@@ -661,6 +661,7 @@ export type Database = {
           approved_by: string | null
           created_at: string
           id: string
+          ownership_type: string | null
           parking_slot: string | null
           resident_id: string | null
           society_id: string
@@ -672,6 +673,7 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           id?: string
+          ownership_type?: string | null
           parking_slot?: string | null
           resident_id?: string | null
           society_id: string
@@ -683,6 +685,7 @@ export type Database = {
           approved_by?: string | null
           created_at?: string
           id?: string
+          ownership_type?: string | null
           parking_slot?: string | null
           resident_id?: string | null
           society_id?: string

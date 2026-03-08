@@ -18,6 +18,7 @@ interface Vehicle {
   vehicle_type: string | null;
   parking_slot: string | null;
   status: string;
+  ownership_type: string | null;
 }
 
 const MyVehicles = () => {
@@ -30,7 +31,7 @@ const MyVehicles = () => {
   const [residentId, setResidentId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "", parking_slot: "" });
+  const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "", vehicle_type_other: "", parking_slot: "", ownership_type: "self" });
 
   const fetchMyResident = useCallback(async () => {
     if (!user) return;
@@ -52,7 +53,7 @@ const MyVehicles = () => {
     setLoading(true);
     const { data } = await supabase
       .from("vehicles")
-      .select("id, vehicle_number, vehicle_type, parking_slot, status")
+      .select("id, vehicle_number, vehicle_type, parking_slot, status, ownership_type")
       .eq("resident_id", residentId);
     setVehicles(data || []);
     setLoading(false);
@@ -64,10 +65,12 @@ const MyVehicles = () => {
   const handleAdd = async () => {
     if (!form.vehicle_number || !residentId || !societyId) return;
     setSaving(true);
+    const vehicleType = form.vehicle_type === "other" ? (form.vehicle_type_other || "other") : (form.vehicle_type || null);
     const { error } = await supabase.from("vehicles").insert({
       vehicle_number: form.vehicle_number.toUpperCase(),
-      vehicle_type: form.vehicle_type || null,
+      vehicle_type: vehicleType,
       parking_slot: form.parking_slot || null,
+      ownership_type: form.ownership_type || "self",
       resident_id: residentId,
       society_id: societyId,
       status: "pending",
@@ -78,7 +81,7 @@ const MyVehicles = () => {
     } else {
       toast({ title: "Vehicle added", description: "Pending approval." });
       setDialogOpen(false);
-      setForm({ vehicle_number: "", vehicle_type: "", parking_slot: "" });
+      setForm({ vehicle_number: "", vehicle_type: "", vehicle_type_other: "", parking_slot: "", ownership_type: "self" });
       fetchVehicles();
     }
   };
@@ -115,6 +118,7 @@ const MyVehicles = () => {
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   {v.vehicle_type && <p className="capitalize">Type: {v.vehicle_type}</p>}
+                  {v.ownership_type && <p className="capitalize">Owner: {v.ownership_type}</p>}
                   {v.parking_slot && <p>Parking: {v.parking_slot}</p>}
                 </div>
               </Card>
@@ -130,12 +134,25 @@ const MyVehicles = () => {
             <div><Label>Vehicle Number *</Label><Input placeholder="e.g. MH01AB1234" value={form.vehicle_number} onChange={(e) => setForm({ ...form, vehicle_number: e.target.value })} /></div>
             <div>
               <Label>Vehicle Type</Label>
-              <Select value={form.vehicle_type} onValueChange={(v) => setForm({ ...form, vehicle_type: v })}>
+              <Select value={form.vehicle_type} onValueChange={(v) => setForm({ ...form, vehicle_type: v, vehicle_type_other: "" })}>
                 <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>
                   {["car", "bike", "scooter", "bicycle", "other"].map((t) => (
                     <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              {form.vehicle_type === "other" && (
+                <Input className="mt-2" placeholder="Specify vehicle type" value={form.vehicle_type_other} onChange={(e) => setForm({ ...form, vehicle_type_other: e.target.value })} />
+              )}
+            </div>
+            <div>
+              <Label>Ownership</Label>
+              <Select value={form.ownership_type} onValueChange={(v) => setForm({ ...form, ownership_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="self">Self</SelectItem>
+                  <SelectItem value="tenant">Tenant</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -30,7 +30,7 @@ const MyHelpers = () => {
   const [unitId, setUnitId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ name: "", phone: "", service_type: "" });
+  const [form, setForm] = useState({ name: "", phone: "", service_type: "", service_type_other: "" });
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
@@ -75,11 +75,11 @@ const MyHelpers = () => {
   const handleAdd = async () => {
     if (!form.name || !societyId) return;
     setSaving(true);
-    // Create helper then assign to unit
+    const serviceType = form.service_type === "other" ? (form.service_type_other || "other") : (form.service_type || null);
     const { data: newHelper, error } = await supabase.from("helpers").insert({
       name: form.name,
       phone: form.phone || null,
-      service_type: form.service_type || null,
+      service_type: serviceType,
       society_id: societyId,
       created_by: user?.id,
       status: "pending",
@@ -101,7 +101,7 @@ const MyHelpers = () => {
     setSaving(false);
     toast({ title: "Helper added", description: "Pending approval." });
     setDialogOpen(false);
-    setForm({ name: "", phone: "", service_type: "" });
+    setForm({ name: "", phone: "", service_type: "", service_type_other: "" });
     fetchHelpers();
   };
 
@@ -153,7 +153,7 @@ const MyHelpers = () => {
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div>
               <Label>Service Type</Label>
-              <Select value={form.service_type} onValueChange={(v) => setForm({ ...form, service_type: v })}>
+              <Select value={form.service_type} onValueChange={(v) => setForm({ ...form, service_type: v, service_type_other: "" })}>
                 <SelectTrigger><SelectValue placeholder="Select service" /></SelectTrigger>
                 <SelectContent>
                   {["maid", "cook", "driver", "gardener", "nanny", "other"].map((s) => (
@@ -161,6 +161,9 @@ const MyHelpers = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {form.service_type === "other" && (
+                <Input className="mt-2" placeholder="Specify service type" value={form.service_type_other} onChange={(e) => setForm({ ...form, service_type_other: e.target.value })} />
+              )}
             </div>
           </div>
           <DialogFooter>
