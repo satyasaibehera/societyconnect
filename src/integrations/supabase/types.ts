@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      approval_delegates: {
+        Row: {
+          created_at: string
+          delegate_id: string
+          id: string
+          is_active: boolean
+          owner_id: string
+          reason: string | null
+          unit_id: string
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          created_at?: string
+          delegate_id: string
+          id?: string
+          is_active?: boolean
+          owner_id: string
+          reason?: string | null
+          unit_id: string
+          valid_from?: string
+          valid_until: string
+        }
+        Update: {
+          created_at?: string
+          delegate_id?: string
+          id?: string
+          is_active?: boolean
+          owner_id?: string
+          reason?: string | null
+          unit_id?: string
+          valid_from?: string
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_delegates_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buildings: {
         Row: {
           created_at: string
@@ -917,6 +961,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_unit_approver: {
+        Args: { _unit_id: string; _user_id: string }
         Returns: boolean
       }
       is_unit_member: {
