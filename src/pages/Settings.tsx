@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UserPlus, Shield, Loader2, Pencil, Save, X } from "lucide-react";
+import { UserPlus, Shield, Loader2, Pencil, Save, X, Building2 } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +42,14 @@ const Settings = () => {
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const { isManagement } = useUserRole();
+
+  // Society settings
+  const [societyId, setSocietyId] = useState<string | null>(null);
+  const [tempPassHours, setTempPassHours] = useState(24);
+  const [editingSociety, setEditingSociety] = useState(false);
+  const [savingSociety, setSavingSociety] = useState(false);
+  const [societyLoading, setSocietyLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
@@ -95,6 +104,41 @@ const Settings = () => {
 
   useEffect(() => { fetchAdmins(); }, []);
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  // Fetch society settings
+  const fetchSocietySettings = useCallback(async () => {
+    setSocietyLoading(true);
+    // Find the society (first active one or the one the user created)
+    const { data } = await supabase
+      .from("societies")
+      .select("id, temp_pass_validity_hours")
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      setSocietyId(data.id);
+      setTempPassHours((data as any).temp_pass_validity_hours ?? 24);
+    }
+    setSocietyLoading(false);
+  }, []);
+
+  useEffect(() => { fetchSocietySettings(); }, [fetchSocietySettings]);
+
+  const handleSaveSociety = async () => {
+    if (!societyId) return;
+    setSavingSociety(true);
+    const { error } = await supabase
+      .from("societies")
+      .update({ temp_pass_validity_hours: tempPassHours } as any)
+      .eq("id", societyId);
+    setSavingSociety(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Society settings updated" });
+      setEditingSociety(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -159,6 +203,7 @@ const Settings = () => {
         <Tabs defaultValue="profile">
           <TabsList>
             <TabsTrigger value="profile">My Profile</TabsTrigger>
+            {isManagement && <TabsTrigger value="society">Society Config</TabsTrigger>}
             <TabsTrigger value="admins">Super Admins</TabsTrigger>
           </TabsList>
 
@@ -239,6 +284,66 @@ const Settings = () => {
               )}
             </Card>
           </TabsContent>
+
+          {isManagement && (
+            <TabsContent value="society" className="mt-6">
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    <h2 className="font-display font-semibold">Society Configuration</h2>
+                  </div>
+                  {!editingSociety ? (
+                    <Button variant="outline" size="sm" onClick={() => setEditingSociety(true)}>
+                      <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => setEditingSociety(false)}>
+                        <X className="mr-1 h-3.5 w-3.5" /> Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleSaveSociety} disabled={savingSociety}>
+                        {savingSociety ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {societyLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+                  </div>
+                ) : editingSociety ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Temporary Vehicle Pass Validity</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={168}
+                          value={tempPassHours}
+                          onChange={(e) => setTempPassHours(parseInt(e.target.value) || 24)}
+                          className="w-24"
+                        />
+                        <span className="text-sm text-muted-foreground">hours</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        How long a temporary vehicle pass remains valid. Common values: 12, 24, 48 hours.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-[200px_1fr] gap-2 text-sm">
+                      <span className="text-muted-foreground">Temp Pass Validity</span>
+                      <span className="font-medium">{tempPassHours} hours</span>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </TabsContent>
+          )}
 
           <TabsContent value="admins" className="mt-6 space-y-6">
             {/* Current Admins */}

@@ -68,6 +68,7 @@ const VehiclePasses = () => {
     vehicle_number: "", vehicle_type: "", unit_id: "", unit_label: "",
     visitor_name: "", visitor_phone: "", purpose: "",
   });
+  const [tempPassValidityHours, setTempPassValidityHours] = useState(24);
 
   // Owner context
   const [myUnitId, setMyUnitId] = useState<string | null>(null);
@@ -85,6 +86,13 @@ const VehiclePasses = () => {
     if (data) {
       setMyUnitId(data.unit_id);
       setSocietyId(data.society_id);
+      // Fetch society's temp pass validity config
+      const { data: society } = await supabase
+        .from("societies")
+        .select("temp_pass_validity_hours")
+        .eq("id", data.society_id)
+        .maybeSingle();
+      if (society) setTempPassValidityHours((society as any).temp_pass_validity_hours ?? 24);
     }
     // Also fetch society_id from other sources if security
     if (!data) {
@@ -152,7 +160,7 @@ const VehiclePasses = () => {
     setSaving(true);
 
     const validUntil = passType === "temporary"
-      ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      ? new Date(Date.now() + tempPassValidityHours * 60 * 60 * 1000).toISOString()
       : null;
 
     // If owner creates a temp pass for their own unit, it's pre-approved
@@ -485,7 +493,7 @@ const VehiclePasses = () => {
                 <div><Label>Visitor Phone</Label><Input value={form.visitor_phone} onChange={(e) => setForm({ ...form, visitor_phone: e.target.value })} /></div>
                 <div><Label>Purpose</Label><Input value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} /></div>
                 <p className="text-xs text-muted-foreground">
-                  ⏱ Valid for 24 hours. {myUnitId && form.unit_id === myUnitId ? "This will be pre-approved as you are the flat owner." : "Requires flat owner approval."}
+                  ⏱ Valid for {tempPassValidityHours} hours. {myUnitId && form.unit_id === myUnitId ? "This will be pre-approved as you are the flat owner." : "Requires flat owner approval."}
                 </p>
               </>
             )}

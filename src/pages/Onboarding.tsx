@@ -83,6 +83,7 @@ const Onboarding = () => {
   const [visitorApproval, setVisitorApproval] = useState("pre-approved");
   const [helperTracking, setHelperTracking] = useState(true);
   const [vehicleRegistration, setVehicleRegistration] = useState(true);
+  const [tempPassValidityHours, setTempPassValidityHours] = useState(24);
 
   const generateUnits = (building: Building) => {
     const units: string[] = [];
@@ -149,7 +150,8 @@ const Onboarding = () => {
           state,
           created_by: user.id,
           is_active: true,
-        })
+          temp_pass_validity_hours: tempPassValidityHours,
+        } as any)
         .select()
         .single();
 
@@ -427,6 +429,24 @@ const Onboarding = () => {
                 <p className="text-xs text-muted-foreground">Require all vehicles to be registered</p>
               </div>
               <Switch checked={vehicleRegistration} onCheckedChange={setVehicleRegistration} />
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label>Temporary Vehicle Pass Validity</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="number"
+                  min={1}
+                  max={168}
+                  value={tempPassValidityHours}
+                  onChange={(e) => setTempPassValidityHours(parseInt(e.target.value) || 24)}
+                  className="w-24"
+                />
+                <span className="text-sm text-muted-foreground">hours</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                How long a temporary vehicle pass remains valid (default: 24 hours). Can be changed later by admins.
+              </p>
             </div>
           </div>
         );
