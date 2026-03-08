@@ -328,6 +328,7 @@ const DigitalIds = () => {
                       <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
                       <p className={`text-sm ${colors.text} font-medium`}>
                         {colors.label}
+                        {selectedPerson.unitLabel && ` · ${selectedPerson.unitLabel}`}
                       </p>
                       {selectedPerson.phone && (
                         <p className="text-xs text-muted-foreground mt-1">{selectedPerson.phone}</p>
