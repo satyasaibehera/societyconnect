@@ -12,6 +12,7 @@ import { PlaceholderPage } from "./pages/PlaceholderPage";
 import Settings from "./pages/Settings";
 import Approvals from "./pages/Approvals";
 import Residents from "./pages/Residents";
+import Visitors from "./pages/Visitors";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,7 +31,7 @@ const App = () => (
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/approvals" element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
             <Route path="/residents" element={<ProtectedRoute><Residents /></ProtectedRoute>} />
-            <Route path="/visitors" element={<ProtectedRoute><PlaceholderPage title="Visitor Management" description="Generate visitor passes, approve entries, and track visits." /></ProtectedRoute>} />
+            <Route path="/visitors" element={<ProtectedRoute><Visitors /></ProtectedRoute>} />
             <Route path="/security" element={<ProtectedRoute><PlaceholderPage title="Security Staff" description="Manage security guards and gate access controls." /></ProtectedRoute>} />
             <Route path="/vehicles" element={<ProtectedRoute><PlaceholderPage title="Vehicle Registry" description="Register vehicles, assign parking slots, and manage passes." /></ProtectedRoute>} />
             <Route path="/helpers" element={<ProtectedRoute><PlaceholderPage title="Domestic Helpers" description="Track domestic helpers, assign units, and manage schedules." /></ProtectedRoute>} />
