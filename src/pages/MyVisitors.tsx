@@ -40,36 +40,19 @@ const MyVisitors = () => {
 
   const [form, setForm] = useState(emptyForm);
 
-  const fetchMyUnit = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("residents")
-      .select("unit_id, society_id, units!residents_unit_id_fkey(unit_number)")
-      .eq("user_id", user.id)
-      .eq("status", "approved")
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      setUnitId(data.unit_id);
-      setSocietyId(data.society_id);
-      setUnitLabel((data.units as any)?.unit_number ?? null);
-    }
-  }, [user]);
-
   const fetchVisitors = useCallback(async () => {
-    if (!unitId) return;
+    if (!myUnitId) return;
     setLoading(true);
     const { data } = await supabase
       .from("visitors")
       .select("id, name, phone, purpose, status, entry_time, exit_time, created_at")
-      .eq("visiting_unit_id", unitId)
+      .eq("visiting_unit_id", myUnitId)
       .order("created_at", { ascending: false });
     setVisitors(data || []);
     setLoading(false);
-  }, [unitId]);
+  }, [myUnitId]);
 
-  useEffect(() => { fetchMyUnit(); }, [fetchMyUnit]);
-  useEffect(() => { if (unitId) fetchVisitors(); }, [unitId, fetchVisitors]);
+  useEffect(() => { if (myUnitId) fetchVisitors(); }, [myUnitId, fetchVisitors]);
 
   const openAdd = () => {
     setEditingVisitor(null);
@@ -102,12 +85,12 @@ const MyVisitors = () => {
         fetchVisitors();
       }
     } else {
-      if (!unitId || !societyId) { setSaving(false); return; }
+      if (!myUnitId || !societyId) { setSaving(false); return; }
       const { error } = await supabase.from("visitors").insert({
         name: form.name,
         phone: form.phone || null,
         purpose: form.purpose || null,
-        visiting_unit_id: unitId,
+        visiting_unit_id: myUnitId,
         visiting_unit_label: unitLabel,
         society_id: societyId,
         created_by: user?.id,
@@ -122,6 +105,21 @@ const MyVisitors = () => {
         setForm(emptyForm);
         fetchVisitors();
       }
+    }
+  };
+
+  const handleVisitorApproval = async (visitorId: string, approved: boolean) => {
+    setActionLoading(visitorId);
+    const { error } = await supabase.from("visitors").update({
+      status: approved ? "approved" : "rejected",
+      approved_by: user?.id,
+    }).eq("id", visitorId);
+    setActionLoading(null);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: approved ? "Visitor approved" : "Visitor rejected" });
+      fetchVisitors();
     }
   };
 
@@ -167,9 +165,28 @@ const MyVisitors = () => {
                   {v.entry_time && <p className="text-green-600">Entry: {format(new Date(v.entry_time), "hh:mm a")}</p>}
                   {v.exit_time && <p className="text-red-600">Exit: {format(new Date(v.exit_time), "hh:mm a")}</p>}
                 </div>
-                <div className="pt-1">{statusBadge(v.status)}</div>
+                <div className="flex items-center justify-between pt-1">
+                  {statusBadge(v.status)}
+                  {v.status === "pending" && canApproveForUnit(myUnitId) && (
+                    <div className="flex gap-1">
+                      <Button size="sm" className="h-7 px-2 text-xs bg-green-600 hover:bg-green-700 text-white" disabled={actionLoading === v.id} onClick={() => handleVisitorApproval(v.id, true)}>
+                        {actionLoading === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Check className="h-3 w-3 mr-1" />Approve</>}
+                      </Button>
+                      <Button size="sm" variant="destructive" className="h-7 px-2 text-xs" disabled={actionLoading === v.id} onClick={() => handleVisitorApproval(v.id, false)}>
+                        <X className="h-3 w-3 mr-1" />Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* Delegation Management - only for owners */}
+        {isOwner && myUnitId && (
+          <div className="pt-4 border-t">
+            <DelegateManager unitId={myUnitId} />
           </div>
         )}
       </div>
