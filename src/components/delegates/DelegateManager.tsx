@@ -71,14 +71,16 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
 
   const fetchResidents = useCallback(async () => {
     if (!user) return;
+    // Fetch all approved residents in the unit (excluding current user by user_id if set)
     const { data } = await supabase
       .from("residents")
       .select("id, user_id, full_name, resident_type")
       .eq("unit_id", unitId)
-      .eq("status", "approved")
-      .neq("user_id", user.id);
+      .eq("status", "approved");
 
-    setResidents((data || []).filter((r: any) => r.user_id) as UnitResident[]);
+    // Filter out self - keep residents with or without user_id
+    const filtered = (data || []).filter((r: any) => r.user_id !== user.id);
+    setResidents(filtered as UnitResident[]);
   }, [unitId, user]);
 
   useEffect(() => { fetchDelegates(); fetchResidents(); }, [fetchDelegates, fetchResidents]);
