@@ -130,7 +130,20 @@ export function AppSidebar() {
         {renderGroup("System", systemItems)}
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-2">
+        {!collapsed && (
+          <div className="rounded-lg bg-primary/10 border border-primary/20 p-3">
+            <p className="text-xs text-sidebar-foreground/70">
+              New resident?
+            </p>
+            <NavLink
+              to="/register-resident"
+              className="mt-1 text-xs font-medium text-primary hover:underline"
+            >
+              Register for Your Flat →
+            </NavLink>
+          </div>
+        )}
         {!collapsed && (
           <div className="rounded-lg bg-sidebar-accent p-3">
             <p className="text-xs text-sidebar-foreground/70">
