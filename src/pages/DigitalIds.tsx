@@ -16,6 +16,7 @@ interface Person {
   name: string;
   phone: string | null;
   category: ColorKey;
+  unitLabel?: string | null;
 }
 
 type ColorKey = "resident" | "tenant" | "helper" | "visitor" | "security" | "office_bearer";
@@ -47,12 +48,13 @@ const DigitalIds = () => {
     // Residents (owners, tenants, family → mapped to resident/tenant)
     const { data: residents } = await supabase
       .from("residents")
-      .select("id, full_name, phone, resident_type")
+      .select("id, full_name, phone, resident_type, unit_id, units!residents_unit_id_fkey(unit_number)")
       .eq("status", "approved");
     residents?.forEach((r) => {
       let category: ColorKey = "resident";
       if (r.resident_type === "tenant") category = "tenant";
-      persons.push({ id: r.id, name: r.full_name, phone: r.phone, category });
+      const unitLabel = (r.units as any)?.unit_number ?? null;
+      persons.push({ id: r.id, name: r.full_name, phone: r.phone, category, unitLabel });
     });
 
     // Security staff
@@ -75,10 +77,10 @@ const DigitalIds = () => {
     // Visitors (approved)
     const { data: visitors } = await supabase
       .from("visitors")
-      .select("id, name, phone")
+      .select("id, name, phone, visiting_unit_label")
       .eq("status", "approved");
     visitors?.forEach((v) =>
-      persons.push({ id: v.id, name: v.name, phone: v.phone, category: "visitor" })
+      persons.push({ id: v.id, name: v.name, phone: v.phone, category: "visitor", unitLabel: v.visiting_unit_label })
     );
 
     setPeople(persons);
@@ -87,9 +89,11 @@ const DigitalIds = () => {
 
   useEffect(() => { fetchPeople(); }, [fetchPeople]);
 
+  const searchLower = search.toLowerCase();
   const filtered = people.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.phone?.includes(search) ?? false)
+    p.name.toLowerCase().includes(searchLower) ||
+    (p.phone?.includes(search) ?? false) ||
+    (p.unitLabel?.toLowerCase().includes(searchLower) ?? false)
   );
 
   const byCategory = (key: ColorKey) => filtered.filter((p) => p.category === key);
@@ -196,6 +200,7 @@ const DigitalIds = () => {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{person.name}</p>
             <p className="text-xs text-muted-foreground">
+              {person.unitLabel && <span className="font-medium">{person.unitLabel} · </span>}
               {person.phone || "No phone"}
             </p>
           </div>
@@ -230,7 +235,7 @@ const DigitalIds = () => {
         {/* Search */}
         <div className="relative sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name or phone..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="Search by name, phone, or unit number..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
 
         {loading ? (
