@@ -19,6 +19,22 @@ interface Person {
   subtype?: string;
 }
 
+type ColorKey = "owner" | "tenant" | "family_member" | "security";
+
+const colorConfig: Record<ColorKey, { bg: string; text: string; border: string; hex: string; label: string }> = {
+  owner:         { bg: "bg-primary/10",     text: "text-primary",     border: "border-primary/40",     hex: "#4f46e5", label: "Owner" },
+  tenant:        { bg: "bg-accent/10",      text: "text-accent",      border: "border-accent/40",      hex: "#0d9488", label: "Tenant" },
+  family_member: { bg: "bg-warning/10",     text: "text-warning",     border: "border-warning/40",     hex: "#d97706", label: "Family" },
+  security:      { bg: "bg-destructive/10", text: "text-destructive", border: "border-destructive/40", hex: "#dc2626", label: "Security" },
+};
+
+const getColorKey = (person: Person): ColorKey => {
+  if (person.type === "security") return "security";
+  if (person.subtype === "tenant") return "tenant";
+  if (person.subtype === "family_member") return "family_member";
+  return "owner";
+};
+
 const DigitalIds = () => {
   const { toast } = useToast();
   const [people, setPeople] = useState<Person[]>([]);
