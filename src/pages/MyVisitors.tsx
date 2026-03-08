@@ -30,14 +30,13 @@ const emptyForm = { name: "", phone: "", purpose: "" };
 const MyVisitors = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { myUnitId, societyId, unitLabel, isOwner, canApproveForUnit } = useUnitApprover();
   const [visitors, setVisitors] = useState<Visitor[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [unitId, setUnitId] = useState<string | null>(null);
-  const [unitLabel, setUnitLabel] = useState<string | null>(null);
-  const [societyId, setSocietyId] = useState<string | null>(null);
   const [editingVisitor, setEditingVisitor] = useState<Visitor | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [form, setForm] = useState(emptyForm);
 
