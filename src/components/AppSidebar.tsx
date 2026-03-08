@@ -4,6 +4,7 @@ import {
   UserCheck,
   Shield,
   Car,
+  Ticket,
   QrCode,
   Bell,
   ClipboardList,
