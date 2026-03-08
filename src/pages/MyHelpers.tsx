@@ -153,7 +153,7 @@ const MyHelpers = () => {
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div>
               <Label>Service Type</Label>
-              <Select value={form.service_type} onValueChange={(v) => setForm({ ...form, service_type: v })}>
+              <Select value={form.service_type} onValueChange={(v) => setForm({ ...form, service_type: v, service_type_other: "" })}>
                 <SelectTrigger><SelectValue placeholder="Select service" /></SelectTrigger>
                 <SelectContent>
                   {["maid", "cook", "driver", "gardener", "nanny", "other"].map((s) => (
@@ -161,6 +161,9 @@ const MyHelpers = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {form.service_type === "other" && (
+                <Input className="mt-2" placeholder="Specify service type" value={form.service_type_other} onChange={(e) => setForm({ ...form, service_type_other: e.target.value })} />
+              )}
             </div>
           </div>
           <DialogFooter>

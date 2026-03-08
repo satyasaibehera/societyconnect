@@ -149,7 +149,7 @@ const MyFamily = () => {
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div>
               <Label>Relationship</Label>
-              <Select value={form.relationship} onValueChange={(v) => setForm({ ...form, relationship: v })}>
+              <Select value={form.relationship} onValueChange={(v) => setForm({ ...form, relationship: v, relationship_other: "" })}>
                 <SelectTrigger><SelectValue placeholder="Select relationship" /></SelectTrigger>
                 <SelectContent>
                   {["spouse", "child", "parent", "sibling", "other"].map((r) => (
@@ -157,6 +157,9 @@ const MyFamily = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {form.relationship === "other" && (
+                <Input className="mt-2" placeholder="Specify relationship" value={form.relationship_other} onChange={(e) => setForm({ ...form, relationship_other: e.target.value })} />
+              )}
             </div>
             <div><Label>Date of Birth</Label><Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} /></div>
             <div>

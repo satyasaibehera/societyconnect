@@ -134,12 +134,25 @@ const MyVehicles = () => {
             <div><Label>Vehicle Number *</Label><Input placeholder="e.g. MH01AB1234" value={form.vehicle_number} onChange={(e) => setForm({ ...form, vehicle_number: e.target.value })} /></div>
             <div>
               <Label>Vehicle Type</Label>
-              <Select value={form.vehicle_type} onValueChange={(v) => setForm({ ...form, vehicle_type: v })}>
+              <Select value={form.vehicle_type} onValueChange={(v) => setForm({ ...form, vehicle_type: v, vehicle_type_other: "" })}>
                 <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>
                   {["car", "bike", "scooter", "bicycle", "other"].map((t) => (
                     <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              {form.vehicle_type === "other" && (
+                <Input className="mt-2" placeholder="Specify vehicle type" value={form.vehicle_type_other} onChange={(e) => setForm({ ...form, vehicle_type_other: e.target.value })} />
+              )}
+            </div>
+            <div>
+              <Label>Ownership</Label>
+              <Select value={form.ownership_type} onValueChange={(v) => setForm({ ...form, ownership_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="self">Self</SelectItem>
+                  <SelectItem value="tenant">Tenant</SelectItem>
                 </SelectContent>
               </Select>
             </div>
