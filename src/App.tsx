@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,7 +38,7 @@ const App = () => (
             <Route path="/resolutions" element={<ProtectedRoute><PlaceholderPage title="Resolutions" description="Record and manage society resolutions and decisions." /></ProtectedRoute>} />
             <Route path="/digital-ids" element={<ProtectedRoute><PlaceholderPage title="Digital IDs" description="Generate QR-based digital ID cards for residents and staff." /></ProtectedRoute>} />
             <Route path="/emergency" element={<ProtectedRoute><PlaceholderPage title="Emergency Alerts" description="Send and manage emergency alerts across the society." /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><PlaceholderPage title="Settings" description="Configure society settings, roles, and preferences." /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
