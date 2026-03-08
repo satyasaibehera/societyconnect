@@ -285,6 +285,66 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
+          {isManagement && (
+            <TabsContent value="society" className="mt-6">
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    <h2 className="font-display font-semibold">Society Configuration</h2>
+                  </div>
+                  {!editingSociety ? (
+                    <Button variant="outline" size="sm" onClick={() => setEditingSociety(true)}>
+                      <Pencil className="mr-2 h-3.5 w-3.5" /> Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => setEditingSociety(false)}>
+                        <X className="mr-1 h-3.5 w-3.5" /> Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleSaveSociety} disabled={savingSociety}>
+                        {savingSociety ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
+                        Save
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {societyLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading...
+                  </div>
+                ) : editingSociety ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Temporary Vehicle Pass Validity</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={168}
+                          value={tempPassHours}
+                          onChange={(e) => setTempPassHours(parseInt(e.target.value) || 24)}
+                          className="w-24"
+                        />
+                        <span className="text-sm text-muted-foreground">hours</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        How long a temporary vehicle pass remains valid. Common values: 12, 24, 48 hours.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-[200px_1fr] gap-2 text-sm">
+                      <span className="text-muted-foreground">Temp Pass Validity</span>
+                      <span className="font-medium">{tempPassHours} hours</span>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            </TabsContent>
+          )}
+
           <TabsContent value="admins" className="mt-6 space-y-6">
             {/* Current Admins */}
             <Card className="p-6">
