@@ -4,10 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, Plus, Loader2, UserPlus, Phone, Calendar } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Users, Plus, Loader2, UserPlus, Phone, Calendar, ArrowRightLeft, Crown, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -28,9 +29,13 @@ const MyFamily = () => {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferTargetId, setTransferTargetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [unitId, setUnitId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
+  const [myResidentId, setMyResidentId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -45,7 +50,7 @@ const MyFamily = () => {
     if (!user) return;
     const { data } = await supabase
       .from("residents")
-      .select("unit_id, society_id")
+      .select("id, unit_id, society_id, resident_type")
       .eq("user_id", user.id)
       .eq("status", "approved")
       .limit(1)
@@ -53,6 +58,8 @@ const MyFamily = () => {
     if (data) {
       setUnitId(data.unit_id);
       setSocietyId(data.society_id);
+      setMyResidentId(data.id);
+      setIsOwner(data.resident_type === "owner");
     }
   }, [user]);
 
@@ -95,6 +102,27 @@ const MyFamily = () => {
     }
   };
 
+  const handleTransfer = async () => {
+    if (!transferTargetId || !myResidentId || !user) return;
+    setSaving(true);
+    const { error } = await supabase.rpc("transfer_ownership", {
+      _current_owner_id: myResidentId,
+      _new_owner_id: transferTargetId,
+      _invoker_user_id: user.id,
+    });
+    setSaving(false);
+    if (error) {
+      toast({ title: "Transfer failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Ownership transferred!", description: "You are now a regular resident." });
+      setTransferDialogOpen(false);
+      setTransferTargetId(null);
+      setIsOwner(false);
+      fetchMembers();
+      fetchMyUnit();
+    }
+  };
+
   const typeBadge = (type: string) => {
     const map: Record<string, string> = { owner: "bg-primary", tenant: "bg-id-tenant", family: "bg-id-resident" };
     return <Badge className={`${map[type] || "bg-muted"} text-white text-[10px]`}>{type}</Badge>;
@@ -125,9 +153,12 @@ const MyFamily = () => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {members.map((m) => (
-              <Card key={m.id} className="p-4 space-y-2">
+              <Card key={m.id} className={`p-4 space-y-2 ${m.resident_type === "owner" ? "border-primary/40" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-sm">{m.full_name}</p>
+                  <div className="flex items-center gap-1.5">
+                    {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary" />}
+                    <p className="font-medium text-sm">{m.full_name}</p>
+                  </div>
                   <div className="flex gap-1">{typeBadge(m.resident_type)} {statusBadge(m.status)}</div>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
@@ -135,6 +166,16 @@ const MyFamily = () => {
                   {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                   {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
                 </div>
+                {isOwner && m.resident_type !== "owner" && m.status === "approved" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs mt-2"
+                    onClick={() => { setTransferTargetId(m.id); setTransferDialogOpen(true); }}
+                  >
+                    <ArrowRightLeft className="mr-1.5 h-3 w-3" /> Transfer Ownership
+                  </Button>
+                )}
               </Card>
             ))}
           </div>
@@ -176,6 +217,30 @@ const MyFamily = () => {
           <DialogFooter>
             <Button onClick={handleAdd} disabled={saving || !form.full_name}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Member
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Ownership Dialog */}
+      <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transfer Ownership</DialogTitle>
+            <DialogDescription>
+              This action will transfer flat ownership to the selected member. You will become a regular resident and lose owner privileges (including voting rights).
+            </DialogDescription>
+          </DialogHeader>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              This action cannot be undone by you. Only the new owner or an admin can reverse this.
+            </AlertDescription>
+          </Alert>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setTransferDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleTransfer} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Confirm Transfer
             </Button>
           </DialogFooter>
         </DialogContent>

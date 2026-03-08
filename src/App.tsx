@@ -28,6 +28,7 @@ import MyVisitors from "./pages/MyVisitors";
 import MyHelpers from "./pages/MyHelpers";
 import MyVehicles from "./pages/MyVehicles";
 import MyTenants from "./pages/MyTenants";
+import RegisterResident from "./pages/RegisterResident";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+            <Route path="/register-resident" element={<ProtectedRoute><RegisterResident /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/approvals" element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
             <Route path="/residents" element={<ProtectedRoute><Residents /></ProtectedRoute>} />
