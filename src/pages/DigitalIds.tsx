@@ -220,36 +220,44 @@ const DigitalIds = () => {
           <DialogHeader>
             <DialogTitle className="font-display">Digital ID Card</DialogTitle>
           </DialogHeader>
-          {selectedPerson && (
-            <div className="flex flex-col items-center space-y-4 pt-2">
-              <div ref={qrRef} className="bg-card rounded-xl p-6 border shadow-sm w-full flex flex-col items-center">
-                <QRCodeSVG
-                  value={qrPayload(selectedPerson)}
-                  size={200}
-                  level="H"
-                  includeMargin
-                  bgColor="transparent"
-                />
-                <div className="text-center mt-4">
-                  <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
-                  <p className="text-sm text-muted-foreground capitalize">
-                    {selectedPerson.type === "resident"
-                      ? `Resident · ${selectedPerson.subtype?.replace("_", " ") || "Owner"}`
-                      : "Security Staff"}
-                  </p>
-                  {selectedPerson.phone && (
-                    <p className="text-xs text-muted-foreground mt-1">{selectedPerson.phone}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">
-                    ID: {selectedPerson.id.slice(0, 8)}
-                  </p>
+          {selectedPerson && (() => {
+            const ck = getColorKey(selectedPerson);
+            const colors = colorConfig[ck];
+            return (
+              <div className="flex flex-col items-center space-y-4 pt-2">
+                <div ref={qrRef} className={`rounded-xl p-6 border-2 ${colors.border} shadow-sm w-full flex flex-col items-center`}>
+                  <div className={`px-3 py-1 rounded-full ${colors.bg} ${colors.text} text-xs font-semibold uppercase tracking-wider mb-4`}>
+                    {colors.label}
+                  </div>
+                  <QRCodeSVG
+                    value={qrPayload(selectedPerson)}
+                    size={200}
+                    level="H"
+                    includeMargin
+                    bgColor="transparent"
+                    fgColor={colors.hex}
+                  />
+                  <div className="text-center mt-4">
+                    <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
+                    <p className={`text-sm capitalize ${colors.text}`}>
+                      {selectedPerson.type === "resident"
+                        ? `Resident · ${selectedPerson.subtype?.replace("_", " ") || "Owner"}`
+                        : "Security Staff"}
+                    </p>
+                    {selectedPerson.phone && (
+                      <p className="text-xs text-muted-foreground mt-1">{selectedPerson.phone}</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">
+                      ID: {selectedPerson.id.slice(0, 8)}
+                    </p>
+                  </div>
                 </div>
+                <Button onClick={handleDownload} className="w-full gradient-primary text-primary-foreground">
+                  <Download className="mr-2 h-4 w-4" /> Download ID Card
+                </Button>
               </div>
-              <Button onClick={handleDownload} className="w-full gradient-primary text-primary-foreground">
-                <Download className="mr-2 h-4 w-4" /> Download ID Card
-              </Button>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
