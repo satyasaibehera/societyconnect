@@ -203,6 +203,7 @@ const Settings = () => {
         <Tabs defaultValue="profile">
           <TabsList>
             <TabsTrigger value="profile">My Profile</TabsTrigger>
+            {isManagement && <TabsTrigger value="society">Society Config</TabsTrigger>}
             <TabsTrigger value="admins">Super Admins</TabsTrigger>
           </TabsList>
 
