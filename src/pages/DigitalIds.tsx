@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { QrCode, Search, Download, Users, Shield, Loader2 } from "lucide-react";
+import { QrCode, Search, Download, Users, Shield, Loader2, Briefcase, Home, Eye } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -15,25 +15,22 @@ interface Person {
   id: string;
   name: string;
   phone: string | null;
-  type: "resident" | "security";
-  subtype?: string;
+  category: ColorKey;
 }
 
-type ColorKey = "owner" | "tenant" | "family_member" | "security";
+type ColorKey = "resident" | "tenant" | "helper" | "visitor" | "security" | "office_bearer";
 
-const colorConfig: Record<ColorKey, { bg: string; text: string; border: string; hex: string; label: string }> = {
-  owner:         { bg: "bg-primary/10",     text: "text-primary",     border: "border-primary/40",     hex: "#4f46e5", label: "Owner" },
-  tenant:        { bg: "bg-accent/10",      text: "text-accent",      border: "border-accent/40",      hex: "#0d9488", label: "Tenant" },
-  family_member: { bg: "bg-warning/10",     text: "text-warning",     border: "border-warning/40",     hex: "#d97706", label: "Family" },
-  security:      { bg: "bg-destructive/10", text: "text-destructive", border: "border-destructive/40", hex: "#dc2626", label: "Security" },
+const colorConfig: Record<ColorKey, { tw: string; hex: string; label: string }> = {
+  resident:       { tw: "id-resident",       hex: "#3b82f6", label: "Resident" },
+  tenant:         { tw: "id-tenant",         hex: "#8b5cf6", label: "Tenant" },
+  helper:         { tw: "id-helper",         hex: "#eab308", label: "Domestic Helper" },
+  visitor:        { tw: "id-visitor",        hex: "#f97316", label: "Visitor" },
+  security:       { tw: "id-security",       hex: "#6b7280", label: "Security Guard" },
+  office_bearer:  { tw: "id-office-bearer",  hex: "#eab308", label: "Office Bearer" },
 };
 
-const getColorKey = (person: Person): ColorKey => {
-  if (person.type === "security") return "security";
-  if (person.subtype === "tenant") return "tenant";
-  if (person.subtype === "family_member") return "family_member";
-  return "owner";
-};
+// Override office bearer hex to gold
+colorConfig.office_bearer.hex = "#d4a017";
 
 const DigitalIds = () => {
   const { toast } = useToast();
@@ -47,19 +44,41 @@ const DigitalIds = () => {
     setLoading(true);
     const persons: Person[] = [];
 
+    // Residents (owners, tenants, family → mapped to resident/tenant)
     const { data: residents } = await supabase
       .from("residents")
       .select("id, full_name, phone, resident_type")
       .eq("status", "approved");
-    residents?.forEach((r) =>
-      persons.push({ id: r.id, name: r.full_name, phone: r.phone, type: "resident", subtype: r.resident_type })
-    );
+    residents?.forEach((r) => {
+      let category: ColorKey = "resident";
+      if (r.resident_type === "tenant") category = "tenant";
+      persons.push({ id: r.id, name: r.full_name, phone: r.phone, category });
+    });
 
+    // Security staff
     const { data: staff } = await supabase
       .from("security_staff")
       .select("id, name, phone");
     staff?.forEach((s) =>
-      persons.push({ id: s.id, name: s.name, phone: s.phone, type: "security" })
+      persons.push({ id: s.id, name: s.name, phone: s.phone, category: "security" })
+    );
+
+    // Helpers
+    const { data: helpers } = await supabase
+      .from("helpers")
+      .select("id, name, phone")
+      .eq("status", "approved");
+    helpers?.forEach((h) =>
+      persons.push({ id: h.id, name: h.name, phone: h.phone, category: "helper" })
+    );
+
+    // Visitors (approved)
+    const { data: visitors } = await supabase
+      .from("visitors")
+      .select("id, name, phone")
+      .eq("status", "approved");
+    visitors?.forEach((v) =>
+      persons.push({ id: v.id, name: v.name, phone: v.phone, category: "visitor" })
     );
 
     setPeople(persons);
@@ -73,20 +92,17 @@ const DigitalIds = () => {
     (p.phone?.includes(search) ?? false)
   );
 
-  const residents = filtered.filter((p) => p.type === "resident");
-  const security = filtered.filter((p) => p.type === "security");
+  const byCategory = (key: ColorKey) => filtered.filter((p) => p.category === key);
 
   const qrPayload = (person: Person) =>
-    JSON.stringify({ id: person.id, name: person.name, type: person.type, ts: Date.now() });
+    JSON.stringify({ id: person.id, name: person.name, type: person.category, ts: Date.now() });
 
   const handleDownload = () => {
     if (!qrRef.current || !selectedPerson) return;
     const svg = qrRef.current.querySelector("svg");
     if (!svg) return;
 
-    const ck = getColorKey(selectedPerson);
-    const colors = colorConfig[ck];
-
+    const colors = colorConfig[selectedPerson.category];
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     const svgData = new XMLSerializer().serializeToString(svg);
@@ -99,26 +115,25 @@ const DigitalIds = () => {
       canvas.height = 520;
       if (!ctx) return;
 
-      // White background
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, 400, 520);
 
-      // Color band at top
+      // Top color band
       ctx.fillStyle = colors.hex;
       ctx.fillRect(0, 0, 400, 8);
 
-      // Role badge
+      // Role label header
       ctx.fillStyle = colors.hex;
-      ctx.font = "bold 12px sans-serif";
+      ctx.font = "bold 13px sans-serif";
       ctx.textAlign = "center";
       const badgeText = colors.label.toUpperCase();
-      const badgeWidth = ctx.measureText(badgeText).width + 24;
+      const badgeWidth = ctx.measureText(badgeText).width + 28;
       const badgeX = (400 - badgeWidth) / 2;
       ctx.beginPath();
-      ctx.roundRect(badgeX, 20, badgeWidth, 24, 12);
+      ctx.roundRect(badgeX, 18, badgeWidth, 26, 13);
       ctx.fill();
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(badgeText, 200, 37);
+      ctx.fillText(badgeText, 200, 36);
 
       // QR code
       ctx.drawImage(img, 50, 56, 300, 300);
@@ -129,15 +144,10 @@ const DigitalIds = () => {
       ctx.textAlign = "center";
       ctx.fillText(selectedPerson.name, 200, 390);
 
-      // Subtype
+      // Category
       ctx.font = "14px sans-serif";
       ctx.fillStyle = colors.hex;
-      ctx.fillText(
-        selectedPerson.type === "resident"
-          ? `Resident · ${selectedPerson.subtype?.replace("_", " ") || "Owner"}`
-          : "Security Staff",
-        200, 415
-      );
+      ctx.fillText(colors.label, 200, 415);
 
       if (selectedPerson.phone) {
         ctx.fillStyle = "#666";
@@ -163,50 +173,58 @@ const DigitalIds = () => {
   };
 
   const renderCard = (person: Person) => {
-    const ck = getColorKey(person);
-    const colors = colorConfig[ck];
+    const colors = colorConfig[person.category];
     return (
       <Card
         key={person.id}
-        className={`p-4 cursor-pointer transition-colors border-l-4 ${colors.border} hover:shadow-md`}
+        className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 border-${colors.tw} relative overflow-hidden`}
         onClick={() => setSelectedPerson(person)}
       >
-        <div className="flex items-center gap-3">
-          <div className={`h-10 w-10 rounded-lg ${colors.bg} flex items-center justify-center shrink-0`}>
-            <QrCode className={`h-5 w-5 ${colors.text}`} />
+        {/* Color label header */}
+        <div
+          className={`absolute top-0 left-0 right-0 h-7 bg-${colors.tw} flex items-center justify-center`}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white">
+            {colors.label}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 mt-7">
+          <div className={`h-10 w-10 rounded-lg bg-${colors.tw}/10 flex items-center justify-center shrink-0`}>
+            <QrCode className={`h-5 w-5 text-${colors.tw}`} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{person.name}</p>
             <p className="text-xs text-muted-foreground">
-              {person.type === "resident" ? person.subtype?.replace("_", " ") || "Owner" : "Security Staff"}
-              {person.phone && ` · ${person.phone}`}
+              {person.phone || "No phone"}
             </p>
           </div>
-          <Badge variant="outline" className={`text-[10px] capitalize shrink-0 ${colors.text} ${colors.border}`}>
-            {colors.label}
-          </Badge>
         </div>
       </Card>
     );
   };
 
+  const tabData: { key: ColorKey; icon: React.ReactNode }[] = [
+    { key: "resident", icon: <Home className="mr-1.5 h-4 w-4" /> },
+    { key: "tenant", icon: <Users className="mr-1.5 h-4 w-4" /> },
+    { key: "helper", icon: <Briefcase className="mr-1.5 h-4 w-4" /> },
+    { key: "visitor", icon: <Eye className="mr-1.5 h-4 w-4" /> },
+    { key: "security", icon: <Shield className="mr-1.5 h-4 w-4" /> },
+  ];
+
   return (
     <DashboardLayout title="Digital IDs">
       <div className="space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <Card className="p-4 text-center">
-            <p className="text-2xl font-bold font-display">{people.length}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total IDs</p>
-          </Card>
-          <Card className="p-4 text-center">
-            <p className="text-2xl font-bold font-display text-primary">{people.filter((p) => p.type === "resident").length}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Residents</p>
-          </Card>
-          <Card className="p-4 text-center">
-            <p className="text-2xl font-bold font-display text-accent">{people.filter((p) => p.type === "security").length}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Security</p>
-          </Card>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          {(Object.keys(colorConfig) as ColorKey[]).map((key) => (
+            <Card key={key} className={`p-3 text-center border-t-4 border-${colorConfig[key].tw}`}>
+              <p className={`text-2xl font-bold font-display text-${colorConfig[key].tw}`}>
+                {people.filter((p) => p.category === key).length}
+              </p>
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{colorConfig[key].label}</p>
+            </Card>
+          ))}
         </div>
 
         {/* Search */}
@@ -220,28 +238,26 @@ const DigitalIds = () => {
         ) : people.length === 0 ? (
           <Card className="p-12 text-center text-muted-foreground">
             <QrCode className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No approved residents or security staff to generate IDs for.</p>
+            <p className="text-sm">No approved people to generate IDs for.</p>
           </Card>
         ) : (
-          <Tabs defaultValue="residents">
-            <TabsList>
-              <TabsTrigger value="residents"><Users className="mr-1.5 h-4 w-4" /> Residents ({residents.length})</TabsTrigger>
-              <TabsTrigger value="security"><Shield className="mr-1.5 h-4 w-4" /> Security ({security.length})</TabsTrigger>
+          <Tabs defaultValue="resident">
+            <TabsList className="flex-wrap h-auto gap-1">
+              {tabData.map(({ key, icon }) => (
+                <TabsTrigger key={key} value={key} className="text-xs">
+                  {icon} {colorConfig[key].label} ({byCategory(key).length})
+                </TabsTrigger>
+              ))}
             </TabsList>
-            <TabsContent value="residents" className="mt-4">
-              {residents.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No residents match your search.</p>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{residents.map(renderCard)}</div>
-              )}
-            </TabsContent>
-            <TabsContent value="security" className="mt-4">
-              {security.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No security staff match your search.</p>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{security.map(renderCard)}</div>
-              )}
-            </TabsContent>
+            {tabData.map(({ key }) => (
+              <TabsContent key={key} value={key} className="mt-4">
+                {byCategory(key).length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-8 text-center">No {colorConfig[key].label.toLowerCase()}s found.</p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{byCategory(key).map(renderCard)}</div>
+                )}
+              </TabsContent>
+            ))}
           </Tabs>
         )}
       </div>
@@ -253,35 +269,41 @@ const DigitalIds = () => {
             <DialogTitle className="font-display">Digital ID Card</DialogTitle>
           </DialogHeader>
           {selectedPerson && (() => {
-            const ck = getColorKey(selectedPerson);
-            const colors = colorConfig[ck];
+            const colors = colorConfig[selectedPerson.category];
             return (
               <div className="flex flex-col items-center space-y-4 pt-2">
-                <div ref={qrRef} className={`rounded-xl p-6 border-2 ${colors.border} shadow-sm w-full flex flex-col items-center`}>
-                  <div className={`px-3 py-1 rounded-full ${colors.bg} ${colors.text} text-xs font-semibold uppercase tracking-wider mb-4`}>
-                    {colors.label}
+                <div
+                  ref={qrRef}
+                  className={`rounded-xl border-2 border-${colors.tw} shadow-sm w-full flex flex-col items-center overflow-hidden`}
+                >
+                  {/* Prominent color header */}
+                  <div className={`w-full py-2 bg-${colors.tw} flex items-center justify-center`}>
+                    <span className="text-xs font-bold uppercase tracking-widest text-white">
+                      {colors.label}
+                    </span>
                   </div>
-                  <QRCodeSVG
-                    value={qrPayload(selectedPerson)}
-                    size={200}
-                    level="H"
-                    includeMargin
-                    bgColor="transparent"
-                    fgColor={colors.hex}
-                  />
-                  <div className="text-center mt-4">
-                    <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
-                    <p className={`text-sm capitalize ${colors.text}`}>
-                      {selectedPerson.type === "resident"
-                        ? `Resident · ${selectedPerson.subtype?.replace("_", " ") || "Owner"}`
-                        : "Security Staff"}
-                    </p>
-                    {selectedPerson.phone && (
-                      <p className="text-xs text-muted-foreground mt-1">{selectedPerson.phone}</p>
-                    )}
-                    <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">
-                      ID: {selectedPerson.id.slice(0, 8)}
-                    </p>
+
+                  <div className="p-6 flex flex-col items-center">
+                    <QRCodeSVG
+                      value={qrPayload(selectedPerson)}
+                      size={200}
+                      level="H"
+                      includeMargin
+                      bgColor="transparent"
+                      fgColor={colors.hex}
+                    />
+                    <div className="text-center mt-4">
+                      <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
+                      <p className={`text-sm text-${colors.tw} font-medium`}>
+                        {colors.label}
+                      </p>
+                      {selectedPerson.phone && (
+                        <p className="text-xs text-muted-foreground mt-1">{selectedPerson.phone}</p>
+                      )}
+                      <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">
+                        ID: {selectedPerson.id.slice(0, 8)}
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <Button onClick={handleDownload} className="w-full gradient-primary text-primary-foreground">
