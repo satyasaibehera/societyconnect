@@ -68,6 +68,7 @@ const VehiclePasses = () => {
     vehicle_number: "", vehicle_type: "", unit_id: "", unit_label: "",
     visitor_name: "", visitor_phone: "", purpose: "",
   });
+  const [tempPassValidityHours, setTempPassValidityHours] = useState(24);
 
   // Owner context
   const [myUnitId, setMyUnitId] = useState<string | null>(null);
