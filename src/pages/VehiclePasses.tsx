@@ -493,7 +493,7 @@ const VehiclePasses = () => {
                 <div><Label>Visitor Phone</Label><Input value={form.visitor_phone} onChange={(e) => setForm({ ...form, visitor_phone: e.target.value })} /></div>
                 <div><Label>Purpose</Label><Input value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} /></div>
                 <p className="text-xs text-muted-foreground">
-                  ⏱ Valid for 24 hours. {myUnitId && form.unit_id === myUnitId ? "This will be pre-approved as you are the flat owner." : "Requires flat owner approval."}
+                  ⏱ Valid for {tempPassValidityHours} hours. {myUnitId && form.unit_id === myUnitId ? "This will be pre-approved as you are the flat owner." : "Requires flat owner approval."}
                 </p>
               </>
             )}
