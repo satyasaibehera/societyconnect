@@ -15,6 +15,7 @@ const Login = () => {
   const { toast } = useToast();
   const { session, loading } = useAuth();
 
+  const [showPassword, setShowPassword] = useState(false);
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
