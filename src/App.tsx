@@ -36,7 +36,7 @@ const App = () => (
             <Route path="/visitors" element={<ProtectedRoute><Visitors /></ProtectedRoute>} />
             <Route path="/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
             <Route path="/vehicles" element={<ProtectedRoute><PlaceholderPage title="Vehicle Registry" description="Register vehicles, assign parking slots, and manage passes." /></ProtectedRoute>} />
-            <Route path="/helpers" element={<ProtectedRoute><PlaceholderPage title="Domestic Helpers" description="Track domestic helpers, assign units, and manage schedules." /></ProtectedRoute>} />
+            <Route path="/helpers" element={<ProtectedRoute><Helpers /></ProtectedRoute>} />
             <Route path="/notices" element={<ProtectedRoute><PlaceholderPage title="Notice Board" description="Post and manage society notices and announcements." /></ProtectedRoute>} />
             <Route path="/complaints" element={<ProtectedRoute><PlaceholderPage title="Complaints" description="File, track, and resolve resident complaints." /></ProtectedRoute>} />
             <Route path="/voting" element={<ProtectedRoute><PlaceholderPage title="Digital Voting" description="Create polls, conduct votes, and view results." /></ProtectedRoute>} />
