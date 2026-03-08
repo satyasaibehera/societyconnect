@@ -77,10 +77,10 @@ const DigitalIds = () => {
     // Visitors (approved)
     const { data: visitors } = await supabase
       .from("visitors")
-      .select("id, name, phone")
+      .select("id, name, phone, visiting_unit_label")
       .eq("status", "approved");
     visitors?.forEach((v) =>
-      persons.push({ id: v.id, name: v.name, phone: v.phone, category: "visitor" })
+      persons.push({ id: v.id, name: v.name, phone: v.phone, category: "visitor", unitLabel: v.visiting_unit_label })
     );
 
     setPeople(persons);
