@@ -19,6 +19,22 @@ interface Person {
   subtype?: string;
 }
 
+type ColorKey = "owner" | "tenant" | "family_member" | "security";
+
+const colorConfig: Record<ColorKey, { bg: string; text: string; border: string; hex: string; label: string }> = {
+  owner:         { bg: "bg-primary/10",     text: "text-primary",     border: "border-primary/40",     hex: "#4f46e5", label: "Owner" },
+  tenant:        { bg: "bg-accent/10",      text: "text-accent",      border: "border-accent/40",      hex: "#0d9488", label: "Tenant" },
+  family_member: { bg: "bg-warning/10",     text: "text-warning",     border: "border-warning/40",     hex: "#d97706", label: "Family" },
+  security:      { bg: "bg-destructive/10", text: "text-destructive", border: "border-destructive/40", hex: "#dc2626", label: "Security" },
+};
+
+const getColorKey = (person: Person): ColorKey => {
+  if (person.type === "security") return "security";
+  if (person.subtype === "tenant") return "tenant";
+  if (person.subtype === "family_member") return "family_member";
+  return "owner";
+};
+
 const DigitalIds = () => {
   const { toast } = useToast();
   const [people, setPeople] = useState<Person[]>([]);
@@ -68,6 +84,9 @@ const DigitalIds = () => {
     const svg = qrRef.current.querySelector("svg");
     if (!svg) return;
 
+    const ck = getColorKey(selectedPerson);
+    const colors = colorConfig[ck];
+
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     const svgData = new XMLSerializer().serializeToString(svg);
@@ -77,33 +96,62 @@ const DigitalIds = () => {
 
     img.onload = () => {
       canvas.width = 400;
-      canvas.height = 500;
+      canvas.height = 520;
       if (!ctx) return;
 
       // White background
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, 400, 500);
+      ctx.fillRect(0, 0, 400, 520);
+
+      // Color band at top
+      ctx.fillStyle = colors.hex;
+      ctx.fillRect(0, 0, 400, 8);
+
+      // Role badge
+      ctx.fillStyle = colors.hex;
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      const badgeText = colors.label.toUpperCase();
+      const badgeWidth = ctx.measureText(badgeText).width + 24;
+      const badgeX = (400 - badgeWidth) / 2;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, 20, badgeWidth, 24, 12);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(badgeText, 200, 37);
 
       // QR code
-      ctx.drawImage(img, 50, 30, 300, 300);
+      ctx.drawImage(img, 50, 56, 300, 300);
 
-      // Text
+      // Name
       ctx.fillStyle = "#1a1a2e";
       ctx.font = "bold 20px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(selectedPerson.name, 200, 370);
+      ctx.fillText(selectedPerson.name, 200, 390);
 
+      // Subtype
       ctx.font = "14px sans-serif";
-      ctx.fillStyle = "#666";
-      ctx.fillText(selectedPerson.type === "resident" ? `Resident · ${selectedPerson.subtype || "Owner"}` : "Security Staff", 200, 395);
+      ctx.fillStyle = colors.hex;
+      ctx.fillText(
+        selectedPerson.type === "resident"
+          ? `Resident · ${selectedPerson.subtype?.replace("_", " ") || "Owner"}`
+          : "Security Staff",
+        200, 415
+      );
 
       if (selectedPerson.phone) {
-        ctx.fillText(selectedPerson.phone, 200, 420);
+        ctx.fillStyle = "#666";
+        ctx.font = "13px sans-serif";
+        ctx.fillText(selectedPerson.phone, 200, 440);
       }
 
-      ctx.font = "10px sans-serif";
+      ctx.font = "10px monospace";
       ctx.fillStyle = "#999";
-      ctx.fillText(`ID: ${selectedPerson.id.slice(0, 8)}`, 200, 460);
+      ctx.fillText(`ID: ${selectedPerson.id.slice(0, 8)}`, 200, 475);
+
+      // Bottom color band
+      ctx.fillStyle = colors.hex;
+      ctx.fillRect(0, 512, 400, 8);
 
       const link = document.createElement("a");
       link.download = `id-${selectedPerson.name.replace(/\s/g, "-")}.png`;
@@ -114,29 +162,33 @@ const DigitalIds = () => {
     img.src = url;
   };
 
-  const renderCard = (person: Person) => (
-    <Card
-      key={person.id}
-      className="p-4 cursor-pointer hover:border-primary/40 transition-colors"
-      onClick={() => setSelectedPerson(person)}
-    >
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-          <QrCode className="h-5 w-5 text-primary" />
+  const renderCard = (person: Person) => {
+    const ck = getColorKey(person);
+    const colors = colorConfig[ck];
+    return (
+      <Card
+        key={person.id}
+        className={`p-4 cursor-pointer transition-colors border-l-4 ${colors.border} hover:shadow-md`}
+        onClick={() => setSelectedPerson(person)}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`h-10 w-10 rounded-lg ${colors.bg} flex items-center justify-center shrink-0`}>
+            <QrCode className={`h-5 w-5 ${colors.text}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{person.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {person.type === "resident" ? person.subtype?.replace("_", " ") || "Owner" : "Security Staff"}
+              {person.phone && ` · ${person.phone}`}
+            </p>
+          </div>
+          <Badge variant="outline" className={`text-[10px] capitalize shrink-0 ${colors.text} ${colors.border}`}>
+            {colors.label}
+          </Badge>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{person.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {person.type === "resident" ? person.subtype?.replace("_", " ") || "Owner" : "Security Staff"}
-            {person.phone && ` · ${person.phone}`}
-          </p>
-        </div>
-        <Badge variant="outline" className="text-[10px] capitalize shrink-0">
-          {person.type}
-        </Badge>
-      </div>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   return (
     <DashboardLayout title="Digital IDs">
@@ -200,36 +252,44 @@ const DigitalIds = () => {
           <DialogHeader>
             <DialogTitle className="font-display">Digital ID Card</DialogTitle>
           </DialogHeader>
-          {selectedPerson && (
-            <div className="flex flex-col items-center space-y-4 pt-2">
-              <div ref={qrRef} className="bg-card rounded-xl p-6 border shadow-sm w-full flex flex-col items-center">
-                <QRCodeSVG
-                  value={qrPayload(selectedPerson)}
-                  size={200}
-                  level="H"
-                  includeMargin
-                  bgColor="transparent"
-                />
-                <div className="text-center mt-4">
-                  <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
-                  <p className="text-sm text-muted-foreground capitalize">
-                    {selectedPerson.type === "resident"
-                      ? `Resident · ${selectedPerson.subtype?.replace("_", " ") || "Owner"}`
-                      : "Security Staff"}
-                  </p>
-                  {selectedPerson.phone && (
-                    <p className="text-xs text-muted-foreground mt-1">{selectedPerson.phone}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">
-                    ID: {selectedPerson.id.slice(0, 8)}
-                  </p>
+          {selectedPerson && (() => {
+            const ck = getColorKey(selectedPerson);
+            const colors = colorConfig[ck];
+            return (
+              <div className="flex flex-col items-center space-y-4 pt-2">
+                <div ref={qrRef} className={`rounded-xl p-6 border-2 ${colors.border} shadow-sm w-full flex flex-col items-center`}>
+                  <div className={`px-3 py-1 rounded-full ${colors.bg} ${colors.text} text-xs font-semibold uppercase tracking-wider mb-4`}>
+                    {colors.label}
+                  </div>
+                  <QRCodeSVG
+                    value={qrPayload(selectedPerson)}
+                    size={200}
+                    level="H"
+                    includeMargin
+                    bgColor="transparent"
+                    fgColor={colors.hex}
+                  />
+                  <div className="text-center mt-4">
+                    <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
+                    <p className={`text-sm capitalize ${colors.text}`}>
+                      {selectedPerson.type === "resident"
+                        ? `Resident · ${selectedPerson.subtype?.replace("_", " ") || "Owner"}`
+                        : "Security Staff"}
+                    </p>
+                    {selectedPerson.phone && (
+                      <p className="text-xs text-muted-foreground mt-1">{selectedPerson.phone}</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground/60 mt-2 font-mono">
+                      ID: {selectedPerson.id.slice(0, 8)}
+                    </p>
+                  </div>
                 </div>
+                <Button onClick={handleDownload} className="w-full gradient-primary text-primary-foreground">
+                  <Download className="mr-2 h-4 w-4" /> Download ID Card
+                </Button>
               </div>
-              <Button onClick={handleDownload} className="w-full gradient-primary text-primary-foreground">
-                <Download className="mr-2 h-4 w-4" /> Download ID Card
-              </Button>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
