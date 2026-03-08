@@ -97,7 +97,9 @@ const DigitalIds = () => {
         .in("user_id", obUserIds);
       const profileMap = new Map(obProfiles?.map((p) => [p.user_id, p.full_name]) ?? []);
       officeBearers.forEach((ob) => {
-        const designation = ob.designation?.replace(/_/g, " ") ?? "Office Bearer";
+        const designation = ob.designation
+          ? ob.designation.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          : "Office Bearer";
         persons.push({
           id: ob.id,
           name: profileMap.get(ob.user_id) || designation,
