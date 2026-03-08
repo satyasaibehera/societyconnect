@@ -384,6 +384,7 @@ export type Database = {
           id: string
           phone: string | null
           photo_url: string | null
+          relationship: string | null
           resident_type: string
           society_id: string
           status: Database["public"]["Enums"]["approval_status"]
@@ -400,6 +401,7 @@ export type Database = {
           id?: string
           phone?: string | null
           photo_url?: string | null
+          relationship?: string | null
           resident_type?: string
           society_id: string
           status?: Database["public"]["Enums"]["approval_status"]
@@ -416,6 +418,7 @@ export type Database = {
           id?: string
           phone?: string | null
           photo_url?: string | null
+          relationship?: string | null
           resident_type?: string
           society_id?: string
           status?: Database["public"]["Enums"]["approval_status"]
