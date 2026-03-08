@@ -89,9 +89,11 @@ const DigitalIds = () => {
 
   useEffect(() => { fetchPeople(); }, [fetchPeople]);
 
+  const searchLower = search.toLowerCase();
   const filtered = people.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.phone?.includes(search) ?? false)
+    p.name.toLowerCase().includes(searchLower) ||
+    (p.phone?.includes(search) ?? false) ||
+    (p.unitLabel?.toLowerCase().includes(searchLower) ?? false)
   );
 
   const byCategory = (key: ColorKey) => filtered.filter((p) => p.category === key);
