@@ -153,9 +153,12 @@ const MyFamily = () => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {members.map((m) => (
-              <Card key={m.id} className="p-4 space-y-2">
+              <Card key={m.id} className={`p-4 space-y-2 ${m.resident_type === "owner" ? "border-primary/40" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-sm">{m.full_name}</p>
+                  <div className="flex items-center gap-1.5">
+                    {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary" />}
+                    <p className="font-medium text-sm">{m.full_name}</p>
+                  </div>
                   <div className="flex gap-1">{typeBadge(m.resident_type)} {statusBadge(m.status)}</div>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
@@ -163,6 +166,16 @@ const MyFamily = () => {
                   {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                   {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
                 </div>
+                {isOwner && m.resident_type !== "owner" && m.status === "approved" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs mt-2"
+                    onClick={() => { setTransferTargetId(m.id); setTransferDialogOpen(true); }}
+                  >
+                    <ArrowRightLeft className="mr-1.5 h-3 w-3" /> Transfer Ownership
+                  </Button>
+                )}
               </Card>
             ))}
           </div>
