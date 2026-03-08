@@ -298,7 +298,7 @@ const VehiclePasses = () => {
   };
 
   const canApproveTemp = (p: VehiclePass) =>
-    p.pass_type === "temporary" && p.status === "pending" && p.unit_id === myUnitId;
+    p.pass_type === "temporary" && p.status === "pending" && canApproveForUnit(p.unit_id);
 
   const canApprovePerm = (p: VehiclePass) =>
     p.pass_type === "permanent" && p.status === "pending" && isManagement;
