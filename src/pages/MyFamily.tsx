@@ -36,6 +36,7 @@ const MyFamily = () => {
     full_name: "",
     phone: "",
     relationship: "",
+    relationship_other: "",
     date_of_birth: "",
     resident_type: "family",
   });
