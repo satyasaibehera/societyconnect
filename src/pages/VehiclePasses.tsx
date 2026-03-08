@@ -155,6 +155,10 @@ const VehiclePasses = () => {
       ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       : null;
 
+    // If owner creates a temp pass for their own unit, it's pre-approved
+    const isOwnerTempPass = passType === "temporary" && form.unit_id && form.unit_id === myUnitId;
+    const status = isOwnerTempPass ? "approved" : "pending";
+
     const { error } = await supabase.from("vehicle_passes").insert({
       vehicle_number: form.vehicle_number.toUpperCase(),
       vehicle_type: form.vehicle_type || null,
@@ -166,7 +170,8 @@ const VehiclePasses = () => {
       purpose: form.purpose || null,
       society_id: societyId,
       requested_by: user?.id,
-      status: "pending",
+      approved_by: isOwnerTempPass ? user?.id : null,
+      status,
       valid_until: validUntil,
     } as any);
 
@@ -174,7 +179,12 @@ const VehiclePasses = () => {
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Pass requested", description: passType === "temporary" ? "Sent to flat owner for approval." : "Sent to admin for approval." });
+      const desc = isOwnerTempPass
+        ? "Pre-approved. Valid for 24 hours."
+        : passType === "temporary"
+          ? "Sent to flat owner for approval."
+          : "Sent to admin for approval.";
+      toast({ title: "Pass requested", description: desc });
       setDialogOpen(false);
       fetchPasses();
     }
@@ -390,7 +400,7 @@ const VehiclePasses = () => {
             <Input placeholder="Search by vehicle, visitor, or unit..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex gap-2">
-            {isSecurity && (
+            {(isSecurity || !!myUnitId) && (
               <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => openCreateDialog("temporary")}>
                 <Plus className="mr-2 h-4 w-4" /> Temp Pass
               </Button>
@@ -474,7 +484,9 @@ const VehiclePasses = () => {
                 <div><Label>Visitor Name</Label><Input value={form.visitor_name} onChange={(e) => setForm({ ...form, visitor_name: e.target.value })} /></div>
                 <div><Label>Visitor Phone</Label><Input value={form.visitor_phone} onChange={(e) => setForm({ ...form, visitor_phone: e.target.value })} /></div>
                 <div><Label>Purpose</Label><Input value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} /></div>
-                <p className="text-xs text-muted-foreground">⏱ This pass will be valid for 24 hours and requires flat owner approval.</p>
+                <p className="text-xs text-muted-foreground">
+                  ⏱ Valid for 24 hours. {myUnitId && form.unit_id === myUnitId ? "This will be pre-approved as you are the flat owner." : "Requires flat owner approval."}
+                </p>
               </>
             )}
             {passType === "permanent" && (
