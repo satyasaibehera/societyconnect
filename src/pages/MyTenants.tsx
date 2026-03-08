@@ -193,7 +193,7 @@ const MyTenants = () => {
                   variant={t.has_vacated ? "outline" : "destructive"}
                   size="sm"
                   className="w-full text-xs"
-                  onClick={() => handleVacate(t.id, t.has_vacated)}
+                  onClick={() => { setVacateTarget(t); setVacateDialogOpen(true); }}
                 >
                   {t.has_vacated ? "Restore Tenant" : "Mark as Vacated"}
                 </Button>
