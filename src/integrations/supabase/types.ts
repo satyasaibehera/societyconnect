@@ -49,6 +49,257 @@ export type Database = {
           },
         ]
       }
+      complaints: {
+        Row: {
+          assigned_to: string | null
+          category: string | null
+          created_at: string
+          description: string
+          id: string
+          resident_id: string | null
+          society_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          resident_id?: string | null
+          society_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          resident_id?: string | null
+          society_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "complaints_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "complaints_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      helper_assignments: {
+        Row: {
+          created_at: string
+          helper_id: string
+          id: string
+          unit_id: string
+        }
+        Insert: {
+          created_at?: string
+          helper_id: string
+          id?: string
+          unit_id: string
+        }
+        Update: {
+          created_at?: string
+          helper_id?: string
+          id?: string
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "helper_assignments_helper_id_fkey"
+            columns: ["helper_id"]
+            isOneToOne: false
+            referencedRelation: "helpers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "helper_assignments_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      helpers: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          phone: string | null
+          photo_url: string | null
+          service_type: string | null
+          society_id: string
+          status: Database["public"]["Enums"]["approval_status"]
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          photo_url?: string | null
+          service_type?: string | null
+          society_id: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          photo_url?: string | null
+          service_type?: string | null
+          society_id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "helpers_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          agenda: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          meeting_date: string | null
+          society_id: string
+          title: string
+        }
+        Insert: {
+          agenda?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_date?: string | null
+          society_id: string
+          title: string
+        }
+        Update: {
+          agenda?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          meeting_date?: string | null
+          society_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meetings_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          society_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          society_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          society_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notices_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      polls: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_time: string | null
+          id: string
+          society_id: string
+          start_time: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          society_id: string
+          start_time?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_time?: string | null
+          id?: string
+          society_id?: string
+          start_time?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polls_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -81,6 +332,199 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      residents: {
+        Row: {
+          age: number | null
+          approved_by: string | null
+          created_at: string
+          date_of_birth: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          photo_url: string | null
+          resident_type: string
+          society_id: string
+          status: Database["public"]["Enums"]["approval_status"]
+          unit_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          age?: number | null
+          approved_by?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          full_name: string
+          id?: string
+          phone?: string | null
+          photo_url?: string | null
+          resident_type?: string
+          society_id: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          unit_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          age?: number | null
+          approved_by?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          photo_url?: string | null
+          resident_type?: string
+          society_id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          unit_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "residents_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "residents_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resolutions: {
+        Row: {
+          created_at: string
+          decision_date: string | null
+          description: string | null
+          id: string
+          related_poll_id: string | null
+          society_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          decision_date?: string | null
+          description?: string | null
+          id?: string
+          related_poll_id?: string | null
+          society_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          decision_date?: string | null
+          description?: string | null
+          id?: string
+          related_poll_id?: string | null
+          society_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resolutions_related_poll_id_fkey"
+            columns: ["related_poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resolutions_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_requests: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          requested_role: Database["public"]["Enums"]["app_role"]
+          requester_id: string
+          reviewed_by: string | null
+          society_id: string | null
+          status: Database["public"]["Enums"]["approval_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_role: Database["public"]["Enums"]["app_role"]
+          requester_id: string
+          reviewed_by?: string | null
+          society_id?: string | null
+          status?: Database["public"]["Enums"]["approval_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          requested_role?: Database["public"]["Enums"]["app_role"]
+          requester_id?: string
+          reviewed_by?: string | null
+          society_id?: string | null
+          status?: Database["public"]["Enums"]["approval_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_requests_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_staff: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone: string | null
+          photo_url: string | null
+          society_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string | null
+          photo_url?: string | null
+          society_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          photo_url?: string | null
+          society_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_staff_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       societies: {
         Row: {
@@ -168,6 +612,159 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicles: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          id: string
+          parking_slot: string | null
+          resident_id: string | null
+          society_id: string
+          status: Database["public"]["Enums"]["approval_status"]
+          vehicle_number: string
+          vehicle_type: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          parking_slot?: string | null
+          resident_id?: string | null
+          society_id: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          vehicle_number: string
+          vehicle_type?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          parking_slot?: string | null
+          resident_id?: string | null
+          society_id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          vehicle_number?: string
+          vehicle_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visitors: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          entry_time: string | null
+          exit_time: string | null
+          id: string
+          name: string
+          phone: string | null
+          purpose: string | null
+          society_id: string
+          status: Database["public"]["Enums"]["approval_status"]
+          visiting_unit_id: string | null
+          visiting_unit_label: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_time?: string | null
+          exit_time?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          purpose?: string | null
+          society_id: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          visiting_unit_id?: string | null
+          visiting_unit_label?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          entry_time?: string | null
+          exit_time?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          purpose?: string | null
+          society_id?: string
+          status?: Database["public"]["Enums"]["approval_status"]
+          visiting_unit_id?: string | null
+          visiting_unit_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visitors_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitors_visiting_unit_id_fkey"
+            columns: ["visiting_unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      votes: {
+        Row: {
+          created_at: string
+          id: string
+          poll_id: string
+          resident_id: string | null
+          vote_option: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          poll_id: string
+          resident_id?: string | null
+          vote_option: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          poll_id?: string
+          resident_id?: string | null
+          vote_option?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_resident_id_fkey"
+            columns: ["resident_id"]
+            isOneToOne: false
+            referencedRelation: "residents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -188,6 +785,7 @@ export type Database = {
         | "office_bearer"
         | "resident"
         | "security"
+      approval_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -322,6 +920,7 @@ export const Constants = {
         "resident",
         "security",
       ],
+      approval_status: ["pending", "approved", "rejected"],
     },
   },
 } as const
