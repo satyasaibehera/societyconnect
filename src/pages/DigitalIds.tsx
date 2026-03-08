@@ -31,7 +31,7 @@ const colorConfig: Record<ColorKey, {
   helper:        { hex: "#eab308", label: "Domestic Helper", bg: "bg-id-helper",        text: "text-id-helper",        border: "border-id-helper",        bgLight: "bg-id-helper/10",        borderTop: "border-t-id-helper" },
   visitor:       { hex: "#f97316", label: "Visitor",         bg: "bg-id-visitor",       text: "text-id-visitor",       border: "border-id-visitor",       bgLight: "bg-id-visitor/10",       borderTop: "border-t-id-visitor" },
   security:      { hex: "#6b7280", label: "Security Guard",  bg: "bg-id-security",      text: "text-id-security",      border: "border-id-security",      bgLight: "bg-id-security/10",      borderTop: "border-t-id-security" },
-  office_bearer: { hex: "#d4a017", label: "Office Bearer",   bg: "bg-id-office-bearer", text: "text-id-office-bearer", border: "border-id-office-bearer", bgLight: "bg-id-office-bearer/10", borderTop: "border-t-id-office-bearer" },
+  office_bearer: { hex: "#06b6d4", label: "Office Bearer",   bg: "bg-id-office-bearer", text: "text-id-office-bearer", border: "border-id-office-bearer", bgLight: "bg-id-office-bearer/10", borderTop: "border-t-id-office-bearer" },
 };
 
 const DigitalIds = () => {
@@ -97,7 +97,9 @@ const DigitalIds = () => {
         .in("user_id", obUserIds);
       const profileMap = new Map(obProfiles?.map((p) => [p.user_id, p.full_name]) ?? []);
       officeBearers.forEach((ob) => {
-        const designation = ob.designation?.replace(/_/g, " ") ?? "Office Bearer";
+        const designation = ob.designation
+          ? ob.designation.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          : "Office Bearer";
         persons.push({
           id: ob.id,
           name: profileMap.get(ob.user_id) || designation,
