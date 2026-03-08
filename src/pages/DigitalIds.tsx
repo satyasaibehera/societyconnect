@@ -21,17 +21,17 @@ interface Person {
 
 type ColorKey = "resident" | "tenant" | "helper" | "visitor" | "security" | "office_bearer";
 
-const colorConfig: Record<ColorKey, { tw: string; hex: string; label: string }> = {
-  resident:       { tw: "id-resident",       hex: "#3b82f6", label: "Resident" },
-  tenant:         { tw: "id-tenant",         hex: "#8b5cf6", label: "Tenant" },
-  helper:         { tw: "id-helper",         hex: "#eab308", label: "Domestic Helper" },
-  visitor:        { tw: "id-visitor",        hex: "#f97316", label: "Visitor" },
-  security:       { tw: "id-security",       hex: "#6b7280", label: "Security Guard" },
-  office_bearer:  { tw: "id-office-bearer",  hex: "#eab308", label: "Office Bearer" },
+const colorConfig: Record<ColorKey, {
+  hex: string; label: string;
+  bg: string; text: string; border: string; bgLight: string; borderTop: string;
+}> = {
+  resident:      { hex: "#3b82f6", label: "Resident",        bg: "bg-id-resident",      text: "text-id-resident",      border: "border-id-resident",      bgLight: "bg-id-resident/10",      borderTop: "border-t-id-resident" },
+  tenant:        { hex: "#8b5cf6", label: "Tenant",          bg: "bg-id-tenant",        text: "text-id-tenant",        border: "border-id-tenant",        bgLight: "bg-id-tenant/10",        borderTop: "border-t-id-tenant" },
+  helper:        { hex: "#eab308", label: "Domestic Helper", bg: "bg-id-helper",        text: "text-id-helper",        border: "border-id-helper",        bgLight: "bg-id-helper/10",        borderTop: "border-t-id-helper" },
+  visitor:       { hex: "#f97316", label: "Visitor",         bg: "bg-id-visitor",       text: "text-id-visitor",       border: "border-id-visitor",       bgLight: "bg-id-visitor/10",       borderTop: "border-t-id-visitor" },
+  security:      { hex: "#6b7280", label: "Security Guard",  bg: "bg-id-security",      text: "text-id-security",      border: "border-id-security",      bgLight: "bg-id-security/10",      borderTop: "border-t-id-security" },
+  office_bearer: { hex: "#d4a017", label: "Office Bearer",   bg: "bg-id-office-bearer", text: "text-id-office-bearer", border: "border-id-office-bearer", bgLight: "bg-id-office-bearer/10", borderTop: "border-t-id-office-bearer" },
 };
-
-// Override office bearer hex to gold
-colorConfig.office_bearer.hex = "#d4a017";
 
 const DigitalIds = () => {
   const { toast } = useToast();
@@ -205,12 +205,12 @@ const DigitalIds = () => {
     return (
       <Card
         key={person.id}
-        className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 border-${colors.tw} relative overflow-hidden`}
+        className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 ${colors.border} relative overflow-hidden`}
         onClick={() => setSelectedPerson(person)}
       >
         {/* Color label header */}
         <div
-          className={`absolute top-0 left-0 right-0 h-7 bg-${colors.tw} flex items-center justify-center`}
+          className={`absolute top-0 left-0 right-0 h-7 ${colors.bg} flex items-center justify-center`}
         >
           <span className="text-[10px] font-bold uppercase tracking-widest text-white">
             {colors.label}
@@ -218,8 +218,8 @@ const DigitalIds = () => {
         </div>
 
         <div className="flex items-center gap-3 mt-7">
-          <div className={`h-10 w-10 rounded-lg bg-${colors.tw}/10 flex items-center justify-center shrink-0`}>
-            <QrCode className={`h-5 w-5 text-${colors.tw}`} />
+          <div className={`h-10 w-10 rounded-lg ${colors.bgLight} flex items-center justify-center shrink-0`}>
+            <QrCode className={`h-5 w-5 ${colors.text}`} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{person.name}</p>
@@ -247,8 +247,8 @@ const DigitalIds = () => {
         {/* Stats */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           {(Object.keys(colorConfig) as ColorKey[]).map((key) => (
-            <Card key={key} className={`p-3 text-center border-t-4 border-${colorConfig[key].tw}`}>
-              <p className={`text-2xl font-bold font-display text-${colorConfig[key].tw}`}>
+            <Card key={key} className={`p-3 text-center border-t-4 ${colorConfig[key].borderTop}`}>
+              <p className={`text-2xl font-bold font-display ${colorConfig[key].text}`}>
                 {people.filter((p) => p.category === key).length}
               </p>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{colorConfig[key].label}</p>
@@ -303,10 +303,10 @@ const DigitalIds = () => {
               <div className="flex flex-col items-center space-y-4 pt-2">
                 <div
                   ref={qrRef}
-                  className={`rounded-xl border-2 border-${colors.tw} shadow-sm w-full flex flex-col items-center overflow-hidden`}
+                  className={`rounded-xl border-2 ${colors.border} shadow-sm w-full flex flex-col items-center overflow-hidden`}
                 >
                   {/* Prominent color header */}
-                  <div className={`w-full py-2 bg-${colors.tw} flex items-center justify-center`}>
+                  <div className={`w-full py-2 ${colors.bg} flex items-center justify-center`}>
                     <span className="text-xs font-bold uppercase tracking-widest text-white">
                       {colors.label}
                     </span>
@@ -323,7 +323,7 @@ const DigitalIds = () => {
                     />
                     <div className="text-center mt-4">
                       <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
-                      <p className={`text-sm text-${colors.tw} font-medium`}>
+                      <p className={`text-sm ${colors.text} font-medium`}>
                         {colors.label}
                       </p>
                       {selectedPerson.phone && (
