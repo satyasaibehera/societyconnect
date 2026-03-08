@@ -15,11 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { Loader2, CalendarIcon, Search } from "lucide-react";
 
 export interface ResidentFormData {
   full_name: string;
   phone: string;
+  email: string;
   resident_type: string;
   date_of_birth: string;
   unit_id: string;
@@ -44,19 +53,42 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
   const [form, setForm] = useState<ResidentFormData>({
     full_name: "",
     phone: "",
+    email: "",
     resident_type: "owner",
     date_of_birth: "",
     unit_id: "",
   });
   const [saving, setSaving] = useState(false);
+  const [unitSearch, setUnitSearch] = useState("");
+  const [dobDate, setDobDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (initialData) {
       setForm(initialData);
+      if (initialData.date_of_birth) {
+        setDobDate(new Date(initialData.date_of_birth));
+      }
+      // Pre-fill unit search with selected unit number
+      const selectedUnit = units.find((u) => u.id === initialData.unit_id);
+      if (selectedUnit) setUnitSearch(selectedUnit.unit_number);
     } else {
-      setForm({ full_name: "", phone: "", resident_type: "owner", date_of_birth: "", unit_id: "" });
+      setForm({ full_name: "", phone: "", email: "", resident_type: "owner", date_of_birth: "", unit_id: "" });
+      setDobDate(undefined);
+      setUnitSearch("");
     }
-  }, [initialData, open]);
+  }, [initialData, open, units]);
+
+  const handleDobSelect = (date: Date | undefined) => {
+    setDobDate(date);
+    setForm({ ...form, date_of_birth: date ? format(date, "yyyy-MM-dd") : "" });
+  };
+
+  const filteredUnits = unitSearch.trim()
+    ? units.filter((u) =>
+        u.unit_number.toLowerCase().includes(unitSearch.toLowerCase()) ||
+        u.building_name.toLowerCase().includes(unitSearch.toLowerCase())
+      )
+    : units;
 
   const handleSubmit = async () => {
     if (!form.full_name.trim()) return;
@@ -86,6 +118,15 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
               onChange={(e) => setForm({ ...form, full_name: e.target.value })}
             />
           </div>
+          <div className="space-y-2">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              placeholder="resident@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Phone</Label>
@@ -97,11 +138,30 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
             </div>
             <div className="space-y-2">
               <Label>Date of Birth</Label>
-              <Input
-                type="date"
-                value={form.date_of_birth}
-                onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dobDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dobDate ? format(dobDate, "dd MMM yyyy") : "Pick date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dobDate}
+                    onSelect={handleDobSelect}
+                    disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -114,24 +174,60 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
                 <SelectContent>
                   <SelectItem value="owner">Owner</SelectItem>
                   <SelectItem value="tenant">Tenant</SelectItem>
-                  <SelectItem value="family_member">Family Member</SelectItem>
+                  <SelectItem value="family">Family Member</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Unit</Label>
-              <Select value={form.unit_id} onValueChange={(v) => setForm({ ...form, unit_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  {units.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.building_name} - {u.unit_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Unit / Flat Number</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !form.unit_id && "text-muted-foreground"
+                    )}
+                  >
+                    {form.unit_id
+                      ? units.find((u) => u.id === form.unit_id)?.unit_number || "Selected"
+                      : "Search or select"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-2" align="start">
+                  <div className="relative mb-2">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Type flat number..."
+                      value={unitSearch}
+                      onChange={(e) => setUnitSearch(e.target.value)}
+                      className="pl-8 h-8 text-sm"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-0.5">
+                    {filteredUnits.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-3">No units match "{unitSearch}"</p>
+                    ) : (
+                      filteredUnits.slice(0, 50).map((u) => (
+                        <button
+                          key={u.id}
+                          className={cn(
+                            "w-full text-left px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors",
+                            form.unit_id === u.id && "bg-accent font-medium"
+                          )}
+                          onClick={() => {
+                            setForm({ ...form, unit_id: u.id });
+                            setUnitSearch(u.unit_number);
+                          }}
+                        >
+                          <span className="font-mono text-xs">{u.unit_number}</span>
+                          <span className="text-muted-foreground text-xs ml-1.5">({u.building_name})</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
