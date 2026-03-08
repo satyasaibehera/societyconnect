@@ -210,6 +210,20 @@ const MyFamily = () => {
                 <Input className="mt-2" placeholder="Specify relationship" value={form.relationship_other} onChange={(e) => setForm({ ...form, relationship_other: e.target.value })} />
               )}
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Age</Label><Input type="number" min={0} max={120} placeholder="e.g. 35" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} /></div>
+              <div>
+                <Label>Gender</Label>
+                <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    {["male", "female", "other"].map((g) => (
+                      <SelectItem key={g} value={g}>{g.charAt(0).toUpperCase() + g.slice(1)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div><Label>Date of Birth</Label><Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} /></div>
             <div>
               <Label>Type</Label>
