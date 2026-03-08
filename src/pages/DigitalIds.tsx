@@ -282,7 +282,7 @@ const DigitalIds = () => {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ColorKey)}>
             <TabsList className="flex-wrap h-auto gap-1">
               {tabData.map(({ key, icon }) => (
-                <TabsTrigger key={key} value={key} className="text-xs">
+                <TabsTrigger key={key} value={key} className={`text-xs ${colorConfig[key].text}`}>
                   {icon} {colorConfig[key].label} ({byCategory(key).length})
                 </TabsTrigger>
               ))}
