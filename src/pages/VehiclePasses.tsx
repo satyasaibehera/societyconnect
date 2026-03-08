@@ -160,7 +160,7 @@ const VehiclePasses = () => {
     setSaving(true);
 
     const validUntil = passType === "temporary"
-      ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      ? new Date(Date.now() + tempPassValidityHours * 60 * 60 * 1000).toISOString()
       : null;
 
     // If owner creates a temp pass for their own unit, it's pre-approved
