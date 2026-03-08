@@ -484,7 +484,9 @@ const VehiclePasses = () => {
                 <div><Label>Visitor Name</Label><Input value={form.visitor_name} onChange={(e) => setForm({ ...form, visitor_name: e.target.value })} /></div>
                 <div><Label>Visitor Phone</Label><Input value={form.visitor_phone} onChange={(e) => setForm({ ...form, visitor_phone: e.target.value })} /></div>
                 <div><Label>Purpose</Label><Input value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} /></div>
-                <p className="text-xs text-muted-foreground">⏱ This pass will be valid for 24 hours and requires flat owner approval.</p>
+                <p className="text-xs text-muted-foreground">
+                  ⏱ Valid for 24 hours. {myUnitId && form.unit_id === myUnitId ? "This will be pre-approved as you are the flat owner." : "Requires flat owner approval."}
+                </p>
               </>
             )}
             {passType === "permanent" && (
