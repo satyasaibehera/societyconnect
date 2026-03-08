@@ -6,10 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { UserCheck, Plus, Loader2, Phone, Clock, Pencil } from "lucide-react";
+import { UserCheck, Plus, Loader2, Phone, Clock, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUnitApprover } from "@/hooks/useUnitApprover";
+import { DelegateManager } from "@/components/delegates/DelegateManager";
 import { format } from "date-fns";
 
 interface Visitor {
