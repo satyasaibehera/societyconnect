@@ -29,6 +29,7 @@ import MyHelpers from "./pages/MyHelpers";
 import MyVehicles from "./pages/MyVehicles";
 import MyTenants from "./pages/MyTenants";
 import RegisterResident from "./pages/RegisterResident";
+import VehiclePasses from "./pages/VehiclePasses";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
             <Route path="/resolutions" element={<ProtectedRoute><Resolutions /></ProtectedRoute>} />
             <Route path="/digital-ids" element={<ProtectedRoute><DigitalIds /></ProtectedRoute>} />
+            <Route path="/vehicle-passes" element={<ProtectedRoute><VehiclePasses /></ProtectedRoute>} />
             <Route path="/office-bearers" element={<ProtectedRoute><OfficeBearers /></ProtectedRoute>} />
             <Route path="/my-family" element={<ProtectedRoute><MyFamily /></ProtectedRoute>} />
             <Route path="/my-visitors" element={<ProtectedRoute><MyVisitors /></ProtectedRoute>} />

@@ -671,6 +671,81 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_passes: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          id: string
+          pass_type: string
+          purpose: string | null
+          requested_by: string | null
+          society_id: string
+          status: string
+          unit_id: string | null
+          unit_label: string | null
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+          vehicle_number: string
+          vehicle_type: string | null
+          visitor_name: string | null
+          visitor_phone: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          pass_type?: string
+          purpose?: string | null
+          requested_by?: string | null
+          society_id: string
+          status?: string
+          unit_id?: string | null
+          unit_label?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+          vehicle_number: string
+          vehicle_type?: string | null
+          visitor_name?: string | null
+          visitor_phone?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          pass_type?: string
+          purpose?: string | null
+          requested_by?: string | null
+          society_id?: string
+          status?: string
+          unit_id?: string | null
+          unit_label?: string | null
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+          vehicle_number?: string
+          vehicle_type?: string | null
+          visitor_name?: string | null
+          visitor_phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_passes_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_passes_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           approved_by: string | null
