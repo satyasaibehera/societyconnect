@@ -34,6 +34,7 @@ import {
 
 const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
+  { title: "Approvals", url: "/approvals", icon: ClipboardCheck },
   { title: "Residents", url: "/residents", icon: Users },
   { title: "Visitors", url: "/visitors", icon: UserCheck },
   { title: "Security", url: "/security", icon: Shield },
