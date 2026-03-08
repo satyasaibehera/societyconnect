@@ -71,6 +71,8 @@ const MyTenants = () => {
       full_name: form.full_name,
       phone: form.phone || null,
       date_of_birth: form.date_of_birth || null,
+      tenancy_start_date: form.tenancy_start_date || null,
+      tenancy_end_date: form.tenancy_end_date || null,
       resident_type: "tenant",
       unit_id: unitId,
       society_id: societyId,
