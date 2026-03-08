@@ -247,8 +247,8 @@ const DigitalIds = () => {
         {/* Stats */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           {(Object.keys(colorConfig) as ColorKey[]).map((key) => (
-            <Card key={key} className={`p-3 text-center border-t-4 border-${colorConfig[key].tw}`}>
-              <p className={`text-2xl font-bold font-display text-${colorConfig[key].tw}`}>
+            <Card key={key} className={`p-3 text-center border-t-4 ${colorConfig[key].borderTop}`}>
+              <p className={`text-2xl font-bold font-display ${colorConfig[key].text}`}>
                 {people.filter((p) => p.category === key).length}
               </p>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{colorConfig[key].label}</p>
