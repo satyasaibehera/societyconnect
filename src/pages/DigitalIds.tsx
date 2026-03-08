@@ -270,20 +270,6 @@ const DigitalIds = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search by name, phone, or unit number..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(Object.keys(colorConfig) as ColorKey[]).map((key) => (
-              <Button
-                key={key}
-                variant={activeTab === key ? "default" : "outline"}
-                size="sm"
-                className={activeTab === key ? `${colorConfig[key].bg} text-white hover:opacity-90` : `${colorConfig[key].text} ${colorConfig[key].border}`}
-                onClick={() => setActiveTab(key)}
-              >
-                {colorConfig[key].label} ({byCategory(key).length})
-              </Button>
-            ))}
-          </div>
-        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
