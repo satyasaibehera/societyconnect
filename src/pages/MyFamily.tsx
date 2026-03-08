@@ -169,6 +169,8 @@ const MyFamily = () => {
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
+                  {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
+                  {m.age && <p>Age: {m.age}</p>}
                   {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                   {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
                 </div>
