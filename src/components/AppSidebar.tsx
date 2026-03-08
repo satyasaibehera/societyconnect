@@ -42,6 +42,7 @@ const mainItems = [
   { title: "Security", url: "/security", icon: Shield },
   { title: "Vehicles", url: "/vehicles", icon: Car },
   { title: "Helpers", url: "/helpers", icon: Wrench },
+  { title: "Office Bearers", url: "/office-bearers", icon: Award },
 ];
 
 const communityItems = [
