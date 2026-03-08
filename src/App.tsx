@@ -23,6 +23,11 @@ import Meetings from "./pages/Meetings";
 import Resolutions from "./pages/Resolutions";
 import DigitalIds from "./pages/DigitalIds";
 import OfficeBearers from "./pages/OfficeBearers";
+import MyFamily from "./pages/MyFamily";
+import MyVisitors from "./pages/MyVisitors";
+import MyHelpers from "./pages/MyHelpers";
+import MyVehicles from "./pages/MyVehicles";
+import MyTenants from "./pages/MyTenants";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
