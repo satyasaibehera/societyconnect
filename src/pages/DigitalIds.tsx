@@ -16,6 +16,7 @@ interface Person {
   name: string;
   phone: string | null;
   category: ColorKey;
+  unitLabel?: string | null;
 }
 
 type ColorKey = "resident" | "tenant" | "helper" | "visitor" | "security" | "office_bearer";
