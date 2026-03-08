@@ -130,29 +130,33 @@ const DigitalIds = () => {
     img.src = url;
   };
 
-  const renderCard = (person: Person) => (
-    <Card
-      key={person.id}
-      className="p-4 cursor-pointer hover:border-primary/40 transition-colors"
-      onClick={() => setSelectedPerson(person)}
-    >
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-          <QrCode className="h-5 w-5 text-primary" />
+  const renderCard = (person: Person) => {
+    const ck = getColorKey(person);
+    const colors = colorConfig[ck];
+    return (
+      <Card
+        key={person.id}
+        className={`p-4 cursor-pointer transition-colors border-l-4 ${colors.border} hover:shadow-md`}
+        onClick={() => setSelectedPerson(person)}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`h-10 w-10 rounded-lg ${colors.bg} flex items-center justify-center shrink-0`}>
+            <QrCode className={`h-5 w-5 ${colors.text}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{person.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {person.type === "resident" ? person.subtype?.replace("_", " ") || "Owner" : "Security Staff"}
+              {person.phone && ` · ${person.phone}`}
+            </p>
+          </div>
+          <Badge variant="outline" className={`text-[10px] capitalize shrink-0 ${colors.text} ${colors.border}`}>
+            {colors.label}
+          </Badge>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{person.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {person.type === "resident" ? person.subtype?.replace("_", " ") || "Owner" : "Security Staff"}
-            {person.phone && ` · ${person.phone}`}
-          </p>
-        </div>
-        <Badge variant="outline" className="text-[10px] capitalize shrink-0">
-          {person.type}
-        </Badge>
-      </div>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   return (
     <DashboardLayout title="Digital IDs">
