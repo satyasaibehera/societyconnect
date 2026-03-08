@@ -32,7 +32,7 @@ const MyTenants = () => {
   const [unitId, setUnitId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ full_name: "", phone: "", date_of_birth: "" });
+  const [form, setForm] = useState({ full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" });
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
