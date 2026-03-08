@@ -400,7 +400,7 @@ const VehiclePasses = () => {
             <Input placeholder="Search by vehicle, visitor, or unit..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           <div className="flex gap-2">
-            {isSecurity && (
+            {(isSecurity || !!myUnitId) && (
               <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={() => openCreateDialog("temporary")}>
                 <Plus className="mr-2 h-4 w-4" /> Temp Pass
               </Button>
