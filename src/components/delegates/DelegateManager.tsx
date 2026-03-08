@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Delegate {
   id: string;
@@ -24,7 +25,7 @@ interface Delegate {
 
 interface UnitResident {
   id: string;
-  user_id: string;
+  user_id: string | null;
   full_name: string;
   resident_type: string;
 }
@@ -70,20 +71,22 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
 
   const fetchResidents = useCallback(async () => {
     if (!user) return;
+    // Fetch all approved residents in the unit (excluding current user by user_id if set)
     const { data } = await supabase
       .from("residents")
       .select("id, user_id, full_name, resident_type")
       .eq("unit_id", unitId)
-      .eq("status", "approved")
-      .neq("user_id", user.id);
+      .eq("status", "approved");
 
-    setResidents((data || []).filter((r: any) => r.user_id) as UnitResident[]);
+    // Filter out self - keep residents with or without user_id
+    const filtered = (data || []).filter((r: any) => r.user_id !== user.id);
+    setResidents(filtered as UnitResident[]);
   }, [unitId, user]);
 
   useEffect(() => { fetchDelegates(); fetchResidents(); }, [fetchDelegates, fetchResidents]);
 
   const handleCreate = async () => {
-    if (!form.delegate_id || !user) return;
+    if (!form.delegate_id || form.delegate_id === "none" || !user) return;
     setSaving(true);
 
     const days = parseInt(form.duration_days) || 7;
@@ -186,18 +189,35 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
               <Label>Select Family Member / Tenant *</Label>
               {residents.length === 0 ? (
                 <p className="text-xs text-muted-foreground mt-1">No eligible members found in your flat.</p>
-              ) : (
-                <Select value={form.delegate_id} onValueChange={(v) => setForm({ ...form, delegate_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Choose a resident" /></SelectTrigger>
-                  <SelectContent>
-                    {residents.map((r) => (
-                      <SelectItem key={r.user_id} value={r.user_id}>
-                        {r.full_name} ({r.resident_type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              ) : (() => {
+                const eligible = residents.filter((r) => r.user_id);
+                const ineligible = residents.filter((r) => !r.user_id);
+                return (
+                  <>
+                    {eligible.length > 0 ? (
+                      <Select value={form.delegate_id || undefined} onValueChange={(v) => setForm({ ...form, delegate_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Choose a resident" /></SelectTrigger>
+                        <SelectContent>
+                          {eligible.map((r) => (
+                            <SelectItem key={r.user_id!} value={r.user_id!}>
+                              {r.full_name} ({r.resident_type})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">No members with registered accounts found.</p>
+                    )}
+                    {ineligible.length > 0 && (
+                      <Alert className="mt-2">
+                        <AlertDescription className="text-xs">
+                          {ineligible.map((r) => r.full_name).join(", ")} {ineligible.length === 1 ? "hasn't" : "haven't"} registered an account yet. They need to sign up and get linked to your flat before they can be delegated.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div>
               <Label>Duration</Label>
