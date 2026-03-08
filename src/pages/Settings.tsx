@@ -105,6 +105,41 @@ const Settings = () => {
   useEffect(() => { fetchAdmins(); }, []);
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
+  // Fetch society settings
+  const fetchSocietySettings = useCallback(async () => {
+    setSocietyLoading(true);
+    // Find the society (first active one or the one the user created)
+    const { data } = await supabase
+      .from("societies")
+      .select("id, temp_pass_validity_hours")
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      setSocietyId(data.id);
+      setTempPassHours((data as any).temp_pass_validity_hours ?? 24);
+    }
+    setSocietyLoading(false);
+  }, []);
+
+  useEffect(() => { fetchSocietySettings(); }, [fetchSocietySettings]);
+
+  const handleSaveSociety = async () => {
+    if (!societyId) return;
+    setSavingSociety(true);
+    const { error } = await supabase
+      .from("societies")
+      .update({ temp_pass_validity_hours: tempPassHours } as any)
+      .eq("id", societyId);
+    setSavingSociety(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Society settings updated" });
+      setEditingSociety(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
