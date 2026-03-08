@@ -29,6 +29,7 @@ import MyHelpers from "./pages/MyHelpers";
 import MyVehicles from "./pages/MyVehicles";
 import MyTenants from "./pages/MyTenants";
 import RegisterResident from "./pages/RegisterResident";
+import VehiclePasses from "./pages/VehiclePasses";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
