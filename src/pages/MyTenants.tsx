@@ -36,6 +36,8 @@ const MyTenants = () => {
   const [societyId, setSocietyId] = useState<string | null>(null);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
 
+  const [vacateDialogOpen, setVacateDialogOpen] = useState(false);
+  const [vacateTarget, setVacateTarget] = useState<Tenant | null>(null);
   const [form, setForm] = useState(emptyForm);
 
   const fetchMyUnit = useCallback(async () => {
