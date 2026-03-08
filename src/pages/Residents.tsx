@@ -127,7 +127,6 @@ const Residents = () => {
     if (units.length >= 0) fetchResidents();
   }, [units, fetchResidents]);
 
-  const { getSocietyId } = await import("@/lib/society");
 
   const handleAdd = async (form: ResidentFormData) => {
     const societyId = await getSocietyId();

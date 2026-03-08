@@ -82,7 +82,6 @@ const Visitors = () => {
   useEffect(() => { fetchUnits(); }, [fetchUnits]);
   useEffect(() => { fetchVisitors(); }, [fetchVisitors]);
 
-  const { getSocietyId } = await import("@/lib/society");
 
 
   const handleAdd = async (form: VisitorFormData) => {

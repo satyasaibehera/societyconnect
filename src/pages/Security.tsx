@@ -42,7 +42,6 @@ const Security = () => {
 
   useEffect(() => { fetchStaff(); }, [fetchStaff]);
 
-  const { getSocietyId } = await import("@/lib/society");
 
 
   const handleAdd = async (form: SecurityStaffFormData) => {
