@@ -383,6 +383,7 @@ export type Database = {
           email: string | null
           full_name: string
           gender: string | null
+          has_vacated: boolean
           id: string
           phone: string | null
           photo_url: string | null
@@ -390,6 +391,8 @@ export type Database = {
           resident_type: string
           society_id: string
           status: Database["public"]["Enums"]["approval_status"]
+          tenancy_end_date: string | null
+          tenancy_start_date: string | null
           unit_id: string | null
           updated_at: string
           user_id: string | null
@@ -402,6 +405,7 @@ export type Database = {
           email?: string | null
           full_name: string
           gender?: string | null
+          has_vacated?: boolean
           id?: string
           phone?: string | null
           photo_url?: string | null
@@ -409,6 +413,8 @@ export type Database = {
           resident_type?: string
           society_id: string
           status?: Database["public"]["Enums"]["approval_status"]
+          tenancy_end_date?: string | null
+          tenancy_start_date?: string | null
           unit_id?: string | null
           updated_at?: string
           user_id?: string | null
@@ -421,6 +427,7 @@ export type Database = {
           email?: string | null
           full_name?: string
           gender?: string | null
+          has_vacated?: boolean
           id?: string
           phone?: string | null
           photo_url?: string | null
@@ -428,6 +435,8 @@ export type Database = {
           resident_type?: string
           society_id?: string
           status?: Database["public"]["Enums"]["approval_status"]
+          tenancy_end_date?: string | null
+          tenancy_start_date?: string | null
           unit_id?: string | null
           updated_at?: string
           user_id?: string | null

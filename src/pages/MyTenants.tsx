@@ -17,6 +17,9 @@ interface Tenant {
   phone: string | null;
   date_of_birth: string | null;
   status: string;
+  tenancy_start_date: string | null;
+  tenancy_end_date: string | null;
+  has_vacated: boolean;
 }
 
 const MyTenants = () => {
@@ -29,7 +32,7 @@ const MyTenants = () => {
   const [unitId, setUnitId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ full_name: "", phone: "", date_of_birth: "" });
+  const [form, setForm] = useState({ full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" });
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
@@ -51,7 +54,7 @@ const MyTenants = () => {
     setLoading(true);
     const { data } = await supabase
       .from("residents")
-      .select("id, full_name, phone, date_of_birth, status")
+      .select("id, full_name, phone, date_of_birth, status, tenancy_start_date, tenancy_end_date, has_vacated")
       .eq("unit_id", unitId)
       .eq("resident_type", "tenant");
     setTenants(data || []);
@@ -68,6 +71,8 @@ const MyTenants = () => {
       full_name: form.full_name,
       phone: form.phone || null,
       date_of_birth: form.date_of_birth || null,
+      tenancy_start_date: form.tenancy_start_date || null,
+      tenancy_end_date: form.tenancy_end_date || null,
       resident_type: "tenant",
       unit_id: unitId,
       society_id: societyId,
@@ -80,14 +85,25 @@ const MyTenants = () => {
     } else {
       toast({ title: "Tenant added", description: "Pending approval." });
       setDialogOpen(false);
-      setForm({ full_name: "", phone: "", date_of_birth: "" });
+      setForm({ full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" });
       fetchTenants();
     }
   };
 
-  const statusBadge = (status: string) => {
+  const statusBadge = (status: string, vacated: boolean) => {
+    if (vacated) return <Badge className="bg-destructive text-white text-[10px]">Vacated</Badge>;
     const map: Record<string, string> = { approved: "bg-green-500", pending: "bg-yellow-500", rejected: "bg-red-500" };
     return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px]`}>{status}</Badge>;
+  };
+
+  const handleVacate = async (tenantId: string, currentlyVacated: boolean) => {
+    const { error } = await supabase.from("residents").update({ has_vacated: !currentlyVacated }).eq("id", tenantId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: currentlyVacated ? "Tenant restored" : "Tenant marked as vacated" });
+      fetchTenants();
+    }
   };
 
   return (
@@ -110,18 +126,28 @@ const MyTenants = () => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {tenants.map((t) => (
-              <Card key={t.id} className="p-4 space-y-2">
+              <Card key={t.id} className={`p-4 space-y-2 ${t.has_vacated ? "opacity-60" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-sm">{t.full_name}</p>
+                  <p className={`font-medium text-sm ${t.has_vacated ? "line-through" : ""}`}>{t.full_name}</p>
                   <div className="flex gap-1">
                     <Badge className="bg-id-tenant text-white text-[10px]">Tenant</Badge>
-                    {statusBadge(t.status)}
+                    {statusBadge(t.status, t.has_vacated)}
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   {t.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{t.phone}</p>}
-                  {t.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{t.date_of_birth}</p>}
+                  {t.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />DOB: {t.date_of_birth}</p>}
+                  {t.tenancy_start_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />Start: {t.tenancy_start_date}</p>}
+                  {t.tenancy_end_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />End: {t.tenancy_end_date}</p>}
                 </div>
+                <Button
+                  variant={t.has_vacated ? "outline" : "destructive"}
+                  size="sm"
+                  className="w-full text-xs mt-1"
+                  onClick={() => handleVacate(t.id, t.has_vacated)}
+                >
+                  {t.has_vacated ? "Restore Tenant" : "Mark as Vacated"}
+                </Button>
               </Card>
             ))}
           </div>
@@ -135,6 +161,8 @@ const MyTenants = () => {
             <div><Label>Full Name *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div><Label>Date of Birth</Label><Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} /></div>
+            <div><Label>Tenancy Start Date</Label><Input type="date" value={form.tenancy_start_date} onChange={(e) => setForm({ ...form, tenancy_start_date: e.target.value })} /></div>
+            <div><Label>Tenancy End Date</Label><Input type="date" value={form.tenancy_end_date} onChange={(e) => setForm({ ...form, tenancy_end_date: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button onClick={handleAdd} disabled={saving || !form.full_name}>
