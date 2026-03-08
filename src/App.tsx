@@ -13,6 +13,7 @@ import Settings from "./pages/Settings";
 import Approvals from "./pages/Approvals";
 import Residents from "./pages/Residents";
 import Visitors from "./pages/Visitors";
+import Security from "./pages/Security";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,7 +33,7 @@ const App = () => (
             <Route path="/approvals" element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
             <Route path="/residents" element={<ProtectedRoute><Residents /></ProtectedRoute>} />
             <Route path="/visitors" element={<ProtectedRoute><Visitors /></ProtectedRoute>} />
-            <Route path="/security" element={<ProtectedRoute><PlaceholderPage title="Security Staff" description="Manage security guards and gate access controls." /></ProtectedRoute>} />
+            <Route path="/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
             <Route path="/vehicles" element={<ProtectedRoute><PlaceholderPage title="Vehicle Registry" description="Register vehicles, assign parking slots, and manage passes." /></ProtectedRoute>} />
             <Route path="/helpers" element={<ProtectedRoute><PlaceholderPage title="Domestic Helpers" description="Track domestic helpers, assign units, and manage schedules." /></ProtectedRoute>} />
             <Route path="/notices" element={<ProtectedRoute><PlaceholderPage title="Notice Board" description="Post and manage society notices and announcements." /></ProtectedRoute>} />
