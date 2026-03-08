@@ -86,7 +86,7 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
   useEffect(() => { fetchDelegates(); fetchResidents(); }, [fetchDelegates, fetchResidents]);
 
   const handleCreate = async () => {
-    if (!form.delegate_id || !user) return;
+    if (!form.delegate_id || form.delegate_id === "none" || !user) return;
     setSaving(true);
 
     const days = parseInt(form.duration_days) || 7;
