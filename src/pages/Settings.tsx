@@ -42,6 +42,14 @@ const Settings = () => {
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const { isManagement } = useUserRole();
+
+  // Society settings
+  const [societyId, setSocietyId] = useState<string | null>(null);
+  const [tempPassHours, setTempPassHours] = useState(24);
+  const [editingSociety, setEditingSociety] = useState(false);
+  const [savingSociety, setSavingSociety] = useState(false);
+  const [societyLoading, setSocietyLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
     if (!user) return;
