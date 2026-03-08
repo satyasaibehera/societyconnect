@@ -205,12 +205,12 @@ const DigitalIds = () => {
     return (
       <Card
         key={person.id}
-        className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 border-${colors.tw} relative overflow-hidden`}
+        className={`p-4 cursor-pointer transition-all hover:shadow-md border-2 ${colors.border} relative overflow-hidden`}
         onClick={() => setSelectedPerson(person)}
       >
         {/* Color label header */}
         <div
-          className={`absolute top-0 left-0 right-0 h-7 bg-${colors.tw} flex items-center justify-center`}
+          className={`absolute top-0 left-0 right-0 h-7 ${colors.bg} flex items-center justify-center`}
         >
           <span className="text-[10px] font-bold uppercase tracking-widest text-white">
             {colors.label}
@@ -218,8 +218,8 @@ const DigitalIds = () => {
         </div>
 
         <div className="flex items-center gap-3 mt-7">
-          <div className={`h-10 w-10 rounded-lg bg-${colors.tw}/10 flex items-center justify-center shrink-0`}>
-            <QrCode className={`h-5 w-5 text-${colors.tw}`} />
+          <div className={`h-10 w-10 rounded-lg ${colors.bgLight} flex items-center justify-center shrink-0`}>
+            <QrCode className={`h-5 w-5 ${colors.text}`} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{person.name}</p>
