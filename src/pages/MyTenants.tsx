@@ -90,9 +90,20 @@ const MyTenants = () => {
     }
   };
 
-  const statusBadge = (status: string) => {
+  const statusBadge = (status: string, vacated: boolean) => {
+    if (vacated) return <Badge className="bg-destructive text-white text-[10px]">Vacated</Badge>;
     const map: Record<string, string> = { approved: "bg-green-500", pending: "bg-yellow-500", rejected: "bg-red-500" };
     return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px]`}>{status}</Badge>;
+  };
+
+  const handleVacate = async (tenantId: string, currentlyVacated: boolean) => {
+    const { error } = await supabase.from("residents").update({ has_vacated: !currentlyVacated }).eq("id", tenantId);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: currentlyVacated ? "Tenant restored" : "Tenant marked as vacated" });
+      fetchTenants();
+    }
   };
 
   return (
