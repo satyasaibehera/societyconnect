@@ -65,10 +65,12 @@ const MyVehicles = () => {
   const handleAdd = async () => {
     if (!form.vehicle_number || !residentId || !societyId) return;
     setSaving(true);
+    const vehicleType = form.vehicle_type === "other" ? (form.vehicle_type_other || "other") : (form.vehicle_type || null);
     const { error } = await supabase.from("vehicles").insert({
       vehicle_number: form.vehicle_number.toUpperCase(),
-      vehicle_type: form.vehicle_type || null,
+      vehicle_type: vehicleType,
       parking_slot: form.parking_slot || null,
+      ownership_type: form.ownership_type || "self",
       resident_id: residentId,
       society_id: societyId,
       status: "pending",
@@ -79,7 +81,7 @@ const MyVehicles = () => {
     } else {
       toast({ title: "Vehicle added", description: "Pending approval." });
       setDialogOpen(false);
-      setForm({ vehicle_number: "", vehicle_type: "", parking_slot: "" });
+      setForm({ vehicle_number: "", vehicle_type: "", vehicle_type_other: "", parking_slot: "", ownership_type: "self" });
       fetchVehicles();
     }
   };
