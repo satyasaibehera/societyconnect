@@ -13,6 +13,7 @@ import { Car, Plus, Loader2, Search, Download, Clock, Shield, Home, Check, X } f
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useUnitApprover } from "@/hooks/useUnitApprover";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
