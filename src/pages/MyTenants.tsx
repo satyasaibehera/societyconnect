@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Loader2, Phone, Calendar } from "lucide-react";
+import { Users, Plus, Loader2, Phone, Calendar, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,8 @@ interface Tenant {
   has_vacated: boolean;
 }
 
+const emptyForm = { full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" };
+
 const MyTenants = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -31,8 +33,9 @@ const MyTenants = () => {
   const [saving, setSaving] = useState(false);
   const [unitId, setUnitId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
 
-  const [form, setForm] = useState({ full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" });
+  const [form, setForm] = useState(emptyForm);
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
@@ -64,29 +67,69 @@ const MyTenants = () => {
   useEffect(() => { fetchMyUnit(); }, [fetchMyUnit]);
   useEffect(() => { if (unitId) fetchTenants(); }, [unitId, fetchTenants]);
 
-  const handleAdd = async () => {
-    if (!form.full_name || !unitId || !societyId) return;
-    setSaving(true);
-    const { error } = await supabase.from("residents").insert({
-      full_name: form.full_name,
-      phone: form.phone || null,
-      date_of_birth: form.date_of_birth || null,
-      tenancy_start_date: form.tenancy_start_date || null,
-      tenancy_end_date: form.tenancy_end_date || null,
-      resident_type: "tenant",
-      unit_id: unitId,
-      society_id: societyId,
-      user_id: user?.id,
-      status: "pending",
+  const openAdd = () => {
+    setEditingTenant(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (t: Tenant) => {
+    setEditingTenant(t);
+    setForm({
+      full_name: t.full_name,
+      phone: t.phone || "",
+      date_of_birth: t.date_of_birth || "",
+      tenancy_start_date: t.tenancy_start_date || "",
+      tenancy_end_date: t.tenancy_end_date || "",
     });
-    setSaving(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.full_name) return;
+    setSaving(true);
+
+    if (editingTenant) {
+      // Update existing tenant
+      const { error } = await supabase.from("residents").update({
+        full_name: form.full_name,
+        phone: form.phone || null,
+        date_of_birth: form.date_of_birth || null,
+        tenancy_start_date: form.tenancy_start_date || null,
+        tenancy_end_date: form.tenancy_end_date || null,
+      }).eq("id", editingTenant.id);
+      setSaving(false);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Tenant updated" });
+        setDialogOpen(false);
+        fetchTenants();
+      }
     } else {
-      toast({ title: "Tenant added", description: "Pending approval." });
-      setDialogOpen(false);
-      setForm({ full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" });
-      fetchTenants();
+      // Insert new tenant
+      if (!unitId || !societyId) { setSaving(false); return; }
+      const { error } = await supabase.from("residents").insert({
+        full_name: form.full_name,
+        phone: form.phone || null,
+        date_of_birth: form.date_of_birth || null,
+        tenancy_start_date: form.tenancy_start_date || null,
+        tenancy_end_date: form.tenancy_end_date || null,
+        resident_type: "tenant",
+        unit_id: unitId,
+        society_id: societyId,
+        user_id: user?.id,
+        status: "pending",
+      });
+      setSaving(false);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Tenant added", description: "Pending approval." });
+        setDialogOpen(false);
+        setForm(emptyForm);
+        fetchTenants();
+      }
     }
   };
 
@@ -111,7 +154,7 @@ const MyTenants = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">Tenants renting in your flat.</p>
-          <Button onClick={() => setDialogOpen(true)} size="sm">
+          <Button onClick={openAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" /> Add Tenant
           </Button>
         </div>
@@ -129,7 +172,10 @@ const MyTenants = () => {
               <Card key={t.id} className={`p-4 space-y-2 ${t.has_vacated ? "opacity-60" : ""}`}>
                 <div className="flex items-center justify-between">
                   <p className={`font-medium text-sm ${t.has_vacated ? "line-through" : ""}`}>{t.full_name}</p>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(t)}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
                     <Badge className="bg-id-tenant text-white text-[10px]">Tenant</Badge>
                     {statusBadge(t.status, t.has_vacated)}
                   </div>
@@ -156,7 +202,7 @@ const MyTenants = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Add Tenant</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingTenant ? "Edit Tenant" : "Add Tenant"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Full Name *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
@@ -165,8 +211,8 @@ const MyTenants = () => {
             <div><Label>Tenancy End Date</Label><Input type="date" value={form.tenancy_end_date} onChange={(e) => setForm({ ...form, tenancy_end_date: e.target.value })} /></div>
           </div>
           <DialogFooter>
-            <Button onClick={handleAdd} disabled={saving || !form.full_name}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Tenant
+            <Button onClick={handleSave} disabled={saving || !form.full_name}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editingTenant ? "Save Changes" : "Add Tenant"}
             </Button>
           </DialogFooter>
         </DialogContent>
