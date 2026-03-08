@@ -4,9 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
-import { Users, Plus, Loader2, Phone, Calendar, Pencil } from "lucide-react";
+import { Users, Plus, Loader2, Phone, Calendar, Pencil, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,8 @@ const MyTenants = () => {
   const [societyId, setSocietyId] = useState<string | null>(null);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
 
+  const [vacateDialogOpen, setVacateDialogOpen] = useState(false);
+  const [vacateTarget, setVacateTarget] = useState<Tenant | null>(null);
   const [form, setForm] = useState(emptyForm);
 
   const fetchMyUnit = useCallback(async () => {
@@ -190,7 +193,7 @@ const MyTenants = () => {
                   variant={t.has_vacated ? "outline" : "destructive"}
                   size="sm"
                   className="w-full text-xs"
-                  onClick={() => handleVacate(t.id, t.has_vacated)}
+                  onClick={() => { setVacateTarget(t); setVacateDialogOpen(true); }}
                 >
                   {t.has_vacated ? "Restore Tenant" : "Mark as Vacated"}
                 </Button>
@@ -213,6 +216,43 @@ const MyTenants = () => {
           <DialogFooter>
             <Button onClick={handleSave} disabled={saving || !form.full_name}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editingTenant ? "Save Changes" : "Add Tenant"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Vacate Confirmation Dialog */}
+      <Dialog open={vacateDialogOpen} onOpenChange={setVacateDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{vacateTarget?.has_vacated ? "Restore Tenant" : "Mark Tenant as Vacated"}</DialogTitle>
+            <DialogDescription>
+              {vacateTarget?.has_vacated
+                ? <>Are you sure you want to restore <span className="font-bold">{vacateTarget?.full_name}</span>? Their digital ID will be reactivated.</>
+                : <>Are you sure you want to mark <span className="font-bold">{vacateTarget?.full_name}</span> as vacated? Their digital ID will be deactivated and access denied.</>
+              }
+            </DialogDescription>
+          </DialogHeader>
+          {!vacateTarget?.has_vacated && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>The tenant's ID card will stop working immediately.</AlertDescription>
+            </Alert>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setVacateDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant={vacateTarget?.has_vacated ? "default" : "destructive"}
+              onClick={async () => {
+                if (!vacateTarget) return;
+                await handleVacate(vacateTarget.id, vacateTarget.has_vacated);
+                setVacateDialogOpen(false);
+                setVacateTarget(null);
+              }}
+              disabled={saving}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {vacateTarget?.has_vacated ? "Restore Tenant" : "Mark as Vacated"}
             </Button>
           </DialogFooter>
         </DialogContent>
