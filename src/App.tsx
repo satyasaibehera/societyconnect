@@ -57,6 +57,11 @@ const App = () => (
             <Route path="/resolutions" element={<ProtectedRoute><Resolutions /></ProtectedRoute>} />
             <Route path="/digital-ids" element={<ProtectedRoute><DigitalIds /></ProtectedRoute>} />
             <Route path="/office-bearers" element={<ProtectedRoute><OfficeBearers /></ProtectedRoute>} />
+            <Route path="/my-family" element={<ProtectedRoute><MyFamily /></ProtectedRoute>} />
+            <Route path="/my-visitors" element={<ProtectedRoute><MyVisitors /></ProtectedRoute>} />
+            <Route path="/my-helpers" element={<ProtectedRoute><MyHelpers /></ProtectedRoute>} />
+            <Route path="/my-vehicles" element={<ProtectedRoute><MyVehicles /></ProtectedRoute>} />
+            <Route path="/my-tenants" element={<ProtectedRoute><MyTenants /></ProtectedRoute>} />
             <Route path="/emergency" element={<ProtectedRoute><PlaceholderPage title="Emergency Alerts" description="Send and manage emergency alerts across the society." /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

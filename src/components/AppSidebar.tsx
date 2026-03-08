@@ -125,6 +125,7 @@ export function AppSidebar() {
 
       <SidebarContent className="px-2">
         {isManagement && renderGroup("Management", mainItems)}
+        {renderGroup("Resident", residentItems)}
         {renderGroup("Community", communityItems)}
         {renderGroup("System", systemItems)}
       </SidebarContent>
