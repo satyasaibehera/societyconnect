@@ -138,6 +138,7 @@ const Residents = () => {
     const { error } = await supabase.from("residents").insert({
       full_name: form.full_name,
       phone: form.phone || null,
+      email: form.email || null,
       resident_type: form.resident_type,
       date_of_birth: form.date_of_birth || null,
       unit_id: form.unit_id || null,
@@ -158,6 +159,7 @@ const Residents = () => {
       .update({
         full_name: form.full_name,
         phone: form.phone || null,
+        email: form.email || null,
         resident_type: form.resident_type,
         date_of_birth: form.date_of_birth || null,
         unit_id: form.unit_id || null,
@@ -332,6 +334,7 @@ const Residents = () => {
                                   form: {
                                     full_name: r.full_name,
                                     phone: r.phone || "",
+                                    email: (r as any).email || "",
                                     resident_type: r.resident_type,
                                     date_of_birth: r.date_of_birth || "",
                                     unit_id: r.unit_id || "",
