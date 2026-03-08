@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { QrCode, Search, Download, Users, Shield, Loader2, Briefcase, Home, Eye } from "lucide-react";
+import { QrCode, Search, Download, Users, Shield, Loader2, Briefcase, Home, Eye, Award } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +39,7 @@ const DigitalIds = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<ColorKey>("resident");
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const qrRef = useRef<HTMLDivElement>(null);
 
@@ -243,6 +244,7 @@ const DigitalIds = () => {
     { key: "helper", icon: <Briefcase className="mr-1.5 h-4 w-4" /> },
     { key: "visitor", icon: <Eye className="mr-1.5 h-4 w-4" /> },
     { key: "security", icon: <Shield className="mr-1.5 h-4 w-4" /> },
+    { key: "office_bearer", icon: <Award className="mr-1.5 h-4 w-4" /> },
   ];
 
   return (
@@ -260,10 +262,25 @@ const DigitalIds = () => {
           ))}
         </div>
 
-        {/* Search */}
-        <div className="relative sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name, phone, or unit number..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        {/* Search + Quick Filters */}
+        <div className="space-y-3">
+          <div className="relative sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search by name, phone, or unit number..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(colorConfig) as ColorKey[]).map((key) => (
+              <Button
+                key={key}
+                variant={activeTab === key ? "default" : "outline"}
+                size="sm"
+                className={activeTab === key ? `${colorConfig[key].bg} text-white hover:opacity-90` : `${colorConfig[key].text} ${colorConfig[key].border}`}
+                onClick={() => setActiveTab(key)}
+              >
+                {colorConfig[key].label} ({byCategory(key).length})
+              </Button>
+            ))}
+          </div>
         </div>
 
         {loading ? (
@@ -274,7 +291,7 @@ const DigitalIds = () => {
             <p className="text-sm">No approved people to generate IDs for.</p>
           </Card>
         ) : (
-          <Tabs defaultValue="resident">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ColorKey)}>
             <TabsList className="flex-wrap h-auto gap-1">
               {tabData.map(({ key, icon }) => (
                 <TabsTrigger key={key} value={key} className="text-xs">
