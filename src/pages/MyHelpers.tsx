@@ -30,7 +30,7 @@ const MyHelpers = () => {
   const [unitId, setUnitId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ name: "", phone: "", service_type: "" });
+  const [form, setForm] = useState({ name: "", phone: "", service_type: "", service_type_other: "" });
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
