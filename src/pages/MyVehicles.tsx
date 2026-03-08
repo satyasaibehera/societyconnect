@@ -53,7 +53,7 @@ const MyVehicles = () => {
     setLoading(true);
     const { data } = await supabase
       .from("vehicles")
-      .select("id, vehicle_number, vehicle_type, parking_slot, status")
+      .select("id, vehicle_number, vehicle_type, parking_slot, status, ownership_type")
       .eq("resident_id", residentId);
     setVehicles(data || []);
     setLoading(false);
