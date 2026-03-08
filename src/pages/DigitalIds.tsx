@@ -172,10 +172,13 @@ const DigitalIds = () => {
       ctx.textAlign = "center";
       ctx.fillText(selectedPerson.name, 200, 390);
 
-      // Category
+      // Category + unit
       ctx.font = "14px sans-serif";
       ctx.fillStyle = colors.hex;
-      ctx.fillText(colors.label, 200, 415);
+      const categoryLine = selectedPerson.unitLabel
+        ? `${colors.label} · ${selectedPerson.unitLabel}`
+        : colors.label;
+      ctx.fillText(categoryLine, 200, 415);
 
       if (selectedPerson.phone) {
         ctx.fillStyle = "#666";
