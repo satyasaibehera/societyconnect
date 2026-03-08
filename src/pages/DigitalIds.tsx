@@ -84,6 +84,9 @@ const DigitalIds = () => {
     const svg = qrRef.current.querySelector("svg");
     if (!svg) return;
 
+    const ck = getColorKey(selectedPerson);
+    const colors = colorConfig[ck];
+
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     const svgData = new XMLSerializer().serializeToString(svg);
@@ -93,33 +96,62 @@ const DigitalIds = () => {
 
     img.onload = () => {
       canvas.width = 400;
-      canvas.height = 500;
+      canvas.height = 520;
       if (!ctx) return;
 
       // White background
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, 400, 500);
+      ctx.fillRect(0, 0, 400, 520);
+
+      // Color band at top
+      ctx.fillStyle = colors.hex;
+      ctx.fillRect(0, 0, 400, 8);
+
+      // Role badge
+      ctx.fillStyle = colors.hex;
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      const badgeText = colors.label.toUpperCase();
+      const badgeWidth = ctx.measureText(badgeText).width + 24;
+      const badgeX = (400 - badgeWidth) / 2;
+      ctx.beginPath();
+      ctx.roundRect(badgeX, 20, badgeWidth, 24, 12);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(badgeText, 200, 37);
 
       // QR code
-      ctx.drawImage(img, 50, 30, 300, 300);
+      ctx.drawImage(img, 50, 56, 300, 300);
 
-      // Text
+      // Name
       ctx.fillStyle = "#1a1a2e";
       ctx.font = "bold 20px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(selectedPerson.name, 200, 370);
+      ctx.fillText(selectedPerson.name, 200, 390);
 
+      // Subtype
       ctx.font = "14px sans-serif";
-      ctx.fillStyle = "#666";
-      ctx.fillText(selectedPerson.type === "resident" ? `Resident · ${selectedPerson.subtype || "Owner"}` : "Security Staff", 200, 395);
+      ctx.fillStyle = colors.hex;
+      ctx.fillText(
+        selectedPerson.type === "resident"
+          ? `Resident · ${selectedPerson.subtype?.replace("_", " ") || "Owner"}`
+          : "Security Staff",
+        200, 415
+      );
 
       if (selectedPerson.phone) {
-        ctx.fillText(selectedPerson.phone, 200, 420);
+        ctx.fillStyle = "#666";
+        ctx.font = "13px sans-serif";
+        ctx.fillText(selectedPerson.phone, 200, 440);
       }
 
-      ctx.font = "10px sans-serif";
+      ctx.font = "10px monospace";
       ctx.fillStyle = "#999";
-      ctx.fillText(`ID: ${selectedPerson.id.slice(0, 8)}`, 200, 460);
+      ctx.fillText(`ID: ${selectedPerson.id.slice(0, 8)}`, 200, 475);
+
+      // Bottom color band
+      ctx.fillStyle = colors.hex;
+      ctx.fillRect(0, 512, 400, 8);
 
       const link = document.createElement("a");
       link.download = `id-${selectedPerson.name.replace(/\s/g, "-")}.png`;
