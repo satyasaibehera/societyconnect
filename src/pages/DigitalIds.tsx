@@ -323,7 +323,7 @@ const DigitalIds = () => {
                     />
                     <div className="text-center mt-4">
                       <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
-                      <p className={`text-sm text-${colors.tw} font-medium`}>
+                      <p className={`text-sm ${colors.text} font-medium`}>
                         {colors.label}
                       </p>
                       {selectedPerson.phone && (
