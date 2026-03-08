@@ -189,18 +189,35 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
               <Label>Select Family Member / Tenant *</Label>
               {residents.length === 0 ? (
                 <p className="text-xs text-muted-foreground mt-1">No eligible members found in your flat.</p>
-              ) : (
-                <Select value={form.delegate_id} onValueChange={(v) => setForm({ ...form, delegate_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Choose a resident" /></SelectTrigger>
-                  <SelectContent>
-                    {residents.map((r) => (
-                      <SelectItem key={r.user_id} value={r.user_id}>
-                        {r.full_name} ({r.resident_type})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              ) : (() => {
+                const eligible = residents.filter((r) => r.user_id);
+                const ineligible = residents.filter((r) => !r.user_id);
+                return (
+                  <>
+                    {eligible.length > 0 ? (
+                      <Select value={form.delegate_id || undefined} onValueChange={(v) => setForm({ ...form, delegate_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Choose a resident" /></SelectTrigger>
+                        <SelectContent>
+                          {eligible.map((r) => (
+                            <SelectItem key={r.user_id!} value={r.user_id!}>
+                              {r.full_name} ({r.resident_type})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">No members with registered accounts found.</p>
+                    )}
+                    {ineligible.length > 0 && (
+                      <Alert className="mt-2">
+                        <AlertDescription className="text-xs">
+                          {ineligible.map((r) => r.full_name).join(", ")} {ineligible.length === 1 ? "hasn't" : "haven't"} registered an account yet. They need to sign up and get linked to your flat before they can be delegated.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div>
               <Label>Duration</Label>
