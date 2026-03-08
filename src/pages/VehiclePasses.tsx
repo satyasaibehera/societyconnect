@@ -52,7 +52,7 @@ const VehiclePasses = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isManagement, isSecurity } = useUserRole();
-  const { myUnitId, societyId: approverSocietyId, canApproveForUnit } = useUnitApprover();
+  const { myUnitId, societyId: approverSocietyId } = useUnitApprover();
   const [passes, setPasses] = useState<VehiclePass[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
