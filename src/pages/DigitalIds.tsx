@@ -21,17 +21,17 @@ interface Person {
 
 type ColorKey = "resident" | "tenant" | "helper" | "visitor" | "security" | "office_bearer";
 
-const colorConfig: Record<ColorKey, { tw: string; hex: string; label: string }> = {
-  resident:       { tw: "id-resident",       hex: "#3b82f6", label: "Resident" },
-  tenant:         { tw: "id-tenant",         hex: "#8b5cf6", label: "Tenant" },
-  helper:         { tw: "id-helper",         hex: "#eab308", label: "Domestic Helper" },
-  visitor:        { tw: "id-visitor",        hex: "#f97316", label: "Visitor" },
-  security:       { tw: "id-security",       hex: "#6b7280", label: "Security Guard" },
-  office_bearer:  { tw: "id-office-bearer",  hex: "#eab308", label: "Office Bearer" },
+const colorConfig: Record<ColorKey, {
+  hex: string; label: string;
+  bg: string; text: string; border: string; bgLight: string; borderTop: string;
+}> = {
+  resident:      { hex: "#3b82f6", label: "Resident",        bg: "bg-id-resident",      text: "text-id-resident",      border: "border-id-resident",      bgLight: "bg-id-resident/10",      borderTop: "border-t-id-resident" },
+  tenant:        { hex: "#8b5cf6", label: "Tenant",          bg: "bg-id-tenant",        text: "text-id-tenant",        border: "border-id-tenant",        bgLight: "bg-id-tenant/10",        borderTop: "border-t-id-tenant" },
+  helper:        { hex: "#eab308", label: "Domestic Helper", bg: "bg-id-helper",        text: "text-id-helper",        border: "border-id-helper",        bgLight: "bg-id-helper/10",        borderTop: "border-t-id-helper" },
+  visitor:       { hex: "#f97316", label: "Visitor",         bg: "bg-id-visitor",       text: "text-id-visitor",       border: "border-id-visitor",       bgLight: "bg-id-visitor/10",       borderTop: "border-t-id-visitor" },
+  security:      { hex: "#6b7280", label: "Security Guard",  bg: "bg-id-security",      text: "text-id-security",      border: "border-id-security",      bgLight: "bg-id-security/10",      borderTop: "border-t-id-security" },
+  office_bearer: { hex: "#d4a017", label: "Office Bearer",   bg: "bg-id-office-bearer", text: "text-id-office-bearer", border: "border-id-office-bearer", bgLight: "bg-id-office-bearer/10", borderTop: "border-t-id-office-bearer" },
 };
-
-// Override office bearer hex to gold
-colorConfig.office_bearer.hex = "#d4a017";
 
 const DigitalIds = () => {
   const { toast } = useToast();
