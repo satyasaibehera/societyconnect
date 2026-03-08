@@ -83,6 +83,30 @@ const DigitalIds = () => {
       persons.push({ id: v.id, name: v.name, phone: v.phone, category: "visitor", unitLabel: v.visiting_unit_label })
     );
 
+    // Office bearers (from user_roles + profiles)
+    const { data: officeBearerRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "office_bearer");
+    if (officeBearerRoles && officeBearerRoles.length > 0) {
+      const obUserIds = officeBearerRoles.map((r) => r.user_id);
+      const { data: obProfiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, phone")
+        .in("user_id", obUserIds);
+      obProfiles?.forEach((p) => {
+        // Avoid duplicating if already listed as a resident
+        if (!persons.some((existing) => existing.id === p.user_id)) {
+          persons.push({
+            id: p.user_id,
+            name: p.full_name || "Office Bearer",
+            phone: p.phone,
+            category: "office_bearer",
+          });
+        }
+      });
+    }
+
     setPeople(persons);
     setLoading(false);
   }, []);
