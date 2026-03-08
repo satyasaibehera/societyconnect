@@ -5,25 +5,62 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { Navigate } from "react-router-dom";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+  const { toast } = useToast();
+  const { session, loading } = useAuth();
+
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSendOtp = () => {
-    if (phone.length >= 10) setOtpSent(true);
-  };
+  // Redirect if already logged in
+  if (!loading && session) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
-  const handleVerifyOtp = () => {
-    navigate("/dashboard");
-  };
-
-  const handleAdminLogin = () => {
-    navigate("/dashboard");
+  const handleAdminLogin = async () => {
+    if (!adminEmail || !adminPassword) {
+      toast({ title: "Please fill in all fields", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email: adminEmail,
+          password: adminPassword,
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if (error) throw error;
+        toast({
+          title: "Account created!",
+          description: "Check your email to confirm your account, then sign in.",
+        });
+        setIsSignUp(false);
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: adminEmail,
+          password: adminPassword,
+        });
+        if (error) throw error;
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -76,100 +113,77 @@ const Login = () => {
           </div>
 
           <div className="text-center lg:text-left">
-            <h1 className="font-display text-2xl font-bold">Welcome back</h1>
-            <p className="text-muted-foreground mt-1">Sign in to your account</p>
+            <h1 className="font-display text-2xl font-bold">
+              {isSignUp ? "Create Account" : "Welcome back"}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {isSignUp ? "Register as Super Admin" : "Sign in to your account"}
+            </p>
           </div>
 
-          <Tabs defaultValue="resident" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-secondary">
-              <TabsTrigger value="resident" className="text-sm">Resident</TabsTrigger>
-              <TabsTrigger value="admin" className="text-sm">Admin</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="resident" className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="phone">Mobile Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="phone"
-                    placeholder="+91 98765 43210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              {otpSent && (
-                <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="otp">Enter OTP</Label>
-                  <Input
-                    id="otp"
-                    placeholder="6-digit OTP"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    OTP sent to {phone}
-                  </p>
-                </div>
-              )}
-
-              {!otpSent ? (
-                <Button onClick={handleSendOtp} className="w-full gradient-primary text-primary-foreground">
-                  Send OTP
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              ) : (
-                <Button onClick={handleVerifyOtp} className="w-full gradient-primary text-primary-foreground">
-                  Verify & Sign In
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              )}
-            </TabsContent>
-
-            <TabsContent value="admin" className="mt-6 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+          <div className="space-y-4">
+            {isSignUp && (
+              <div className="space-y-2 animate-fade-in">
+                <Label htmlFor="fullname">Full Name</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="admin@society.com"
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
+                  id="fullname"
+                  placeholder="Your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@society.com"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  className="pl-10"
+                  onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()}
+                />
               </div>
-              <Button onClick={handleAdminLogin} className="w-full gradient-primary text-primary-foreground">
-                Sign In
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </TabsContent>
-          </Tabs>
-
-          <p className="text-center text-xs text-muted-foreground">
-            New society?{" "}
-            <button
-              onClick={() => navigate("/onboarding")}
-              className="text-primary font-medium hover:underline"
+            </div>
+            <Button
+              onClick={handleAdminLogin}
+              disabled={submitting}
+              className="w-full gradient-primary text-primary-foreground"
             >
-              Register here
-            </button>
+              {submitting ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground">
+            {isSignUp ? (
+              <>
+                Already have an account?{" "}
+                <button onClick={() => setIsSignUp(false)} className="text-primary font-medium hover:underline">
+                  Sign in
+                </button>
+              </>
+            ) : (
+              <>
+                Need a Super Admin account?{" "}
+                <button onClick={() => setIsSignUp(true)} className="text-primary font-medium hover:underline">
+                  Register here
+                </button>
+              </>
+            )}
           </p>
         </div>
       </div>
