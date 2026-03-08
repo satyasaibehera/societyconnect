@@ -150,7 +150,8 @@ const Onboarding = () => {
           state,
           created_by: user.id,
           is_active: true,
-        })
+          temp_pass_validity_hours: tempPassValidityHours,
+        } as any)
         .select()
         .single();
 
