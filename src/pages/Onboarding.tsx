@@ -83,6 +83,7 @@ const Onboarding = () => {
   const [visitorApproval, setVisitorApproval] = useState("pre-approved");
   const [helperTracking, setHelperTracking] = useState(true);
   const [vehicleRegistration, setVehicleRegistration] = useState(true);
+  const [tempPassValidityHours, setTempPassValidityHours] = useState(24);
 
   const generateUnits = (building: Building) => {
     const units: string[] = [];
