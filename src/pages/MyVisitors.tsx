@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { UserCheck, Plus, Loader2, Phone, Clock } from "lucide-react";
+import { UserCheck, Plus, Loader2, Phone, Clock, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,8 @@ interface Visitor {
   created_at: string;
 }
 
+const emptyForm = { name: "", phone: "", purpose: "" };
+
 const MyVisitors = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -33,8 +35,9 @@ const MyVisitors = () => {
   const [unitId, setUnitId] = useState<string | null>(null);
   const [unitLabel, setUnitLabel] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
+  const [editingVisitor, setEditingVisitor] = useState<Visitor | null>(null);
 
-  const [form, setForm] = useState({ name: "", phone: "", purpose: "" });
+  const [form, setForm] = useState(emptyForm);
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
@@ -67,27 +70,57 @@ const MyVisitors = () => {
   useEffect(() => { fetchMyUnit(); }, [fetchMyUnit]);
   useEffect(() => { if (unitId) fetchVisitors(); }, [unitId, fetchVisitors]);
 
-  const handleAdd = async () => {
-    if (!form.name || !unitId || !societyId) return;
+  const openAdd = () => {
+    setEditingVisitor(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (v: Visitor) => {
+    setEditingVisitor(v);
+    setForm({ name: v.name, phone: v.phone || "", purpose: v.purpose || "" });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name) return;
     setSaving(true);
-    const { error } = await supabase.from("visitors").insert({
-      name: form.name,
-      phone: form.phone || null,
-      purpose: form.purpose || null,
-      visiting_unit_id: unitId,
-      visiting_unit_label: unitLabel,
-      society_id: societyId,
-      created_by: user?.id,
-      status: "pending",
-    });
-    setSaving(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+
+    if (editingVisitor) {
+      const { error } = await supabase.from("visitors").update({
+        name: form.name,
+        phone: form.phone || null,
+        purpose: form.purpose || null,
+      }).eq("id", editingVisitor.id);
+      setSaving(false);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Visitor updated" });
+        setDialogOpen(false);
+        fetchVisitors();
+      }
     } else {
-      toast({ title: "Visitor pre-approved", description: "Pending security verification." });
-      setDialogOpen(false);
-      setForm({ name: "", phone: "", purpose: "" });
-      fetchVisitors();
+      if (!unitId || !societyId) { setSaving(false); return; }
+      const { error } = await supabase.from("visitors").insert({
+        name: form.name,
+        phone: form.phone || null,
+        purpose: form.purpose || null,
+        visiting_unit_id: unitId,
+        visiting_unit_label: unitLabel,
+        society_id: societyId,
+        created_by: user?.id,
+        status: "pending",
+      });
+      setSaving(false);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Visitor pre-approved", description: "Pending security verification." });
+        setDialogOpen(false);
+        setForm(emptyForm);
+        fetchVisitors();
+      }
     }
   };
 
@@ -101,7 +134,7 @@ const MyVisitors = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">Manage visitors coming to your flat.</p>
-          <Button onClick={() => setDialogOpen(true)} size="sm">
+          <Button onClick={openAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" /> Pre-approve Visitor
           </Button>
         </div>
@@ -119,7 +152,9 @@ const MyVisitors = () => {
               <Card key={v.id} className="p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="font-medium text-sm">{v.name}</p>
-                  {statusBadge(v.status)}
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(v)}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   {v.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{v.phone}</p>}
@@ -131,6 +166,7 @@ const MyVisitors = () => {
                   {v.entry_time && <p className="text-green-600">Entry: {format(new Date(v.entry_time), "hh:mm a")}</p>}
                   {v.exit_time && <p className="text-red-600">Exit: {format(new Date(v.exit_time), "hh:mm a")}</p>}
                 </div>
+                <div className="pt-1">{statusBadge(v.status)}</div>
               </Card>
             ))}
           </div>
@@ -139,15 +175,15 @@ const MyVisitors = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Pre-approve Visitor</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingVisitor ? "Edit Visitor" : "Pre-approve Visitor"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Visitor Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div><Label>Purpose</Label><Input value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} /></div>
           </div>
           <DialogFooter>
-            <Button onClick={handleAdd} disabled={saving || !form.name}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Visitor
+            <Button onClick={handleSave} disabled={saving || !form.name}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editingVisitor ? "Save Changes" : "Add Visitor"}
             </Button>
           </DialogFooter>
         </DialogContent>
