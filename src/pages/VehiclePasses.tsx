@@ -52,7 +52,7 @@ const VehiclePasses = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isManagement, isSecurity } = useUserRole();
-  const [passes, setPasses] = useState<VehiclePass[]>([]);
+  const { myUnitId, societyId: approverSocietyId, canApproveForUnit } = useUnitApprover();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<PassType>("permanent");
