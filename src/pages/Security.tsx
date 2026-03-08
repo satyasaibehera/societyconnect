@@ -41,10 +41,8 @@ const Security = () => {
 
   useEffect(() => { fetchStaff(); }, [fetchStaff]);
 
-  const getSocietyId = async (): Promise<string | null> => {
-    const { data } = await supabase.from("societies").select("id").limit(1).single();
-    return data?.id ?? null;
-  };
+  const { getSocietyId } = await import("@/lib/society");
+
 
   const handleAdd = async (form: SecurityStaffFormData) => {
     const societyId = await getSocietyId();

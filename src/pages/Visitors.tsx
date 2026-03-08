@@ -81,10 +81,8 @@ const Visitors = () => {
   useEffect(() => { fetchUnits(); }, [fetchUnits]);
   useEffect(() => { fetchVisitors(); }, [fetchVisitors]);
 
-  const getSocietyId = async (): Promise<string | null> => {
-    const { data } = await supabase.from("societies").select("id").limit(1).single();
-    return data?.id ?? null;
-  };
+  const { getSocietyId } = await import("@/lib/society");
+
 
   const handleAdd = async (form: VisitorFormData) => {
     const societyId = await getSocietyId();

@@ -126,11 +126,7 @@ const Residents = () => {
     if (units.length >= 0) fetchResidents();
   }, [units, fetchResidents]);
 
-  // Get first society (simplified — for multi-society, you'd scope this)
-  const getSocietyId = async (): Promise<string | null> => {
-    const { data } = await supabase.from("societies").select("id").limit(1).single();
-    return data?.id ?? null;
-  };
+  const { getSocietyId } = await import("@/lib/society");
 
   const handleAdd = async (form: ResidentFormData) => {
     const societyId = await getSocietyId();
