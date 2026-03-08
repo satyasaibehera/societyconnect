@@ -15,6 +15,7 @@ import {
   Building2,
   Wrench,
   ClipboardCheck,
+  Award,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
