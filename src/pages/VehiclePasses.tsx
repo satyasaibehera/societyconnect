@@ -71,41 +71,31 @@ const VehiclePasses = () => {
   });
   const [tempPassValidityHours, setTempPassValidityHours] = useState(24);
 
-  // Owner context
-  const [myUnitId, setMyUnitId] = useState<string | null>(null);
-  const [societyId, setSocietyId] = useState<string | null>(null);
-
+  // Society context (use hook for unit, fallback for security staff)
+  const [societyId, setSocietyId] = useState<string | null>(approverSocietyId);
+  
   const fetchContext = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("residents")
-      .select("unit_id, society_id")
-      .eq("user_id", user.id)
-      .eq("status", "approved")
-      .limit(1)
-      .maybeSingle();
-    if (data) {
-      setMyUnitId(data.unit_id);
-      setSocietyId(data.society_id);
+    if (approverSocietyId) {
+      setSocietyId(approverSocietyId);
       // Fetch society's temp pass validity config
       const { data: society } = await supabase
         .from("societies")
         .select("temp_pass_validity_hours")
-        .eq("id", data.society_id)
+        .eq("id", approverSocietyId)
         .maybeSingle();
       if (society) setTempPassValidityHours((society as any).temp_pass_validity_hours ?? 24);
+      return;
     }
-    // Also fetch society_id from other sources if security
-    if (!data) {
-      const { data: staff } = await supabase
-        .from("security_staff")
-        .select("society_id")
-        .eq("user_id", user.id)
-        .limit(1)
-        .maybeSingle();
-      if (staff) setSocietyId(staff.society_id);
-    }
-  }, [user]);
+    if (!user) return;
+    // Security staff fallback
+    const { data: staff } = await supabase
+      .from("security_staff")
+      .select("society_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    if (staff) setSocietyId(staff.society_id);
+  }, [user, approverSocietyId]);
 
   const fetchPasses = useCallback(async () => {
     setLoading(true);
