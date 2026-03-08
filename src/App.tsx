@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import Settings from "./pages/Settings";
+import Approvals from "./pages/Approvals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/approvals" element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
             <Route path="/residents" element={<ProtectedRoute><PlaceholderPage title="Residents" description="Manage all residents, owners, and tenants across your society." /></ProtectedRoute>} />
             <Route path="/visitors" element={<ProtectedRoute><PlaceholderPage title="Visitor Management" description="Generate visitor passes, approve entries, and track visits." /></ProtectedRoute>} />
             <Route path="/security" element={<ProtectedRoute><PlaceholderPage title="Security Staff" description="Manage security guards and gate access controls." /></ProtectedRoute>} />
