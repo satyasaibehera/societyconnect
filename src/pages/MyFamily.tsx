@@ -20,6 +20,8 @@ interface FamilyMember {
   resident_type: string;
   relationship: string | null;
   date_of_birth: string | null;
+  age: number | null;
+  gender: string | null;
   status: string;
 }
 
