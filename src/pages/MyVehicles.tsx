@@ -88,17 +88,10 @@ const MyVehicles = () => {
     const { data } = await supabase
       .from("vehicle_passes")
       .select("id, vehicle_number, vehicle_type, visitor_name, visitor_phone, purpose, status, valid_from, valid_until, created_at")
-      .eq("visiting_unit_id", myUnitId)
-      .eq("pass_type", "temporary")
-      .order("created_at", { ascending: false });
-    // The column is unit_id not visiting_unit_id
-    const { data: passes } = await supabase
-      .from("vehicle_passes")
-      .select("id, vehicle_number, vehicle_type, visitor_name, visitor_phone, purpose, status, valid_from, valid_until, created_at")
       .eq("unit_id", myUnitId)
       .eq("pass_type", "temporary")
       .order("created_at", { ascending: false });
-    setTempPasses((passes || []) as TempPass[]);
+    setTempPasses((data as any as TempPass[]) || []);
   }, [myUnitId]);
 
   useEffect(() => { fetchMyResident(); }, [fetchMyResident]);
