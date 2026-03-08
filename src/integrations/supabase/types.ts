@@ -595,6 +595,7 @@ export type Database = {
           is_active: boolean | null
           name: string
           state: string | null
+          temp_pass_validity_hours: number
           updated_at: string
         }
         Insert: {
@@ -606,6 +607,7 @@ export type Database = {
           is_active?: boolean | null
           name: string
           state?: string | null
+          temp_pass_validity_hours?: number
           updated_at?: string
         }
         Update: {
@@ -617,6 +619,7 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           state?: string | null
+          temp_pass_validity_hours?: number
           updated_at?: string
         }
         Relationships: []
