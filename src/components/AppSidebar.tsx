@@ -15,6 +15,7 @@ import {
   Building2,
   Wrench,
   ClipboardCheck,
+  Award,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -41,6 +42,7 @@ const mainItems = [
   { title: "Security", url: "/security", icon: Shield },
   { title: "Vehicles", url: "/vehicles", icon: Car },
   { title: "Helpers", url: "/helpers", icon: Wrench },
+  { title: "Office Bearers", url: "/office-bearers", icon: Award },
 ];
 
 const communityItems = [
