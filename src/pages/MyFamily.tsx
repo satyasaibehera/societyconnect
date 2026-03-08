@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Users, Plus, Loader2, UserPlus, Phone, Calendar, ArrowRightLeft, Crown, AlertCircle } from "lucide-react";
+import { Users, Plus, Loader2, UserPlus, Phone, Calendar, ArrowRightLeft, Crown, AlertCircle, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,11 @@ interface FamilyMember {
   status: string;
 }
 
+const emptyForm = {
+  full_name: "", phone: "", relationship: "", relationship_other: "",
+  date_of_birth: "", age: "", gender: "", resident_type: "family",
+};
+
 const MyFamily = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -38,17 +43,9 @@ const MyFamily = () => {
   const [societyId, setSocietyId] = useState<string | null>(null);
   const [myResidentId, setMyResidentId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
 
-  const [form, setForm] = useState({
-    full_name: "",
-    phone: "",
-    relationship: "",
-    relationship_other: "",
-    date_of_birth: "",
-    age: "",
-    gender: "",
-    resident_type: "family",
-  });
+  const [form, setForm] = useState(emptyForm);
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
@@ -81,30 +78,70 @@ const MyFamily = () => {
   useEffect(() => { fetchMyUnit(); }, [fetchMyUnit]);
   useEffect(() => { if (unitId) fetchMembers(); }, [unitId, fetchMembers]);
 
-  const handleAdd = async () => {
-    if (!form.full_name || !unitId || !societyId) return;
+  const openAdd = () => {
+    setEditingMember(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (m: FamilyMember) => {
+    setEditingMember(m);
+    const rel = ["spouse", "child", "parent", "sibling", "other"].includes(m.relationship || "") ? m.relationship! : (m.relationship ? "other" : "");
+    const relOther = rel === "other" ? (m.relationship || "") : "";
+    setForm({
+      full_name: m.full_name,
+      phone: m.phone || "",
+      relationship: rel,
+      relationship_other: relOther,
+      date_of_birth: m.date_of_birth || "",
+      age: m.age?.toString() || "",
+      gender: m.gender || "",
+      resident_type: m.resident_type,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.full_name) return;
     setSaving(true);
-    const { error } = await supabase.from("residents").insert({
+    const payload = {
       full_name: form.full_name,
       phone: form.phone || null,
       relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
       date_of_birth: form.date_of_birth || null,
       age: form.age ? parseInt(form.age) : null,
       gender: form.gender || null,
-      resident_type: form.resident_type,
-      unit_id: unitId,
-      society_id: societyId,
-      user_id: user?.id,
-      status: "pending",
-    });
-    setSaving(false);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    };
+
+    if (editingMember) {
+      const { error } = await supabase.from("residents").update(payload).eq("id", editingMember.id);
+      setSaving(false);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Member updated" });
+        setDialogOpen(false);
+        fetchMembers();
+      }
     } else {
-      toast({ title: "Family member added", description: "Pending approval." });
-      setDialogOpen(false);
-      setForm({ full_name: "", phone: "", relationship: "", relationship_other: "", date_of_birth: "", age: "", gender: "", resident_type: "family" });
-      fetchMembers();
+      if (!unitId || !societyId) { setSaving(false); return; }
+      const { error } = await supabase.from("residents").insert({
+        ...payload,
+        resident_type: form.resident_type,
+        unit_id: unitId,
+        society_id: societyId,
+        user_id: user?.id,
+        status: "pending",
+      });
+      setSaving(false);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Family member added", description: "Pending approval." });
+        setDialogOpen(false);
+        setForm(emptyForm);
+        fetchMembers();
+      }
     }
   };
 
@@ -144,7 +181,7 @@ const MyFamily = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">Manage family members linked to your flat.</p>
-          <Button onClick={() => setDialogOpen(true)} size="sm">
+          <Button onClick={openAdd} size="sm">
             <Plus className="mr-2 h-4 w-4" /> Add Member
           </Button>
         </div>
@@ -165,20 +202,25 @@ const MyFamily = () => {
                     {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary" />}
                     <p className="font-medium text-sm">{m.full_name}</p>
                   </div>
-                  <div className="flex gap-1">{typeBadge(m.resident_type)} {statusBadge(m.status)}</div>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(m)}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
+                  {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                   {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
                   {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
                   {m.age && <p>Age: {m.age}</p>}
-                  {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                   {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
+                </div>
+                <div className="flex items-center gap-1 pt-1">
+                  {typeBadge(m.resident_type)} {statusBadge(m.status)}
                 </div>
                 {isOwner && m.resident_type !== "owner" && m.status === "approved" && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full text-xs mt-2"
+                    className="w-full text-xs"
                     onClick={() => { setTransferTargetId(m.id); setTransferDialogOpen(true); }}
                   >
                     <ArrowRightLeft className="mr-1.5 h-3 w-3" /> Transfer Ownership
@@ -192,7 +234,7 @@ const MyFamily = () => {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Add Family Member</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingMember ? "Edit Member" : "Add Family Member"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>Full Name *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
@@ -225,20 +267,22 @@ const MyFamily = () => {
               </div>
             </div>
             <div><Label>Date of Birth</Label><Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} /></div>
-            <div>
-              <Label>Type</Label>
-              <Select value={form.resident_type} onValueChange={(v) => setForm({ ...form, resident_type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="family">Family Member</SelectItem>
-                  <SelectItem value="tenant">Tenant</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {!editingMember && (
+              <div>
+                <Label>Type</Label>
+                <Select value={form.resident_type} onValueChange={(v) => setForm({ ...form, resident_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="family">Family Member</SelectItem>
+                    <SelectItem value="tenant">Tenant</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button onClick={handleAdd} disabled={saving || !form.full_name}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Member
+            <Button onClick={handleSave} disabled={saving || !form.full_name}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editingMember ? "Save Changes" : "Add Member"}
             </Button>
           </DialogFooter>
         </DialogContent>
