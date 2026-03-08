@@ -262,10 +262,25 @@ const DigitalIds = () => {
           ))}
         </div>
 
-        {/* Search */}
-        <div className="relative sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search by name, phone, or unit number..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+        {/* Search + Quick Filters */}
+        <div className="space-y-3">
+          <div className="relative sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search by name, phone, or unit number..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(Object.keys(colorConfig) as ColorKey[]).map((key) => (
+              <Button
+                key={key}
+                variant={activeTab === key ? "default" : "outline"}
+                size="sm"
+                className={activeTab === key ? `${colorConfig[key].bg} text-white hover:opacity-90` : `${colorConfig[key].text} ${colorConfig[key].border}`}
+                onClick={() => setActiveTab(key)}
+              >
+                {colorConfig[key].label} ({byCategory(key).length})
+              </Button>
+            ))}
+          </div>
         </div>
 
         {loading ? (
@@ -276,7 +291,7 @@ const DigitalIds = () => {
             <p className="text-sm">No approved people to generate IDs for.</p>
           </Card>
         ) : (
-          <Tabs defaultValue="resident">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ColorKey)}>
             <TabsList className="flex-wrap h-auto gap-1">
               {tabData.map(({ key, icon }) => (
                 <TabsTrigger key={key} value={key} className="text-xs">
