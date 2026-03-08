@@ -118,6 +118,7 @@ const MyVehicles = () => {
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   {v.vehicle_type && <p className="capitalize">Type: {v.vehicle_type}</p>}
+                  {v.ownership_type && <p className="capitalize">Owner: {v.ownership_type}</p>}
                   {v.parking_slot && <p>Parking: {v.parking_slot}</p>}
                 </div>
               </Card>
