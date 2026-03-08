@@ -90,7 +90,7 @@ const MyFamily = () => {
     } else {
       toast({ title: "Family member added", description: "Pending approval." });
       setDialogOpen(false);
-      setForm({ full_name: "", phone: "", relationship: "", date_of_birth: "", resident_type: "family" });
+      setForm({ full_name: "", phone: "", relationship: "", relationship_other: "", date_of_birth: "", resident_type: "family" });
       fetchMembers();
     }
   };
