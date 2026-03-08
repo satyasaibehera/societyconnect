@@ -8,10 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Car, Plus, Loader2, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Car, Plus, Loader2, Pencil, Trash2, AlertCircle, Ticket, Check, X, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUnitApprover } from "@/hooks/useUnitApprover";
+import { DelegateManager } from "@/components/delegates/DelegateManager";
+import { format } from "date-fns";
 
 interface Vehicle {
   id: string;
@@ -22,20 +26,35 @@ interface Vehicle {
   ownership_type: string | null;
 }
 
+interface TempPass {
+  id: string;
+  vehicle_number: string;
+  vehicle_type: string | null;
+  visitor_name: string | null;
+  visitor_phone: string | null;
+  purpose: string | null;
+  status: string;
+  valid_from: string | null;
+  valid_until: string | null;
+  created_at: string;
+}
+
 const emptyForm = { vehicle_number: "", vehicle_type: "", vehicle_type_other: "", parking_slot: "", ownership_type: "self" };
 
 const MyVehicles = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { myUnitId, societyId, isOwner, canApproveForUnit } = useUnitApprover();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [tempPasses, setTempPasses] = useState<TempPass[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [residentId, setResidentId] = useState<string | null>(null);
-  const [societyId, setSocietyId] = useState<string | null>(null);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [deletingVehicle, setDeletingVehicle] = useState<Vehicle | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [form, setForm] = useState(emptyForm);
 
@@ -50,7 +69,6 @@ const MyVehicles = () => {
       .maybeSingle();
     if (data) {
       setResidentId(data.id);
-      setSocietyId(data.society_id);
     }
   }, [user]);
 
@@ -65,8 +83,20 @@ const MyVehicles = () => {
     setLoading(false);
   }, [residentId]);
 
+  const fetchTempPasses = useCallback(async () => {
+    if (!myUnitId) return;
+    const { data } = await supabase
+      .from("vehicle_passes")
+      .select("id, vehicle_number, vehicle_type, visitor_name, visitor_phone, purpose, status, valid_from, valid_until, created_at")
+      .eq("unit_id", myUnitId)
+      .eq("pass_type", "temporary")
+      .order("created_at", { ascending: false });
+    setTempPasses((data as any as TempPass[]) || []);
+  }, [myUnitId]);
+
   useEffect(() => { fetchMyResident(); }, [fetchMyResident]);
   useEffect(() => { if (residentId) fetchVehicles(); }, [residentId, fetchVehicles]);
+  useEffect(() => { if (myUnitId) fetchTempPasses(); }, [myUnitId, fetchTempPasses]);
 
   const openAdd = () => {
     setEditingVehicle(null);
@@ -146,54 +176,164 @@ const MyVehicles = () => {
     }
   };
 
+  const handlePassApproval = async (passId: string, approved: boolean) => {
+    setActionLoading(passId);
+    const { error } = await supabase.from("vehicle_passes").update({
+      status: approved ? "approved" : "rejected",
+      approved_by: user?.id,
+    }).eq("id", passId);
+    setActionLoading(null);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: approved ? "Pass approved" : "Pass rejected" });
+      fetchTempPasses();
+    }
+  };
+
   const statusBadge = (status: string) => {
     const map: Record<string, string> = { approved: "bg-green-500", pending: "bg-yellow-500", rejected: "bg-red-500" };
     return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px]`}>{status}</Badge>;
   };
 
+  const isExpired = (p: TempPass) => p.valid_until && new Date(p.valid_until) < new Date();
+  const effectiveStatus = (p: TempPass) => p.status === "approved" && isExpired(p) ? "expired" : p.status;
+
+  const pendingPassCount = tempPasses.filter((p) => p.status === "pending").length;
+
   return (
     <DashboardLayout title="My Vehicles">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Vehicles registered to your flat.</p>
-          <Button onClick={openAdd} size="sm">
-            <Plus className="mr-2 h-4 w-4" /> Add Vehicle
-          </Button>
-        </div>
+      <Tabs defaultValue="vehicles">
+        <TabsList>
+          <TabsTrigger value="vehicles">
+            <Car className="mr-1.5 h-4 w-4" /> My Vehicles ({vehicles.length})
+          </TabsTrigger>
+          <TabsTrigger value="temp-passes">
+            <Ticket className="mr-1.5 h-4 w-4" /> Temp Passes
+            {pendingPassCount > 0 && (
+              <Badge className="ml-1.5 bg-yellow-500 text-white text-[10px] h-5 px-1.5">{pendingPassCount}</Badge>
+            )}
+          </TabsTrigger>
+          {isOwner && myUnitId && (
+            <TabsTrigger value="delegates">Delegates</TabsTrigger>
+          )}
+        </TabsList>
 
-        {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-        ) : vehicles.length === 0 ? (
-          <Card className="p-12 text-center text-muted-foreground">
-            <Car className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No vehicles registered for your flat.</p>
-          </Card>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {vehicles.map((v) => (
-              <Card key={v.id} className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="font-bold text-sm tracking-wider">{v.vehicle_number}</p>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(v)}>
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => { setDeletingVehicle(v); setDeleteDialogOpen(true); }}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  {v.vehicle_type && <p className="capitalize">Type: {v.vehicle_type}</p>}
-                  {v.ownership_type && <p className="capitalize">Owner: {v.ownership_type}</p>}
-                  {v.parking_slot && <p>Parking: {v.parking_slot}</p>}
-                </div>
-                <div className="pt-1">{statusBadge(v.status)}</div>
+        {/* My Vehicles Tab */}
+        <TabsContent value="vehicles" className="mt-4">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">Vehicles registered to your flat.</p>
+              <Button onClick={openAdd} size="sm">
+                <Plus className="mr-2 h-4 w-4" /> Add Vehicle
+              </Button>
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : vehicles.length === 0 ? (
+              <Card className="p-12 text-center text-muted-foreground">
+                <Car className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No vehicles registered for your flat.</p>
               </Card>
-            ))}
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {vehicles.map((v) => (
+                  <Card key={v.id} className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-sm tracking-wider">{v.vehicle_number}</p>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openEdit(v)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => { setDeletingVehicle(v); setDeleteDialogOpen(true); }}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      {v.vehicle_type && <p className="capitalize">Type: {v.vehicle_type}</p>}
+                      {v.ownership_type && <p className="capitalize">Owner: {v.ownership_type}</p>}
+                      {v.parking_slot && <p>Parking: {v.parking_slot}</p>}
+                    </div>
+                    <div className="pt-1">{statusBadge(v.status)}</div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
+        </TabsContent>
+
+        {/* Temp Vehicle Passes Tab */}
+        <TabsContent value="temp-passes" className="mt-4">
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Temporary vehicle passes requested for your flat by security or pre-approved by you.</p>
+            {tempPasses.length === 0 ? (
+              <Card className="p-12 text-center text-muted-foreground">
+                <Ticket className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No temporary vehicle passes for your flat.</p>
+              </Card>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {tempPasses.map((p) => {
+                  const status = effectiveStatus(p);
+                  return (
+                    <Card key={p.id} className={`p-4 space-y-2 border-l-4 border-l-red-500 ${status === "expired" || status === "rejected" ? "opacity-60" : ""}`}>
+                      <div className="flex items-center justify-between">
+                        <p className="font-bold text-sm tracking-wider">{p.vehicle_number}</p>
+                        {statusBadge(status)}
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        {p.visitor_name && <p>Visitor: {p.visitor_name}</p>}
+                        {p.visitor_phone && <p>Phone: {p.visitor_phone}</p>}
+                        {p.vehicle_type && <p className="capitalize">Type: {p.vehicle_type}</p>}
+                        {p.purpose && <p>Purpose: {p.purpose}</p>}
+                        {p.valid_until && (
+                          <p className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Until: {format(new Date(p.valid_until), "dd MMM yyyy, hh:mm a")}
+                          </p>
+                        )}
+                        <p className="text-[10px]">
+                          Requested: {format(new Date(p.created_at), "dd MMM yyyy, hh:mm a")}
+                        </p>
+                      </div>
+                      {p.status === "pending" && canApproveForUnit(myUnitId) && (
+                        <div className="flex gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            className="flex-1 text-xs bg-green-600 hover:bg-green-700 text-white"
+                            disabled={actionLoading === p.id}
+                            onClick={() => handlePassApproval(p.id, true)}
+                          >
+                            {actionLoading === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Check className="h-3 w-3 mr-1" />Approve</>}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="flex-1 text-xs"
+                            disabled={actionLoading === p.id}
+                            onClick={() => handlePassApproval(p.id, false)}
+                          >
+                            <X className="h-3 w-3 mr-1" />Reject
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Delegates Tab */}
+        {isOwner && myUnitId && (
+          <TabsContent value="delegates" className="mt-4">
+            <DelegateManager unitId={myUnitId} />
+          </TabsContent>
         )}
-      </div>
+      </Tabs>
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

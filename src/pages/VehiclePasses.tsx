@@ -52,7 +52,7 @@ const VehiclePasses = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { isManagement, isSecurity } = useUserRole();
-  const { myUnitId, societyId: approverSocietyId, canApproveForUnit } = useUnitApprover();
+  const { myUnitId, societyId: approverSocietyId } = useUnitApprover();
   const [passes, setPasses] = useState<VehiclePass[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -298,8 +298,7 @@ const VehiclePasses = () => {
     return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px]`}>{status}</Badge>;
   };
 
-  const canApproveTemp = (p: VehiclePass) =>
-    p.pass_type === "temporary" && p.status === "pending" && canApproveForUnit(p.unit_id);
+  const canApproveTemp = (_p: VehiclePass) => false; // Temp pass approvals moved to My Vehicles
 
   const canApprovePerm = (p: VehiclePass) =>
     p.pass_type === "permanent" && p.status === "pending" && isManagement;
