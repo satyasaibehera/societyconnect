@@ -37,6 +37,13 @@
     --warning: 38 92% 56%;
     --warning-foreground: 0 0% 100%;
 
+    --id-resident: 217 91% 60%;
+    --id-tenant: 271 81% 56%;
+    --id-helper: 45 93% 47%;
+    --id-visitor: 24 95% 53%;
+    --id-security: 220 9% 46%;
+    --id-office-bearer: 43 96% 56%;
+
     --border: 220 16% 90%;
     --input: 220 16% 90%;
     --ring: 234 85% 60%;
