@@ -14,6 +14,7 @@ import Approvals from "./pages/Approvals";
 import Residents from "./pages/Residents";
 import Visitors from "./pages/Visitors";
 import Security from "./pages/Security";
+import Helpers from "./pages/Helpers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
