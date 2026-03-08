@@ -259,6 +259,47 @@ export type Database = {
           },
         ]
       }
+      office_bearers: {
+        Row: {
+          created_at: string
+          designation: Database["public"]["Enums"]["office_bearer_designation"]
+          id: string
+          is_approver: boolean
+          phone: string | null
+          society_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          designation: Database["public"]["Enums"]["office_bearer_designation"]
+          id?: string
+          is_approver?: boolean
+          phone?: string | null
+          society_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          designation?: Database["public"]["Enums"]["office_bearer_designation"]
+          id?: string
+          is_approver?: boolean
+          phone?: string | null
+          society_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "office_bearers_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       polls: {
         Row: {
           created_at: string
@@ -786,6 +827,14 @@ export type Database = {
         | "resident"
         | "security"
       approval_status: "pending" | "approved" | "rejected"
+      office_bearer_designation:
+        | "president"
+        | "vice_president"
+        | "secretary"
+        | "joint_secretary"
+        | "treasurer"
+        | "joint_treasurer"
+        | "ward_leader"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -921,6 +970,15 @@ export const Constants = {
         "security",
       ],
       approval_status: ["pending", "approved", "rejected"],
+      office_bearer_designation: [
+        "president",
+        "vice_president",
+        "secretary",
+        "joint_secretary",
+        "treasurer",
+        "joint_treasurer",
+        "ward_leader",
+      ],
     },
   },
 } as const
