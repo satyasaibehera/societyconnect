@@ -49,7 +49,7 @@ const App = () => (
             <Route path="/voting" element={<ProtectedRoute><Voting /></ProtectedRoute>} />
             <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
             <Route path="/resolutions" element={<ProtectedRoute><Resolutions /></ProtectedRoute>} />
-            <Route path="/digital-ids" element={<ProtectedRoute><PlaceholderPage title="Digital IDs" description="Generate QR-based digital ID cards for residents and staff." /></ProtectedRoute>} />
+            <Route path="/digital-ids" element={<ProtectedRoute><DigitalIds /></ProtectedRoute>} />
             <Route path="/emergency" element={<ProtectedRoute><PlaceholderPage title="Emergency Alerts" description="Send and manage emergency alerts across the society." /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
