@@ -52,6 +52,12 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        "id-resident": "hsl(var(--id-resident))",
+        "id-tenant": "hsl(var(--id-tenant))",
+        "id-helper": "hsl(var(--id-helper))",
+        "id-visitor": "hsl(var(--id-visitor))",
+        "id-security": "hsl(var(--id-security))",
+        "id-office-bearer": "hsl(var(--id-office-bearer))",
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
