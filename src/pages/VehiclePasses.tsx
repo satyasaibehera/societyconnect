@@ -86,6 +86,13 @@ const VehiclePasses = () => {
     if (data) {
       setMyUnitId(data.unit_id);
       setSocietyId(data.society_id);
+      // Fetch society's temp pass validity config
+      const { data: society } = await supabase
+        .from("societies")
+        .select("temp_pass_validity_hours")
+        .eq("id", data.society_id)
+        .maybeSingle();
+      if (society) setTempPassValidityHours((society as any).temp_pass_validity_hours ?? 24);
     }
     // Also fetch society_id from other sources if security
     if (!data) {
