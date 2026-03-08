@@ -16,6 +16,9 @@ import {
   Wrench,
   ClipboardCheck,
   Award,
+  Heart,
+  Eye,
+  KeyRound,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -43,6 +46,14 @@ const mainItems = [
   { title: "Vehicles", url: "/vehicles", icon: Car },
   { title: "Helpers", url: "/helpers", icon: Wrench },
   { title: "Office Bearers", url: "/office-bearers", icon: Award },
+];
+
+const residentItems = [
+  { title: "My Family", url: "/my-family", icon: Heart },
+  { title: "My Visitors", url: "/my-visitors", icon: Eye },
+  { title: "My Helpers", url: "/my-helpers", icon: Wrench },
+  { title: "My Vehicles", url: "/my-vehicles", icon: Car },
+  { title: "My Tenants", url: "/my-tenants", icon: KeyRound },
 ];
 
 const communityItems = [
