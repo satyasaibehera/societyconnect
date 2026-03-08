@@ -31,7 +31,7 @@ const MyVehicles = () => {
   const [residentId, setResidentId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "", parking_slot: "" });
+  const [form, setForm] = useState({ vehicle_number: "", vehicle_type: "", vehicle_type_other: "", parking_slot: "", ownership_type: "self" });
 
   const fetchMyResident = useCallback(async () => {
     if (!user) return;
