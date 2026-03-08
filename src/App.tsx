@@ -15,6 +15,12 @@ import Residents from "./pages/Residents";
 import Visitors from "./pages/Visitors";
 import Security from "./pages/Security";
 import Helpers from "./pages/Helpers";
+import Vehicles from "./pages/Vehicles";
+import Notices from "./pages/Notices";
+import Complaints from "./pages/Complaints";
+import Voting from "./pages/Voting";
+import Meetings from "./pages/Meetings";
+import Resolutions from "./pages/Resolutions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,13 +41,13 @@ const App = () => (
             <Route path="/residents" element={<ProtectedRoute><Residents /></ProtectedRoute>} />
             <Route path="/visitors" element={<ProtectedRoute><Visitors /></ProtectedRoute>} />
             <Route path="/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
-            <Route path="/vehicles" element={<ProtectedRoute><PlaceholderPage title="Vehicle Registry" description="Register vehicles, assign parking slots, and manage passes." /></ProtectedRoute>} />
+            <Route path="/vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
             <Route path="/helpers" element={<ProtectedRoute><Helpers /></ProtectedRoute>} />
-            <Route path="/notices" element={<ProtectedRoute><PlaceholderPage title="Notice Board" description="Post and manage society notices and announcements." /></ProtectedRoute>} />
-            <Route path="/complaints" element={<ProtectedRoute><PlaceholderPage title="Complaints" description="File, track, and resolve resident complaints." /></ProtectedRoute>} />
-            <Route path="/voting" element={<ProtectedRoute><PlaceholderPage title="Digital Voting" description="Create polls, conduct votes, and view results." /></ProtectedRoute>} />
-            <Route path="/meetings" element={<ProtectedRoute><PlaceholderPage title="Meetings & AGM" description="Schedule meetings, share agendas, and record minutes." /></ProtectedRoute>} />
-            <Route path="/resolutions" element={<ProtectedRoute><PlaceholderPage title="Resolutions" description="Record and manage society resolutions and decisions." /></ProtectedRoute>} />
+            <Route path="/notices" element={<ProtectedRoute><Notices /></ProtectedRoute>} />
+            <Route path="/complaints" element={<ProtectedRoute><Complaints /></ProtectedRoute>} />
+            <Route path="/voting" element={<ProtectedRoute><Voting /></ProtectedRoute>} />
+            <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+            <Route path="/resolutions" element={<ProtectedRoute><Resolutions /></ProtectedRoute>} />
             <Route path="/digital-ids" element={<ProtectedRoute><PlaceholderPage title="Digital IDs" description="Generate QR-based digital ID cards for residents and staff." /></ProtectedRoute>} />
             <Route path="/emergency" element={<ProtectedRoute><PlaceholderPage title="Emergency Alerts" description="Send and manage emergency alerts across the society." /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
