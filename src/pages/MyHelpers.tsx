@@ -101,7 +101,7 @@ const MyHelpers = () => {
     setSaving(false);
     toast({ title: "Helper added", description: "Pending approval." });
     setDialogOpen(false);
-    setForm({ name: "", phone: "", service_type: "" });
+    setForm({ name: "", phone: "", service_type: "", service_type_other: "" });
     fetchHelpers();
   };
 
