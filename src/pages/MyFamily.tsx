@@ -76,7 +76,7 @@ const MyFamily = () => {
     const { error } = await supabase.from("residents").insert({
       full_name: form.full_name,
       phone: form.phone || null,
-      relationship: form.relationship || null,
+      relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
       date_of_birth: form.date_of_birth || null,
       resident_type: form.resident_type,
       unit_id: unitId,
