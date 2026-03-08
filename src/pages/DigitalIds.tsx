@@ -48,12 +48,13 @@ const DigitalIds = () => {
     // Residents (owners, tenants, family → mapped to resident/tenant)
     const { data: residents } = await supabase
       .from("residents")
-      .select("id, full_name, phone, resident_type")
+      .select("id, full_name, phone, resident_type, unit_id, units!residents_unit_id_fkey(unit_number)")
       .eq("status", "approved");
     residents?.forEach((r) => {
       let category: ColorKey = "resident";
       if (r.resident_type === "tenant") category = "tenant";
-      persons.push({ id: r.id, name: r.full_name, phone: r.phone, category });
+      const unitLabel = (r.units as any)?.unit_number ?? null;
+      persons.push({ id: r.id, name: r.full_name, phone: r.phone, category, unitLabel });
     });
 
     // Security staff
