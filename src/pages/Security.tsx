@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getSocietyId } from "@/lib/society";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
