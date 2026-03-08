@@ -45,6 +45,8 @@ const MyFamily = () => {
     relationship: "",
     relationship_other: "",
     date_of_birth: "",
+    age: "",
+    gender: "",
     resident_type: "family",
   });
 
