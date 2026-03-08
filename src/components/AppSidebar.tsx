@@ -67,6 +67,7 @@ const communityItems = [
 
 const systemItems = [
   { title: "Digital IDs", url: "/digital-ids", icon: QrCode },
+  { title: "Vehicle Passes", url: "/vehicle-passes", icon: Ticket },
   { title: "Emergency", url: "/emergency", icon: Bell },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
