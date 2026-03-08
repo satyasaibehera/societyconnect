@@ -84,27 +84,26 @@ const DigitalIds = () => {
       persons.push({ id: v.id, name: v.name, phone: v.phone, category: "visitor", unitLabel: v.visiting_unit_label })
     );
 
-    // Office bearers (from user_roles + profiles)
-    const { data: officeBearerRoles } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "office_bearer");
-    if (officeBearerRoles && officeBearerRoles.length > 0) {
-      const obUserIds = officeBearerRoles.map((r) => r.user_id);
+    // Office bearers (from office_bearers table + profiles for names)
+    const { data: officeBearers } = await supabase
+      .from("office_bearers")
+      .select("id, user_id, designation, phone");
+    if (officeBearers && officeBearers.length > 0) {
+      const obUserIds = officeBearers.map((ob) => ob.user_id);
       const { data: obProfiles } = await supabase
         .from("profiles")
-        .select("user_id, full_name, phone")
+        .select("user_id, full_name")
         .in("user_id", obUserIds);
-      obProfiles?.forEach((p) => {
-        // Avoid duplicating if already listed as a resident
-        if (!persons.some((existing) => existing.id === p.user_id)) {
-          persons.push({
-            id: p.user_id,
-            name: p.full_name || "Office Bearer",
-            phone: p.phone,
-            category: "office_bearer",
-          });
-        }
+      const profileMap = new Map(obProfiles?.map((p) => [p.user_id, p.full_name]) ?? []);
+      officeBearers.forEach((ob) => {
+        const designation = ob.designation?.replace(/_/g, " ") ?? "Office Bearer";
+        persons.push({
+          id: ob.id,
+          name: profileMap.get(ob.user_id) || designation,
+          phone: ob.phone,
+          category: "office_bearer",
+          designation,
+        });
       });
     }
 
