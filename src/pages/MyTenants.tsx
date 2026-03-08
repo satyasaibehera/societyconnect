@@ -161,6 +161,8 @@ const MyTenants = () => {
             <div><Label>Full Name *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div><Label>Date of Birth</Label><Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} /></div>
+            <div><Label>Tenancy Start Date</Label><Input type="date" value={form.tenancy_start_date} onChange={(e) => setForm({ ...form, tenancy_start_date: e.target.value })} /></div>
+            <div><Label>Tenancy End Date</Label><Input type="date" value={form.tenancy_end_date} onChange={(e) => setForm({ ...form, tenancy_end_date: e.target.value })} /></div>
           </div>
           <DialogFooter>
             <Button onClick={handleAdd} disabled={saving || !form.full_name}>
