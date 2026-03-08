@@ -85,7 +85,7 @@ const MyTenants = () => {
     } else {
       toast({ title: "Tenant added", description: "Pending approval." });
       setDialogOpen(false);
-      setForm({ full_name: "", phone: "", date_of_birth: "" });
+      setForm({ full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" });
       fetchTenants();
     }
   };
