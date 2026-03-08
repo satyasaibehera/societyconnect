@@ -17,6 +17,9 @@ interface Tenant {
   phone: string | null;
   date_of_birth: string | null;
   status: string;
+  tenancy_start_date: string | null;
+  tenancy_end_date: string | null;
+  has_vacated: boolean;
 }
 
 const MyTenants = () => {
