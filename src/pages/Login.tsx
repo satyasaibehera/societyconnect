@@ -118,7 +118,7 @@ const Login = () => {
               {isSignUp ? "Create Account" : "Welcome back"}
             </h1>
             <p className="text-muted-foreground mt-1">
-              {isSignUp ? "Register as Super Admin" : "Sign in to your account"}
+              {isSignUp ? "Register your account" : "Sign in to your account"}
             </p>
           </div>
 
