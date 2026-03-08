@@ -327,8 +327,8 @@ const DigitalIds = () => {
                     />
                     <div className="text-center mt-4">
                       <p className="font-display font-bold text-lg">{selectedPerson.name}</p>
-                      <p className={`text-sm ${colors.text} font-medium`}>
-                        {colors.label}
+                      <p className={`text-sm ${colors.text} font-medium capitalize`}>
+                        {selectedPerson.designation || colors.label}
                         {selectedPerson.unitLabel && ` · ${selectedPerson.unitLabel}`}
                       </p>
                       {selectedPerson.phone && (
