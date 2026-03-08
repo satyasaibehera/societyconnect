@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getSocietyId } from "@/lib/society";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,10 +82,7 @@ const Visitors = () => {
   useEffect(() => { fetchUnits(); }, [fetchUnits]);
   useEffect(() => { fetchVisitors(); }, [fetchVisitors]);
 
-  const getSocietyId = async (): Promise<string | null> => {
-    const { data } = await supabase.from("societies").select("id").limit(1).single();
-    return data?.id ?? null;
-  };
+
 
   const handleAdd = async (form: VisitorFormData) => {
     const societyId = await getSocietyId();

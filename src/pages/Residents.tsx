@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getSocietyId } from "@/lib/society";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -126,11 +127,6 @@ const Residents = () => {
     if (units.length >= 0) fetchResidents();
   }, [units, fetchResidents]);
 
-  // Get first society (simplified — for multi-society, you'd scope this)
-  const getSocietyId = async (): Promise<string | null> => {
-    const { data } = await supabase.from("societies").select("id").limit(1).single();
-    return data?.id ?? null;
-  };
 
   const handleAdd = async (form: ResidentFormData) => {
     const societyId = await getSocietyId();
