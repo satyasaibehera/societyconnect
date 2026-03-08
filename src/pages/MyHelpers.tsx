@@ -75,11 +75,11 @@ const MyHelpers = () => {
   const handleAdd = async () => {
     if (!form.name || !societyId) return;
     setSaving(true);
-    // Create helper then assign to unit
+    const serviceType = form.service_type === "other" ? (form.service_type_other || "other") : (form.service_type || null);
     const { data: newHelper, error } = await supabase.from("helpers").insert({
       name: form.name,
       phone: form.phone || null,
-      service_type: form.service_type || null,
+      service_type: serviceType,
       society_id: societyId,
       created_by: user?.id,
       status: "pending",
