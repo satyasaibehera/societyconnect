@@ -29,9 +29,13 @@ const MyFamily = () => {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferTargetId, setTransferTargetId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [unitId, setUnitId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState<string | null>(null);
+  const [myResidentId, setMyResidentId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
 
   const [form, setForm] = useState({
     full_name: "",
