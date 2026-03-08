@@ -39,6 +39,7 @@ const DigitalIds = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<ColorKey>("resident");
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const qrRef = useRef<HTMLDivElement>(null);
 
