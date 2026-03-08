@@ -200,6 +200,7 @@ const DigitalIds = () => {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{person.name}</p>
             <p className="text-xs text-muted-foreground">
+              {person.unitLabel && <span className="font-medium">{person.unitLabel} · </span>}
               {person.phone || "No phone"}
             </p>
           </div>
