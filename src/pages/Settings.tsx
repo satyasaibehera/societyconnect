@@ -110,16 +110,16 @@ const Settings = () => {
   // Fetch society settings
   const fetchSocietySettings = useCallback(async () => {
     setSocietyLoading(true);
-    // Find the society (first active one or the one the user created)
     const { data } = await supabase
       .from("societies")
-      .select("id, temp_pass_validity_hours")
+      .select("id, temp_pass_validity_hours, requires_admin_for_move_pass")
       .eq("is_active", true)
       .limit(1)
       .maybeSingle();
     if (data) {
       setSocietyId(data.id);
       setTempPassHours((data as any).temp_pass_validity_hours ?? 24);
+      setRequiresAdminForMove((data as any).requires_admin_for_move_pass ?? false);
     }
     setSocietyLoading(false);
   }, []);
