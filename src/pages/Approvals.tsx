@@ -4,12 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2 } from "lucide-react";
+import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-type ApprovalCategory = "visitors" | "residents" | "helpers" | "vehicles" | "role_requests";
+type ApprovalCategory = "visitors" | "residents" | "helpers" | "vehicles" | "role_requests" | "move_passes";
 
 interface PendingItem {
   id: string;
@@ -26,6 +26,7 @@ const categoryConfig: Record<ApprovalCategory, { label: string; icon: typeof Use
   helpers: { label: "Helpers", icon: Wrench, color: "text-warning" },
   vehicles: { label: "Vehicles", icon: Car, color: "text-success" },
   role_requests: { label: "Role Requests", icon: Shield, color: "text-destructive" },
+  move_passes: { label: "Move Passes", icon: PackageOpen, color: "text-primary" },
 };
 
 const Approvals = () => {
