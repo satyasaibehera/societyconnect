@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -5,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import {
   ArrowDownToLine, ArrowUpFromLine, CalendarDays, Phone, Mail,
-  Car, FileCheck, Clock, Check, User, Home, Printer, QrCode,
+  Car, FileCheck, Clock, Check, User, Home, Printer, QrCode, X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
@@ -40,8 +41,9 @@ interface Props {
 }
 
 export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
-  if (!pass) return null;
+  const [showLargeQr, setShowLargeQr] = useState(false);
 
+  if (!pass) return null;
   const isMoveIn = pass.pass_type === "move_in";
   const qrValue = JSON.stringify({
     passId: pass.id,
@@ -89,9 +91,13 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
                 {pass.status === "approved" ? "APPROVED" : pass.status.toUpperCase().replace("_", " ")}
               </Badge>
             </div>
-            <div className="shrink-0 border rounded-lg p-2 bg-card">
+            <button
+              onClick={() => setShowLargeQr(true)}
+              className="shrink-0 border rounded-lg p-2 bg-card cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all active:scale-95"
+              title="Tap to enlarge QR code"
+            >
               <QRCodeSVG value={qrValue} size={80} />
-            </div>
+            </button>
           </div>
 
           {/* Pass ID */}
@@ -205,6 +211,30 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
           </Button>
         </div>
       </DialogContent>
+
+      {/* Large QR Code Overlay */}
+      {showLargeQr && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowLargeQr(false)}
+        >
+          <div
+            className="relative bg-card rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowLargeQr(false)}
+              className="absolute top-3 right-3 rounded-full p-1 hover:bg-muted transition-colors"
+            >
+              <X className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <QRCodeSVG value={qrValue} size={280} />
+            <p className="text-xs text-muted-foreground font-mono">
+              Pass ID: {pass.id.slice(0, 8).toUpperCase()}
+            </p>
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }
