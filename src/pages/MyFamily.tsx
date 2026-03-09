@@ -29,6 +29,7 @@ interface FamilyMember {
 const emptyForm = {
   full_name: "", phone: "", relationship: "", relationship_other: "",
   date_of_birth: "", age: "", gender: "", resident_type: "family",
+  photo_url: "",
 };
 
 const MyFamily = () => {
