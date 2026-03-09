@@ -286,7 +286,12 @@ const MyFamily = () => {
                   {/* Photo: 3-line height (~54px) */}
                   <div className="shrink-0 self-start">
                     {m.photo_url ? (
-                      <img src={m.photo_url} alt={m.full_name} className="w-14 h-14 rounded-md object-cover border-2 border-border shadow-sm" />
+                      <img
+                        src={m.photo_url}
+                        alt={m.full_name}
+                        className="w-14 h-14 rounded-md object-cover border-2 border-border shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setPhotoPreview({ url: m.photo_url!, name: m.full_name })}
+                      />
                     ) : (
                       <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center border-2 border-border">
                         <Users className="h-6 w-6 text-muted-foreground" />
