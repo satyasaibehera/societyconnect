@@ -596,7 +596,7 @@ const MyGatePasses = () => {
                 <PackageOpen className="h-10 w-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No move-in / move-out pass requests yet.</p>
                 <Button size="sm" className="mt-4" onClick={() => setMoveDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Request Move Pass
+                  <Plus className="mr-2 h-4 w-4" /> Request Tenant Move Pass
                 </Button>
               </Card>
             ) : (
