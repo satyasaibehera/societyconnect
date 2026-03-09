@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -5,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import {
   ArrowDownToLine, ArrowUpFromLine, CalendarDays, Phone, Mail,
-  Car, FileCheck, Clock, Check, User, Home, Printer, QrCode,
+  Car, FileCheck, Clock, Check, User, Home, Printer, QrCode, X,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
