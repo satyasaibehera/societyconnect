@@ -417,6 +417,50 @@ export type Database = {
           },
         ]
       }
+      notice_types: {
+        Row: {
+          color: string
+          created_at: string
+          has_structured_fields: boolean
+          id: string
+          is_active: boolean
+          label: string
+          name: string
+          society_id: string
+          sort_order: number
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          has_structured_fields?: boolean
+          id?: string
+          is_active?: boolean
+          label: string
+          name: string
+          society_id: string
+          sort_order?: number
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          has_structured_fields?: boolean
+          id?: string
+          is_active?: boolean
+          label?: string
+          name?: string
+          society_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notice_types_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notices: {
         Row: {
           action_items: string | null
