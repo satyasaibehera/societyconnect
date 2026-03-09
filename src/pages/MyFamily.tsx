@@ -87,7 +87,13 @@ const MyFamily = () => {
       .select("id, full_name, phone, resident_type, relationship, date_of_birth, age, gender, status, photo_url")
       .eq("unit_id", unitId)
       .neq("resident_type", "tenant");
-    setMembers(data || []);
+    // Sort: owner first, then others
+    const sorted = (data || []).sort((a, b) => {
+      if (a.resident_type === "owner" && b.resident_type !== "owner") return -1;
+      if (a.resident_type !== "owner" && b.resident_type === "owner") return 1;
+      return 0;
+    });
+    setMembers(sorted);
     setLoading(false);
   }, [unitId]);
 
