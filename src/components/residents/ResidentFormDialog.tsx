@@ -24,6 +24,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Loader2, CalendarIcon, Search } from "lucide-react";
+import { CameraCapture } from "@/components/camera/CameraCapture";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ResidentFormData {
   full_name: string;
@@ -32,6 +34,7 @@ export interface ResidentFormData {
   resident_type: string;
   date_of_birth: string;
   unit_id: string;
+  photo_url?: string;
 }
 
 interface Unit {
@@ -47,9 +50,10 @@ interface Props {
   units: Unit[];
   initialData?: ResidentFormData | null;
   mode: "add" | "edit";
+  isAdmin?: boolean;
 }
 
-export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initialData, mode }: Props) {
+export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initialData, mode, isAdmin }: Props) {
   const [form, setForm] = useState<ResidentFormData>({
     full_name: "",
     phone: "",
@@ -57,10 +61,13 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
     resident_type: "owner",
     date_of_birth: "",
     unit_id: "",
+    photo_url: "",
   });
   const [saving, setSaving] = useState(false);
   const [unitSearch, setUnitSearch] = useState("");
   const [dobDate, setDobDate] = useState<Date | undefined>(undefined);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
 
   useEffect(() => {
     if (initialData) {
@@ -68,13 +75,20 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
       if (initialData.date_of_birth) {
         setDobDate(new Date(initialData.date_of_birth));
       }
-      // Pre-fill unit search with selected unit number
+      if (initialData.photo_url) {
+        setCapturedImage(initialData.photo_url);
+      } else {
+        setCapturedImage(null);
+      }
+      setPhotoBlob(null);
       const selectedUnit = units.find((u) => u.id === initialData.unit_id);
       if (selectedUnit) setUnitSearch(selectedUnit.unit_number);
     } else {
-      setForm({ full_name: "", phone: "", email: "", resident_type: "owner", date_of_birth: "", unit_id: "" });
+      setForm({ full_name: "", phone: "", email: "", resident_type: "owner", date_of_birth: "", unit_id: "", photo_url: "" });
       setDobDate(undefined);
       setUnitSearch("");
+      setCapturedImage(null);
+      setPhotoBlob(null);
     }
   }, [initialData, open, units]);
 
@@ -90,26 +104,75 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
       )
     : units;
 
+  const handlePhotoCapture = (blob: Blob) => {
+    setPhotoBlob(blob);
+    setCapturedImage(URL.createObjectURL(blob));
+  };
+
+  const handlePhotoClear = () => {
+    setCapturedImage(null);
+    setPhotoBlob(null);
+  };
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoBlob) return form.photo_url || null;
+
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const filePath = `photos/${fileName}`;
+
+    const { error } = await supabase.storage
+      .from("resident-photos")
+      .upload(filePath, photoBlob, { contentType: "image/jpeg" });
+
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage
+      .from("resident-photos")
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
+  };
+
   const handleSubmit = async () => {
     if (!form.full_name.trim()) return;
+
+    // Photo is mandatory unless admin
+    if (!isAdmin && !capturedImage) return;
+
     setSaving(true);
     try {
-      await onSubmit(form);
+      const photoUrl = await uploadPhoto();
+      await onSubmit({ ...form, photo_url: photoUrl || "" });
       onOpenChange(false);
+    } catch (err: any) {
+      // Error handled by parent
     } finally {
       setSaving(false);
     }
   };
 
+  const photoMissing = !isAdmin && !capturedImage;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">
             {mode === "add" ? "Add Resident" : "Edit Resident"}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          {/* Camera Capture */}
+          <CameraCapture
+            onCapture={handlePhotoCapture}
+            capturedImage={capturedImage}
+            onClear={handlePhotoClear}
+            required={!isAdmin}
+          />
+          {photoMissing && (
+            <p className="text-xs text-destructive">A live photo is required for registration.</p>
+          )}
+
           <div className="space-y-2">
             <Label>Full Name *</Label>
             <Input
@@ -234,7 +297,11 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={saving || !form.full_name.trim()} className="gradient-primary text-primary-foreground">
+            <Button
+              onClick={handleSubmit}
+              disabled={saving || !form.full_name.trim() || photoMissing}
+              className="gradient-primary text-primary-foreground"
+            >
               {saving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : mode === "add" ? "Add Resident" : "Save Changes"}
             </Button>
           </div>
