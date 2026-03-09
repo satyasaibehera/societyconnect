@@ -149,7 +149,16 @@ const MyFamily = () => {
     if (photoUrl) payload.photo_url = photoUrl;
 
     if (editingMember) {
-      const { error } = await supabase.from("residents").update(payload).eq("id", editingMember.id);
+      const updateData: Record<string, any> = {
+        full_name: form.full_name,
+        phone: form.phone || null,
+        relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
+        date_of_birth: form.date_of_birth || null,
+        age: form.age ? parseInt(form.age) : null,
+        gender: form.gender || null,
+      };
+      if (photoUrl) updateData.photo_url = photoUrl;
+      const { error } = await supabase.from("residents").update(updateData as any).eq("id", editingMember.id);
       setSaving(false);
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
