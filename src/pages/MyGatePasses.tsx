@@ -59,7 +59,14 @@ interface MovePass {
   id: string;
   pass_type: string;
   status: string;
+  tenant_name: string | null;
+  tenant_phone: string | null;
+  tenant_email: string | null;
+  purpose: string | null;
+  vehicle_number: string | null;
+  vehicle_type: string | null;
   scheduled_date: string | null;
+  scheduled_time: string | null;
   notes: string | null;
   owner_approved_by: string | null;
   owner_approved_at: string | null;
