@@ -180,7 +180,7 @@ const MyFamily = () => {
         phone: form.phone || null,
         relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
         date_of_birth: form.date_of_birth || null,
-        age: form.age ? parseInt(form.age) : null,
+        age: calculatedAge,
         gender: form.gender || null,
         photo_url: photoUrl,
         resident_type: form.resident_type,
