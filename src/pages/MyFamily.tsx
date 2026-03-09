@@ -95,6 +95,8 @@ const MyFamily = () => {
   const openAdd = () => {
     setEditingMember(null);
     setForm(emptyForm);
+    setCapturedImage(null);
+    setPhotoBlob(null);
     setDialogOpen(true);
   };
 
