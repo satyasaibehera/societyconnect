@@ -319,7 +319,7 @@ const Settings = () => {
                     <Loader2 className="h-4 w-4 animate-spin" /> Loading...
                   </div>
                 ) : editingSociety ? (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="space-y-2">
                       <Label>Temporary Vehicle Pass Validity</Label>
                       <div className="flex items-center gap-3">
@@ -337,12 +337,41 @@ const Settings = () => {
                         How long a temporary vehicle pass remains valid. Common values: 12, 24, 48 hours.
                       </p>
                     </div>
+                    <Separator />
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-sm font-medium">Require Society Admin Approval for Move Passes</Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          When enabled, move-in and move-out passes require both flat owner approval and society admin sign-off (including dues clearance for move-out). Disable for a simpler owner-only workflow.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={requiresAdminForMove}
+                          onCheckedChange={setRequiresAdminForMove}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          {requiresAdminForMove ? "Enabled — Owner + Admin required" : "Disabled — Owner approval only"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-[200px_1fr] gap-2 text-sm">
+                    <div className="grid grid-cols-[240px_1fr] gap-2 text-sm">
                       <span className="text-muted-foreground">Temp Pass Validity</span>
                       <span className="font-medium">{tempPassHours} hours</span>
+                    </div>
+                    <Separator />
+                    <div className="grid grid-cols-[240px_1fr] gap-2 text-sm">
+                      <span className="text-muted-foreground">Admin Approval for Move Passes</span>
+                      <span className="font-medium">
+                        {requiresAdminForMove ? (
+                          <Badge className="bg-primary/10 text-primary border-0 text-xs">Required</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">Not required (owner only)</Badge>
+                        )}
+                      </span>
                     </div>
                   </div>
                 )}
