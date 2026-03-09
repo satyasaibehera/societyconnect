@@ -70,6 +70,7 @@ const statusStyles: Record<string, string> = {
 const Residents = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isManagement } = useUserRole();
   const [residents, setResidents] = useState<Resident[]>([]);
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [loading, setLoading] = useState(true);
