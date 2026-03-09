@@ -27,14 +27,26 @@ const RegisterResident = () => {
   const [submitting, setSubmitting] = useState(false);
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
 
   const [form, setForm] = useState({
     full_name: "",
     phone: "",
     date_of_birth: "",
     unit_id: "",
-    resident_type: "owner", // owner or family
+    resident_type: "owner",
   });
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoBlob) return null;
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const filePath = `photos/${fileName}`;
+    const { error } = await supabase.storage.from("resident-photos").upload(filePath, photoBlob, { contentType: "image/jpeg" });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from("resident-photos").getPublicUrl(filePath);
+    return urlData.publicUrl;
+  };
 
   useEffect(() => {
     if (!user) return;
