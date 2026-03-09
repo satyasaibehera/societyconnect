@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { CameraCapture } from "@/components/camera/CameraCapture";
 
 interface UnitOption {
   id: string;
@@ -26,14 +27,26 @@ const RegisterResident = () => {
   const [submitting, setSubmitting] = useState(false);
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
 
   const [form, setForm] = useState({
     full_name: "",
     phone: "",
     date_of_birth: "",
     unit_id: "",
-    resident_type: "owner", // owner or family
+    resident_type: "owner",
   });
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoBlob) return null;
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const filePath = `photos/${fileName}`;
+    const { error } = await supabase.storage.from("resident-photos").upload(filePath, photoBlob, { contentType: "image/jpeg" });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from("resident-photos").getPublicUrl(filePath);
+    return urlData.publicUrl;
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -117,14 +130,15 @@ const RegisterResident = () => {
 
   const handleSubmit = async () => {
     if (!form.full_name || !form.unit_id || !user) return;
+    if (!capturedImage) {
+      toast({ title: "Photo required", description: "Please capture a live photo.", variant: "destructive" });
+      return;
+    }
 
-    // Validate: if registering as owner, unit must not have one
     if (isOwnerRegistration && selectedUnit?.has_owner) {
       toast({ title: "This unit already has an approved owner", variant: "destructive" });
       return;
     }
-
-    // Validate: if registering as family, unit must have an owner
     if (!isOwnerRegistration && selectedUnit && !selectedUnit.has_owner) {
       toast({ title: "This unit has no approved owner yet", variant: "destructive" });
       return;
@@ -132,8 +146,15 @@ const RegisterResident = () => {
 
     setSubmitting(true);
 
-    // Get society_id from the unit's building
-    const unitData = units.find((u) => u.id === form.unit_id);
+    let photoUrl: string | null = null;
+    try {
+      photoUrl = await uploadPhoto();
+    } catch (err: any) {
+      toast({ title: "Photo upload failed", description: err.message, variant: "destructive" });
+      setSubmitting(false);
+      return;
+    }
+
     const { data: unitRow } = await supabase
       .from("units")
       .select("building_id, buildings!units_building_id_fkey(society_id)")
@@ -155,7 +176,8 @@ const RegisterResident = () => {
       society_id: societyId,
       resident_type: form.resident_type,
       user_id: user.id,
-      status: "pending",
+      photo_url: photoUrl,
+      status: "pending" as const,
     });
 
     setSubmitting(false);
@@ -249,6 +271,16 @@ const RegisterResident = () => {
                 Your registration will need approval from the admin.
               </span>
             </div>
+          )}
+
+          <CameraCapture
+            onCapture={(blob) => { setPhotoBlob(blob); setCapturedImage(URL.createObjectURL(blob)); }}
+            capturedImage={capturedImage}
+            onClear={() => { setCapturedImage(null); setPhotoBlob(null); }}
+            required
+          />
+          {!capturedImage && (
+            <p className="text-xs text-destructive">A live photo is required to register.</p>
           )}
 
           <div className="space-y-2">

@@ -12,6 +12,7 @@ import { Users, Plus, Loader2, UserPlus, Phone, Calendar, ArrowRightLeft, Crown,
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { CameraCapture } from "@/components/camera/CameraCapture";
 
 interface FamilyMember {
   id: string;
@@ -28,6 +29,7 @@ interface FamilyMember {
 const emptyForm = {
   full_name: "", phone: "", relationship: "", relationship_other: "",
   date_of_birth: "", age: "", gender: "", resident_type: "family",
+  photo_url: "",
 };
 
 const MyFamily = () => {
@@ -46,6 +48,18 @@ const MyFamily = () => {
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
 
   const [form, setForm] = useState(emptyForm);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoBlob) return null;
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const filePath = `photos/${fileName}`;
+    const { error } = await supabase.storage.from("resident-photos").upload(filePath, photoBlob, { contentType: "image/jpeg" });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from("resident-photos").getPublicUrl(filePath);
+    return urlData.publicUrl;
+  };
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
@@ -81,11 +95,15 @@ const MyFamily = () => {
   const openAdd = () => {
     setEditingMember(null);
     setForm(emptyForm);
+    setCapturedImage(null);
+    setPhotoBlob(null);
     setDialogOpen(true);
   };
 
   const openEdit = (m: FamilyMember) => {
     setEditingMember(m);
+    setCapturedImage(null);
+    setPhotoBlob(null);
     const rel = ["spouse", "child", "parent", "sibling", "other"].includes(m.relationship || "") ? m.relationship! : (m.relationship ? "other" : "");
     const relOther = rel === "other" ? (m.relationship || "") : "";
     setForm({
@@ -97,14 +115,30 @@ const MyFamily = () => {
       age: m.age?.toString() || "",
       gender: m.gender || "",
       resident_type: m.resident_type,
+      photo_url: "",
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.full_name) return;
+    // Photo required for new members (non-edit)
+    if (!editingMember && !capturedImage) {
+      toast({ title: "Photo required", description: "Please capture a live photo.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
-    const payload = {
+
+    let photoUrl: string | null = null;
+    try {
+      photoUrl = await uploadPhoto();
+    } catch (err: any) {
+      toast({ title: "Photo upload failed", description: err.message, variant: "destructive" });
+      setSaving(false);
+      return;
+    }
+
+    const payload: Record<string, any> = {
       full_name: form.full_name,
       phone: form.phone || null,
       relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
@@ -112,9 +146,19 @@ const MyFamily = () => {
       age: form.age ? parseInt(form.age) : null,
       gender: form.gender || null,
     };
+    if (photoUrl) payload.photo_url = photoUrl;
 
     if (editingMember) {
-      const { error } = await supabase.from("residents").update(payload).eq("id", editingMember.id);
+      const updateData: Record<string, any> = {
+        full_name: form.full_name,
+        phone: form.phone || null,
+        relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
+        date_of_birth: form.date_of_birth || null,
+        age: form.age ? parseInt(form.age) : null,
+        gender: form.gender || null,
+      };
+      if (photoUrl) updateData.photo_url = photoUrl;
+      const { error } = await supabase.from("residents").update(updateData as any).eq("id", editingMember.id);
       setSaving(false);
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -126,12 +170,18 @@ const MyFamily = () => {
     } else {
       if (!unitId || !societyId) { setSaving(false); return; }
       const { error } = await supabase.from("residents").insert({
-        ...payload,
+        full_name: form.full_name,
+        phone: form.phone || null,
+        relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
+        date_of_birth: form.date_of_birth || null,
+        age: form.age ? parseInt(form.age) : null,
+        gender: form.gender || null,
+        photo_url: photoUrl,
         resident_type: form.resident_type,
         unit_id: unitId,
         society_id: societyId,
         user_id: user?.id,
-        status: "pending",
+        status: "pending" as const,
       });
       setSaving(false);
       if (error) {
@@ -233,9 +283,18 @@ const MyFamily = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingMember ? "Edit Member" : "Add Family Member"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            <CameraCapture
+              onCapture={(blob) => { setPhotoBlob(blob); setCapturedImage(URL.createObjectURL(blob)); }}
+              capturedImage={capturedImage}
+              onClear={() => { setCapturedImage(null); setPhotoBlob(null); }}
+              required={!editingMember}
+            />
+            {!editingMember && !capturedImage && (
+              <p className="text-xs text-destructive">A live photo is required for registration.</p>
+            )}
             <div><Label>Full Name *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div>
@@ -281,7 +340,7 @@ const MyFamily = () => {
             )}
           </div>
           <DialogFooter>
-            <Button onClick={handleSave} disabled={saving || !form.full_name}>
+            <Button onClick={handleSave} disabled={saving || !form.full_name || (!editingMember && !capturedImage)}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editingMember ? "Save Changes" : "Add Member"}
             </Button>
           </DialogFooter>

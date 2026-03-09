@@ -40,6 +40,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ResidentFormDialog, ResidentFormData } from "@/components/residents/ResidentFormDialog";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Resident {
   id: string;
@@ -69,6 +70,7 @@ const statusStyles: Record<string, string> = {
 const Residents = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isManagement } = useUserRole();
   const [residents, setResidents] = useState<Resident[]>([]);
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,9 +144,10 @@ const Residents = () => {
       resident_type: form.resident_type,
       date_of_birth: form.date_of_birth || null,
       unit_id: form.unit_id || null,
+      photo_url: form.photo_url || null,
       society_id: societyId,
       user_id: user?.id,
-      status: "pending" as any,
+      status: "pending" as const,
     });
 
     if (error) throw error;
@@ -154,16 +157,18 @@ const Residents = () => {
 
   const handleEdit = async (form: ResidentFormData) => {
     if (!editData) return;
+    const updateData: Record<string, any> = {
+      full_name: form.full_name,
+      phone: form.phone || null,
+      email: form.email || null,
+      resident_type: form.resident_type,
+      date_of_birth: form.date_of_birth || null,
+      unit_id: form.unit_id || null,
+    };
+    if (form.photo_url) updateData.photo_url = form.photo_url;
     const { error } = await supabase
       .from("residents")
-      .update({
-        full_name: form.full_name,
-        phone: form.phone || null,
-        email: form.email || null,
-        resident_type: form.resident_type,
-        date_of_birth: form.date_of_birth || null,
-        unit_id: form.unit_id || null,
-      })
+      .update(updateData as any)
       .eq("id", editData.id);
 
     if (error) throw error;
@@ -378,6 +383,7 @@ const Residents = () => {
         units={units}
         initialData={editData?.form ?? null}
         mode={editData ? "edit" : "add"}
+        isAdmin={isManagement}
       />
     </DashboardLayout>
   );
