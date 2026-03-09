@@ -102,7 +102,7 @@ const Notices = () => {
       payload.action_items = actionItems || null;
     }
 
-    const { error } = await supabase.from("notices").insert(payload);
+    const { error } = await supabase.from("notices").insert(payload as any);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: `${typeLabels[noticeType]} posted` }); resetForm(); setDialogOpen(false); fetchNotices(); }
     setSaving(false);
