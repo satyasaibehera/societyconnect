@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/select";
 import {
   UserCheck, Car, Plus, Loader2, Phone, Clock, Check, X, Ticket,
-  PackageOpen, ArrowDownToLine, ArrowUpFromLine, CalendarDays, FileCheck,
+  PackageOpen, ArrowDownToLine, ArrowUpFromLine, CalendarDays, FileCheck, Eye,
 } from "lucide-react";
+import { MovePassViewer } from "@/components/gate-passes/MovePassViewer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -58,7 +59,14 @@ interface MovePass {
   id: string;
   pass_type: string;
   status: string;
+  tenant_name: string | null;
+  tenant_phone: string | null;
+  tenant_email: string | null;
+  purpose: string | null;
+  vehicle_number: string | null;
+  vehicle_type: string | null;
   scheduled_date: string | null;
+  scheduled_time: string | null;
   notes: string | null;
   owner_approved_by: string | null;
   owner_approved_at: string | null;
@@ -118,6 +126,7 @@ const MyGatePasses = () => {
   const [visitorDialogOpen, setVisitorDialogOpen] = useState(false);
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [viewingPass, setViewingPass] = useState<MovePass | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [visitorForm, setVisitorForm] = useState({
@@ -128,7 +137,14 @@ const MyGatePasses = () => {
   });
   const [moveForm, setMoveForm] = useState({
     pass_type: "move_in" as "move_in" | "move_out",
+    tenant_name: "",
+    tenant_phone: "",
+    tenant_email: "",
+    purpose: "",
+    vehicle_number: "",
+    vehicle_type: "",
     scheduled_date: "",
+    scheduled_time: "",
     notes: "",
   });
 
@@ -232,7 +248,14 @@ const MyGatePasses = () => {
     setSaving(true);
     const { error } = await supabase.from("move_passes").insert({
       pass_type: moveForm.pass_type,
+      tenant_name: moveForm.tenant_name || null,
+      tenant_phone: moveForm.tenant_phone || null,
+      tenant_email: moveForm.tenant_email || null,
+      purpose: moveForm.purpose || null,
+      vehicle_number: moveForm.vehicle_number || null,
+      vehicle_type: moveForm.vehicle_type || null,
       scheduled_date: moveForm.scheduled_date || null,
+      scheduled_time: moveForm.scheduled_time || null,
       notes: moveForm.notes || null,
       unit_id: myUnitId,
       society_id: societyId,
@@ -250,7 +273,11 @@ const MyGatePasses = () => {
           : "Pending flat owner approval.",
       });
       setMoveDialogOpen(false);
-      setMoveForm({ pass_type: "move_in", scheduled_date: "", notes: "" });
+      setMoveForm({
+        pass_type: "move_in", tenant_name: "", tenant_phone: "", tenant_email: "",
+        purpose: "", vehicle_number: "", vehicle_type: "",
+        scheduled_date: "", scheduled_time: "", notes: "",
+      });
       fetchPasses();
     }
   };
@@ -713,6 +740,17 @@ const MyGatePasses = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* View approved gate pass */}
+                    {m.status === "approved" && (
+                      <Button
+                        size="sm"
+                        className="w-full h-8 text-xs gradient-primary text-primary-foreground gap-1.5 mt-1"
+                        onClick={() => setViewingPass(m)}
+                      >
+                        <Eye className="h-3 w-3" /> View Gate Pass
+                      </Button>
+                    )}
                   </Card>
                 ))}
               </div>
@@ -859,13 +897,14 @@ const MyGatePasses = () => {
 
       {/* ── Move Pass Dialog ───────────────────────────────────── */}
       <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
               <PackageOpen className="h-5 w-5" /> Request Move In / Out Pass
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
+            {/* Pass Type */}
             <div className="space-y-2">
               <Label>Pass Type *</Label>
               <Select
@@ -889,33 +928,123 @@ const MyGatePasses = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Scheduled Date</Label>
-              <Input
-                type="date"
-                value={moveForm.scheduled_date}
-                onChange={(e) => setMoveForm({ ...moveForm, scheduled_date: e.target.value })}
-              />
+
+            {/* Tenant Details */}
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pt-1">Tenant Details</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Tenant Name</Label>
+                <Input
+                  placeholder="Full name"
+                  value={moveForm.tenant_name}
+                  onChange={(e) => setMoveForm({ ...moveForm, tenant_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Tenant Phone</Label>
+                <Input
+                  placeholder="+91 9876543210"
+                  value={moveForm.tenant_phone}
+                  onChange={(e) => setMoveForm({ ...moveForm, tenant_phone: e.target.value })}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Notes</Label>
+              <Label>Tenant Email</Label>
+              <Input
+                type="email"
+                placeholder="tenant@email.com"
+                value={moveForm.tenant_email}
+                onChange={(e) => setMoveForm({ ...moveForm, tenant_email: e.target.value })}
+              />
+            </div>
+
+            {/* Purpose & Schedule */}
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pt-1">Schedule & Purpose</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={moveForm.scheduled_date}
+                  onChange={(e) => setMoveForm({ ...moveForm, scheduled_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Time</Label>
+                <Input
+                  type="time"
+                  value={moveForm.scheduled_time}
+                  onChange={(e) => setMoveForm({ ...moveForm, scheduled_time: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Purpose</Label>
+              <Input
+                placeholder="e.g. Personal belongings, Furniture, Delivery"
+                value={moveForm.purpose}
+                onChange={(e) => setMoveForm({ ...moveForm, purpose: e.target.value })}
+              />
+            </div>
+
+            {/* Vehicle Details */}
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pt-1">Vehicle Details (if applicable)</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Vehicle Number</Label>
+                <Input
+                  placeholder="e.g. MH 01 AB 1234"
+                  value={moveForm.vehicle_number}
+                  onChange={(e) => setMoveForm({ ...moveForm, vehicle_number: e.target.value.toUpperCase() })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Vehicle Type</Label>
+                <Select
+                  value={moveForm.vehicle_type}
+                  onValueChange={(v) => setMoveForm({ ...moveForm, vehicle_type: v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="car">Car</SelectItem>
+                    <SelectItem value="bike">Bike / Scooter</SelectItem>
+                    <SelectItem value="truck">Truck / Van</SelectItem>
+                    <SelectItem value="auto">Auto / Cab</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Additional Notes</Label>
               <Textarea
-                placeholder="e.g. Moving furniture, number of people, expected time..."
+                placeholder="e.g. Number of helpers, large items, any special requirements..."
                 value={moveForm.notes}
                 onChange={(e) => setMoveForm({ ...moveForm, notes: e.target.value })}
-                rows={3}
+                rows={2}
               />
             </div>
+
+            {/* Workflow info */}
             <div className="text-xs text-muted-foreground bg-muted rounded-md p-3 space-y-1">
               <p className="font-medium">Approval workflow:</p>
               <p>1. Flat owner reviews and approves</p>
               {requiresAdminForMove ? (
                 <>
                   <p>2. Society admin reviews{moveForm.pass_type === "move_out" ? " and verifies dues clearance" : ""}</p>
-                  <p>3. Gate pass is issued</p>
+                  <p>3. Gate pass is issued with QR code for security</p>
                 </>
               ) : (
-                <p>2. Gate pass is issued</p>
+                <p>2. Gate pass is issued with QR code for security</p>
               )}
             </div>
           </div>
@@ -934,8 +1063,17 @@ const MyGatePasses = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Gate Pass Viewer ───────────────────────────────────── */}
+      <MovePassViewer
+        open={!!viewingPass}
+        onOpenChange={(open) => { if (!open) setViewingPass(null); }}
+        pass={viewingPass}
+        unitLabel={unitLabel}
+      />
     </DashboardLayout>
   );
 };
 
 export default MyGatePasses;
+

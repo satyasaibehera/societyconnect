@@ -283,12 +283,19 @@ export type Database = {
           owner_approved_by: string | null
           owner_rejection_reason: string | null
           pass_type: string
+          purpose: string | null
           requested_by: string
           scheduled_date: string | null
+          scheduled_time: string | null
           society_id: string
           status: string
+          tenant_email: string | null
+          tenant_name: string | null
+          tenant_phone: string | null
           unit_id: string
           updated_at: string
+          vehicle_number: string | null
+          vehicle_type: string | null
         }
         Insert: {
           admin_approved_at?: string | null
@@ -304,12 +311,19 @@ export type Database = {
           owner_approved_by?: string | null
           owner_rejection_reason?: string | null
           pass_type: string
+          purpose?: string | null
           requested_by: string
           scheduled_date?: string | null
+          scheduled_time?: string | null
           society_id: string
           status?: string
+          tenant_email?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
           unit_id: string
           updated_at?: string
+          vehicle_number?: string | null
+          vehicle_type?: string | null
         }
         Update: {
           admin_approved_at?: string | null
@@ -325,12 +339,19 @@ export type Database = {
           owner_approved_by?: string | null
           owner_rejection_reason?: string | null
           pass_type?: string
+          purpose?: string | null
           requested_by?: string
           scheduled_date?: string | null
+          scheduled_time?: string | null
           society_id?: string
           status?: string
+          tenant_email?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
           unit_id?: string
           updated_at?: string
+          vehicle_number?: string | null
+          vehicle_type?: string | null
         }
         Relationships: [
           {
