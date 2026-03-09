@@ -114,23 +114,48 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
   }, [stream, facingMode]);
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) {
+      console.error("Video or canvas ref not available");
+      return;
+    }
+    
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    
+    // Check if video has valid dimensions
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error("Video dimensions not ready");
+      setError("Camera preview not ready. Please wait a moment and try again.");
+      return;
+    }
+    
+    console.log("Capturing photo, video dimensions:", video.videoWidth, "x", video.videoHeight);
+    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      console.error("Could not get canvas context");
+      return;
+    }
 
     // Mirror for front camera
     if (facingMode === "user") {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
+    
     ctx.drawImage(video, 0, 0);
+    
     canvas.toBlob(
       (blob) => {
-        if (blob) onCapture(blob);
+        if (blob) {
+          console.log("Photo captured successfully, size:", blob.size);
+          onCapture(blob);
+        } else {
+          console.error("Failed to create blob from canvas");
+          setError("Failed to capture photo. Please try again.");
+        }
         stopCamera();
       },
       "image/jpeg",
