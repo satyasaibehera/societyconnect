@@ -210,34 +210,33 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
             <Printer className="h-4 w-4" /> Print Pass
           </Button>
         </div>
-      </DialogContent>
 
-    </Dialog>
-
-      {showLargeQr && createPortal(
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setShowLargeQr(false)}
-        >
+        {/* Enlarged QR overlay — inside DialogContent to work within Radix focus trap */}
+        {showLargeQr && (
           <div
-            className="relative bg-card rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-[90vw]"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowLargeQr(false)}
           >
-            <button
-              onClick={() => setShowLargeQr(false)}
-              className="absolute top-3 right-3 rounded-full p-1 hover:bg-muted transition-colors"
+            <div
+              className="relative bg-card rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-[90vw]"
+              onClick={(e) => e.stopPropagation()}
             >
-              <X className="h-5 w-5 text-muted-foreground" />
-            </button>
-            <QRCodeSVG value={qrValue} size={280} />
-            <p className="text-xs text-muted-foreground font-mono">
-              Pass ID: {pass.id.slice(0, 8).toUpperCase()}
-            </p>
+              <button
+                type="button"
+                onClick={() => setShowLargeQr(false)}
+                className="absolute top-3 right-3 rounded-full p-1 hover:bg-muted transition-colors"
+              >
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+              <QRCodeSVG value={qrValue} size={280} />
+              <p className="text-xs text-muted-foreground font-mono">
+                Pass ID: {pass.id.slice(0, 8).toUpperCase()}
+              </p>
+            </div>
           </div>
-        </div>,
-        document.body
-      )}
-    </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
