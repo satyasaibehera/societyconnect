@@ -137,9 +137,9 @@ const MyTenants = () => {
   };
 
   const statusBadge = (status: string, vacated: boolean) => {
-    if (vacated) return <Badge className="bg-destructive text-white text-[10px]">Vacated</Badge>;
+    if (vacated) return <Badge className="bg-destructive text-white text-[10px] capitalize">Vacated</Badge>;
     const map: Record<string, string> = { approved: "bg-green-500", pending: "bg-yellow-500", rejected: "bg-red-500" };
-    return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px]`}>{status}</Badge>;
+    return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px] capitalize`}>{status}</Badge>;
   };
 
   const handleVacate = async (tenantId: string, currentlyVacated: boolean) => {
