@@ -529,6 +529,209 @@ export type Database = {
           },
         ]
       }
+      owner_payment_config: {
+        Row: {
+          account_holder_name: string | null
+          bank_name: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          owner_user_id: string
+          rent_amount: number | null
+          unit_id: string
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          account_holder_name?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          owner_user_id: string
+          rent_amount?: number | null
+          unit_id: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          account_holder_name?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          owner_user_id?: string
+          rent_amount?: number | null
+          unit_id?: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_payment_config_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_categories: {
+        Row: {
+          account_holder_name: string | null
+          account_number: string | null
+          amount: number | null
+          amount_max: number | null
+          amount_min: number | null
+          bank_name: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_day: number | null
+          frequency: string
+          id: string
+          ifsc_code: string | null
+          is_active: boolean
+          is_fixed_amount: boolean
+          name: string
+          society_id: string
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          account_holder_name?: string | null
+          account_number?: string | null
+          amount?: number | null
+          amount_max?: number | null
+          amount_min?: number | null
+          bank_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_day?: number | null
+          frequency?: string
+          id?: string
+          ifsc_code?: string | null
+          is_active?: boolean
+          is_fixed_amount?: boolean
+          name: string
+          society_id: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          account_holder_name?: string | null
+          account_number?: string | null
+          amount?: number | null
+          amount_max?: number | null
+          amount_min?: number | null
+          bank_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_day?: number | null
+          frequency?: string
+          id?: string
+          ifsc_code?: string | null
+          is_active?: boolean
+          is_fixed_amount?: boolean
+          name?: string
+          society_id?: string
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_categories_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_records: {
+        Row: {
+          amount: number
+          category_id: string | null
+          created_at: string
+          declared_at: string
+          id: string
+          notes: string | null
+          owner_config_id: string | null
+          payer_user_id: string
+          payment_type: string
+          period_label: string | null
+          rejection_reason: string | null
+          society_id: string
+          status: string
+          transaction_ref: string | null
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          created_at?: string
+          declared_at?: string
+          id?: string
+          notes?: string | null
+          owner_config_id?: string | null
+          payer_user_id: string
+          payment_type: string
+          period_label?: string | null
+          rejection_reason?: string | null
+          society_id: string
+          status?: string
+          transaction_ref?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          declared_at?: string
+          id?: string
+          notes?: string | null
+          owner_config_id?: string | null
+          payer_user_id?: string
+          payment_type?: string
+          period_label?: string | null
+          rejection_reason?: string | null
+          society_id?: string
+          status?: string
+          transaction_ref?: string | null
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_records_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "payment_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_records_owner_config_id_fkey"
+            columns: ["owner_config_id"]
+            isOneToOne: false
+            referencedRelation: "owner_payment_config"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_records_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       polls: {
         Row: {
           created_at: string
