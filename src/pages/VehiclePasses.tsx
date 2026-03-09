@@ -295,7 +295,7 @@ const VehiclePasses = () => {
     const map: Record<string, string> = {
       approved: "bg-green-500", pending: "bg-yellow-500", rejected: "bg-red-500", expired: "bg-muted-foreground",
     };
-    return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px]`}>{status}</Badge>;
+    return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px] capitalize`}>{status}</Badge>;
   };
 
   const canApproveTemp = (_p: VehiclePass) => false; // Temp pass approvals moved to My Vehicles
