@@ -14,7 +14,9 @@ interface CameraCaptureProps {
 export function CameraCapture({ onCapture, capturedImage, onClear, required, className }: CameraCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
+  // Keep stream in a ref so it's always current regardless of renders
+  const streamRef = useRef<MediaStream | null>(null);
+
   const [cameraActive, setCameraActive] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
@@ -28,135 +30,106 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
     }).catch(() => {});
   }, []);
 
-  // CRITICAL: Must be called directly from user gesture (button click)
-  const startCamera = useCallback(async () => {
+  // When the video element mounts (cameraActive becomes true), attach the stream
+  const videoCallbackRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      node.srcObject = streamRef.current;
+      node.play().catch(console.error);
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  // CRITICAL: Called directly from button click — do NOT move into useEffect
+  const startCamera = useCallback(async (mode?: "user" | "environment") => {
     setError(null);
+    const targetMode = mode ?? facingMode;
     try {
-      console.log("Starting camera with facingMode:", facingMode);
-      const constraints: MediaStreamConstraints = {
-        video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: targetMode, width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
-      };
-      
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("Camera stream obtained:", mediaStream.getTracks());
-      
-      setStream(mediaStream);
+      });
+
+      // Store in ref first — the video callback ref will attach it when element mounts
+      streamRef.current = mediaStream;
       setCameraActive(true);
-      
+
+      // If video element is already mounted (e.g. switching cameras), attach directly
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        console.log("Stream attached to video element");
-        // Explicitly play the video - this is critical for preview
-        try {
-          await videoRef.current.play();
-          console.log("Video playback started");
-        } catch (playError) {
-          console.error("Error playing video:", playError);
-        }
+        videoRef.current.play().catch(console.error);
       }
     } catch (err: any) {
-      console.error("Camera access error:", err);
+      console.error("Camera error:", err);
       if (err.name === "NotAllowedError") {
         setError("Camera access denied. Please allow camera permission in your browser settings.");
       } else if (err.name === "NotFoundError") {
         setError("No camera found on this device.");
       } else {
-        setError("Could not access camera. Please check permissions and try again.");
+        setError("Could not access camera: " + err.message);
       }
     }
   }, [facingMode]);
 
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    setCameraActive(false);
-  }, [stream]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (stream) stream.getTracks().forEach((track) => track.stop());
-    };
-  }, [stream]);
-
   const switchCamera = useCallback(async () => {
-    // Stop existing stream
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop());
-    }
-    
-    // Toggle facing mode
     const newMode = facingMode === "user" ? "environment" : "user";
     setFacingMode(newMode);
-    
-    // Start camera with new mode
-    setError(null);
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: { facingMode: newMode, width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      };
-      
-      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
-      setStream(mediaStream);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
-      }
-    } catch (err: any) {
-      console.error("Error switching camera:", err);
-      setError("Could not switch camera. Please try again.");
+    // Stop existing tracks
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
-  }, [stream, facingMode]);
+    await startCamera(newMode);
+  }, [facingMode, startCamera]);
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) {
-      console.error("Video or canvas ref not available");
-      return;
-    }
-    
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
-    // Check if video has valid dimensions
+    if (!video || !canvas) return;
+
     if (video.videoWidth === 0 || video.videoHeight === 0) {
-      console.error("Video dimensions not ready");
-      setError("Camera preview not ready. Please wait a moment and try again.");
+      setError("Camera preview not ready yet. Please wait a moment.");
       return;
     }
-    
-    console.log("Capturing photo, video dimensions:", video.videoWidth, "x", video.videoHeight);
-    
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      console.error("Could not get canvas context");
-      return;
-    }
+    if (!ctx) return;
 
-    // Mirror for front camera
     if (facingMode === "user") {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
-    
     ctx.drawImage(video, 0, 0);
-    
+
     canvas.toBlob(
       (blob) => {
         if (blob) {
-          console.log("Photo captured successfully, size:", blob.size);
           onCapture(blob);
+          stopCamera();
         } else {
-          console.error("Failed to create blob from canvas");
           setError("Failed to capture photo. Please try again.");
         }
-        stopCamera();
       },
       "image/jpeg",
       0.85
@@ -201,14 +174,10 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
       {cameraActive && (
         <div className="relative max-w-[280px]">
           <video
-            ref={videoRef}
+            ref={videoCallbackRef}
             autoPlay
             playsInline
             muted
-            onLoadedMetadata={() => {
-              // Ensure playback starts once metadata (dimensions) are loaded
-              videoRef.current?.play().catch(console.error);
-            }}
             className={cn(
               "w-full rounded-lg border bg-black aspect-[4/3] object-cover",
               facingMode === "user" && "scale-x-[-1]"
@@ -235,7 +204,7 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
 
       {/* Start Camera Button */}
       {!cameraActive && !capturedImage && (
-        <Button type="button" variant="outline" size="sm" onClick={startCamera} className="w-fit">
+        <Button type="button" variant="outline" size="sm" onClick={() => startCamera()} className="w-fit">
           <Camera className="h-4 w-4 mr-2" />
           Open Camera
         </Button>
