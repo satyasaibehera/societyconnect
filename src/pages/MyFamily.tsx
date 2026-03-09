@@ -271,7 +271,6 @@ const MyFamily = () => {
                       {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
                       {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
                       {m.age && <p>Age: {m.age}</p>}
-                      {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
                     </div>
                     <div className="flex items-center gap-1 mt-auto pt-2">
                       {typeBadge(m.resident_type)} {statusBadge(m.status)}
