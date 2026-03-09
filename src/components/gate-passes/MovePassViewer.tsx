@@ -216,7 +216,6 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
 
     </Dialog>
 
-      {/* Large QR Code Overlay — portalled to body to escape Radix focus trap */}
       {showLargeQr && createPortal(
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
@@ -240,6 +239,7 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
         </div>,
         document.body
       )}
+    </>
   );
 }
 
