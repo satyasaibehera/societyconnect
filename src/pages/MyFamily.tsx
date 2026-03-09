@@ -102,6 +102,8 @@ const MyFamily = () => {
 
   const openEdit = (m: FamilyMember) => {
     setEditingMember(m);
+    setCapturedImage(null);
+    setPhotoBlob(null);
     const rel = ["spouse", "child", "parent", "sibling", "other"].includes(m.relationship || "") ? m.relationship! : (m.relationship ? "other" : "");
     const relOther = rel === "other" ? (m.relationship || "") : "";
     setForm({
