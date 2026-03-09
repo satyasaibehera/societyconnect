@@ -4,12 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2 } from "lucide-react";
+import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
-type ApprovalCategory = "visitors" | "residents" | "helpers" | "vehicles" | "role_requests";
+type ApprovalCategory = "visitors" | "residents" | "helpers" | "vehicles" | "role_requests" | "move_passes";
 
 interface PendingItem {
   id: string;
@@ -26,6 +26,7 @@ const categoryConfig: Record<ApprovalCategory, { label: string; icon: typeof Use
   helpers: { label: "Helpers", icon: Wrench, color: "text-warning" },
   vehicles: { label: "Vehicles", icon: Car, color: "text-success" },
   role_requests: { label: "Role Requests", icon: Shield, color: "text-destructive" },
+  move_passes: { label: "Move Passes", icon: PackageOpen, color: "text-primary" },
 };
 
 const Approvals = () => {
@@ -119,6 +120,22 @@ const Approvals = () => {
       })
     );
 
+    // Fetch pending move passes (pending_owner and pending_admin)
+    const { data: movePasses } = await supabase
+      .from("move_passes")
+      .select("id, pass_type, status, scheduled_date, notes, created_at")
+      .in("status", ["pending_owner", "pending_admin"]);
+    (movePasses as any[])?.forEach((m) =>
+      pending.push({
+        id: m.id,
+        category: "move_passes",
+        title: m.pass_type === "move_in" ? "Move In Request" : "Move Out Request",
+        subtitle: m.status === "pending_owner" ? "Awaiting Owner" : "Awaiting Admin",
+        detail: m.notes || (m.scheduled_date ? `Scheduled: ${m.scheduled_date}` : "No details"),
+        created_at: m.created_at,
+      })
+    );
+
     // Sort by newest first
     pending.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setItems(pending);
@@ -132,6 +149,29 @@ const Approvals = () => {
   const handleAction = async (item: PendingItem, action: "approved" | "rejected") => {
     setActionLoading(item.id);
     try {
+      // Move passes have their own multi-step logic
+      if (item.category === "move_passes") {
+        const { data: mp } = await supabase
+          .from("move_passes")
+          .select("status")
+          .eq("id", item.id)
+          .single();
+        if (!mp) throw new Error("Move pass not found");
+        const updates: any =
+          mp.status === "pending_owner"
+            ? action === "approved"
+              ? { status: "pending_admin", owner_approved_by: user?.id, owner_approved_at: new Date().toISOString() }
+              : { status: "rejected", owner_rejection_reason: "Rejected by owner", owner_approved_by: user?.id, owner_approved_at: new Date().toISOString() }
+            : action === "approved"
+              ? { status: "approved", admin_approved_by: user?.id, admin_approved_at: new Date().toISOString() }
+              : { status: "rejected", admin_rejection_reason: "Rejected by admin", admin_approved_by: user?.id, admin_approved_at: new Date().toISOString() };
+        const { error } = await supabase.from("move_passes").update(updates).eq("id", item.id);
+        if (error) throw error;
+        toast({ title: action === "approved" ? "Approved ✓" : "Rejected", description: `${item.title} updated.` });
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        return;
+      }
+
       const table = item.category === "role_requests" ? "role_requests" : item.category;
       const updateData: any = { status: action };
 
@@ -246,7 +286,7 @@ const Approvals = () => {
     <DashboardLayout title="Approvals">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {categories.map((cat) => {
             const config = categoryConfig[cat];
             const Icon = config.icon;

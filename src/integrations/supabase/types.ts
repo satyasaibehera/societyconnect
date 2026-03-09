@@ -268,6 +268,87 @@ export type Database = {
           },
         ]
       }
+      move_passes: {
+        Row: {
+          admin_approved_at: string | null
+          admin_approved_by: string | null
+          admin_rejection_reason: string | null
+          created_at: string
+          dues_cleared: boolean
+          dues_cleared_at: string | null
+          dues_cleared_by: string | null
+          id: string
+          notes: string | null
+          owner_approved_at: string | null
+          owner_approved_by: string | null
+          owner_rejection_reason: string | null
+          pass_type: string
+          requested_by: string
+          scheduled_date: string | null
+          society_id: string
+          status: string
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_approved_at?: string | null
+          admin_approved_by?: string | null
+          admin_rejection_reason?: string | null
+          created_at?: string
+          dues_cleared?: boolean
+          dues_cleared_at?: string | null
+          dues_cleared_by?: string | null
+          id?: string
+          notes?: string | null
+          owner_approved_at?: string | null
+          owner_approved_by?: string | null
+          owner_rejection_reason?: string | null
+          pass_type: string
+          requested_by: string
+          scheduled_date?: string | null
+          society_id: string
+          status?: string
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_approved_at?: string | null
+          admin_approved_by?: string | null
+          admin_rejection_reason?: string | null
+          created_at?: string
+          dues_cleared?: boolean
+          dues_cleared_at?: string | null
+          dues_cleared_by?: string | null
+          id?: string
+          notes?: string | null
+          owner_approved_at?: string | null
+          owner_approved_by?: string | null
+          owner_rejection_reason?: string | null
+          pass_type?: string
+          requested_by?: string
+          scheduled_date?: string | null
+          society_id?: string
+          status?: string
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "move_passes_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "move_passes_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notices: {
         Row: {
           created_at: string
@@ -638,6 +719,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          requires_admin_for_move_pass: boolean
           state: string | null
           temp_pass_validity_hours: number
           updated_at: string
@@ -650,6 +732,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          requires_admin_for_move_pass?: boolean
           state?: string | null
           temp_pass_validity_hours?: number
           updated_at?: string
@@ -662,6 +745,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          requires_admin_for_move_pass?: boolean
           state?: string | null
           temp_pass_validity_hours?: number
           updated_at?: string
