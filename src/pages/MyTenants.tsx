@@ -183,14 +183,14 @@ const MyTenants = () => {
                 </div>
                 {/* Content row: Details left, Photo right */}
                 <div className="flex gap-3">
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <div className="text-xs text-muted-foreground space-y-1 flex-1">
                       {t.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{t.phone}</p>}
                       {t.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />DOB: {t.date_of_birth}</p>}
                       {t.tenancy_start_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />Start: {t.tenancy_start_date}</p>}
                       {t.tenancy_end_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />End: {t.tenancy_end_date}</p>}
                     </div>
-                    <div className="flex items-center gap-1 pt-1">
+                    <div className="flex items-center gap-1 mt-auto pt-2">
                       <Badge className="bg-id-tenant text-white text-[10px] capitalize">Tenant</Badge>
                       {statusBadge(t.status, t.has_vacated)}
                     </div>
