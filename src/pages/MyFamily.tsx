@@ -325,7 +325,17 @@ const MyFamily = () => {
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Age</Label><Input type="number" min={0} max={120} placeholder="e.g. 35" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} /></div>
+              <div>
+                <Label>Age</Label>
+                <Input
+                  type="number"
+                  placeholder="Auto-calculated"
+                  value={form.date_of_birth ? (Math.floor((Date.now() - new Date(form.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))).toString() : ""}
+                  readOnly
+                  disabled
+                  className="bg-muted text-muted-foreground"
+                />
+              </div>
               <div>
                 <Label>Gender</Label>
                 <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
