@@ -126,6 +126,7 @@ const MyGatePasses = () => {
   const [visitorDialogOpen, setVisitorDialogOpen] = useState(false);
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [viewingPass, setViewingPass] = useState<MovePass | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [visitorForm, setVisitorForm] = useState({
@@ -136,7 +137,14 @@ const MyGatePasses = () => {
   });
   const [moveForm, setMoveForm] = useState({
     pass_type: "move_in" as "move_in" | "move_out",
+    tenant_name: "",
+    tenant_phone: "",
+    tenant_email: "",
+    purpose: "",
+    vehicle_number: "",
+    vehicle_type: "",
     scheduled_date: "",
+    scheduled_time: "",
     notes: "",
   });
 
