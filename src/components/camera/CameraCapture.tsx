@@ -28,23 +28,29 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
     }).catch(() => {});
   }, []);
 
-  const startCamera = useCallback(async () => {
+  const startCameraWithMode = useCallback(async (mode: "user" | "environment") => {
     setError(null);
     try {
       const constraints: MediaStreamConstraints = {
-        video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+        video: { facingMode: mode, width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
       };
+      // CRITICAL: getUserMedia must be called directly from user gesture
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
       setCameraActive(true);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.play().catch(() => {});
       }
     } catch (err) {
       setError("Camera access denied. Please allow camera permission and try again.");
     }
-  }, [facingMode]);
+  }, []);
+
+  const startCamera = useCallback(() => {
+    return startCameraWithMode(facingMode);
+  }, [facingMode, startCameraWithMode]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -62,16 +68,14 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
   }, [stream]);
 
   const switchCamera = useCallback(() => {
-    stopCamera();
-    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
-  }, [stopCamera]);
-
-  // Restart camera when facingMode changes while active
-  useEffect(() => {
-    if (cameraActive && !stream) {
-      startCamera();
-    }
-  }, [facingMode, cameraActive, stream, startCamera]);
+    // Stop existing stream first
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    setStream(null);
+    const newMode = facingMode === "user" ? "environment" : "user";
+    setFacingMode(newMode);
+    // Restart directly (called from click handler, gesture context preserved)
+    startCameraWithMode(newMode);
+  }, [stream, facingMode, startCameraWithMode]);
 
   const capturePhoto = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
