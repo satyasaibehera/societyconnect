@@ -183,7 +183,7 @@ const MyFamily = () => {
         age: calculatedAge,
         gender: form.gender || null,
         photo_url: photoUrl,
-        resident_type: form.resident_type,
+        resident_type: "family",
         unit_id: unitId,
         society_id: societyId,
         user_id: user?.id,
