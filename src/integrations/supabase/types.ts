@@ -806,6 +806,72 @@ export type Database = {
         }
         Relationships: []
       }
+      rent_receipts: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          issued_at: string
+          notes: string | null
+          owner_name: string
+          owner_user_id: string
+          payment_date: string
+          payment_record_id: string
+          period_label: string | null
+          receipt_number: string
+          tenant_name: string
+          tenant_user_id: string
+          unit_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          issued_at?: string
+          notes?: string | null
+          owner_name: string
+          owner_user_id: string
+          payment_date?: string
+          payment_record_id: string
+          period_label?: string | null
+          receipt_number: string
+          tenant_name: string
+          tenant_user_id: string
+          unit_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          issued_at?: string
+          notes?: string | null
+          owner_name?: string
+          owner_user_id?: string
+          payment_date?: string
+          payment_record_id?: string
+          period_label?: string | null
+          receipt_number?: string
+          tenant_name?: string
+          tenant_user_id?: string
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rent_receipts_payment_record_id_fkey"
+            columns: ["payment_record_id"]
+            isOneToOne: false
+            referencedRelation: "payment_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_receipts_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       residents: {
         Row: {
           age: number | null
