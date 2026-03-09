@@ -24,6 +24,7 @@ interface FamilyMember {
   age: number | null;
   gender: string | null;
   status: string;
+  photo_url?: string | null;
 }
 
 const emptyForm = {
