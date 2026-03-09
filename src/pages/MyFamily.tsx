@@ -253,18 +253,19 @@ const MyFamily = () => {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {members.map((m) => (
               <Card key={m.id} className={`p-4 ${m.resident_type === "owner" ? "border-primary/40" : ""}`}>
-                <div className="flex gap-4">
-                  {/* Left: Info */}
+                {/* Top row: Name + Edit */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary shrink-0" />}
+                    <p className="font-medium text-sm truncate">{m.full_name}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(m)}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                </div>
+                {/* Content row: Details left, Photo right */}
+                <div className="flex gap-3">
                   <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary shrink-0" />}
-                        <p className="font-medium text-sm truncate">{m.full_name}</p>
-                      </div>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(m)}>
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    </div>
                     <div className="text-xs text-muted-foreground space-y-1">
                       {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                       {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
@@ -275,28 +276,28 @@ const MyFamily = () => {
                     <div className="flex items-center gap-1 pt-1">
                       {typeBadge(m.resident_type)} {statusBadge(m.status)}
                     </div>
-                    {isOwner && m.resident_type !== "owner" && m.status === "approved" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs"
-                        onClick={() => { setTransferTargetId(m.id); setTransferDialogOpen(true); }}
-                      >
-                        <ArrowRightLeft className="mr-1.5 h-3 w-3" /> Transfer Ownership
-                      </Button>
-                    )}
                   </div>
-                  {/* Right: Photo */}
-                  <div className="shrink-0">
+                  {/* Photo: 3-line height (~54px) */}
+                  <div className="shrink-0 self-start">
                     {m.photo_url ? (
-                      <img src={m.photo_url} alt={m.full_name} className="w-20 h-20 rounded-md object-cover border-2 border-border shadow-sm" />
+                      <img src={m.photo_url} alt={m.full_name} className="w-14 h-14 rounded-md object-cover border-2 border-border shadow-sm" />
                     ) : (
-                      <div className="w-20 h-20 rounded-md bg-muted flex items-center justify-center border-2 border-border">
-                        <Users className="h-8 w-8 text-muted-foreground" />
+                      <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center border-2 border-border">
+                        <Users className="h-6 w-6 text-muted-foreground" />
                       </div>
                     )}
                   </div>
                 </div>
+                {isOwner && m.resident_type !== "owner" && m.status === "approved" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs mt-2"
+                    onClick={() => { setTransferTargetId(m.id); setTransferDialogOpen(true); }}
+                  >
+                    <ArrowRightLeft className="mr-1.5 h-3 w-3" /> Transfer Ownership
+                  </Button>
+                )}
               </Card>
             ))}
           </div>
