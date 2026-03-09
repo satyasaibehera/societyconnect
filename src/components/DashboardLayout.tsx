@@ -1,7 +1,8 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, Search, LogOut, User } from "lucide-react";
+import { Search, LogOut, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
