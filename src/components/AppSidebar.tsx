@@ -20,6 +20,7 @@ import {
   Heart,
   Eye,
   KeyRound,
+  DoorOpen,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -51,6 +52,7 @@ const mainItems = [
 
 const residentItems = [
   { title: "My Family", url: "/my-family", icon: Heart },
+  { title: "My Gate Passes", url: "/my-gate-passes", icon: DoorOpen },
   { title: "My Visitors", url: "/my-visitors", icon: Eye },
   { title: "My Helpers", url: "/my-helpers", icon: Wrench },
   { title: "My Vehicles", url: "/my-vehicles", icon: Car },
