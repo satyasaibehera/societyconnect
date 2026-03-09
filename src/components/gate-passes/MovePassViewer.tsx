@@ -57,8 +57,7 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
   };
 
   return (
-    <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) setShowLargeQr(false); onOpenChange(v); }}>
       <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh] print:shadow-none print:border-none">
         <DialogHeader className="shrink-0">
           <DialogTitle className="font-display flex items-center gap-2">
