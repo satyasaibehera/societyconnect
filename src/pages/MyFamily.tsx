@@ -249,15 +249,26 @@ const MyFamily = () => {
             {members.map((m) => (
               <Card key={m.id} className={`p-4 space-y-2 ${m.resident_type === "owner" ? "border-primary/40" : ""}`}>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary" />}
-                    <p className="font-medium text-sm">{m.full_name}</p>
+                  <div className="flex items-center gap-2">
+                    {m.photo_url ? (
+                      <img src={m.photo_url} alt={m.full_name} className="w-10 h-10 rounded-full object-cover border" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border">
+                        <Users className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary" />}
+                        <p className="font-medium text-sm">{m.full_name}</p>
+                      </div>
+                    </div>
                   </div>
                   <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(m)}>
                     <Pencil className="h-3 w-3" />
                   </Button>
                 </div>
-                <div className="text-xs text-muted-foreground space-y-1">
+                <div className="text-xs text-muted-foreground space-y-1 mt-2">
                   {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                   {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
                   {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
