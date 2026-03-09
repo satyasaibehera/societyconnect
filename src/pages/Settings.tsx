@@ -131,7 +131,10 @@ const Settings = () => {
     setSavingSociety(true);
     const { error } = await supabase
       .from("societies")
-      .update({ temp_pass_validity_hours: tempPassHours } as any)
+      .update({
+        temp_pass_validity_hours: tempPassHours,
+        requires_admin_for_move_pass: requiresAdminForMove,
+      } as any)
       .eq("id", societyId);
     setSavingSociety(false);
     if (error) {
