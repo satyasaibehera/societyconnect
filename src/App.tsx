@@ -31,6 +31,8 @@ import MyTenants from "./pages/MyTenants";
 import RegisterResident from "./pages/RegisterResident";
 import VehiclePasses from "./pages/VehiclePasses";
 import MyGatePasses from "./pages/MyGatePasses";
+import Payments from "./pages/Payments";
+import MyPayments from "./pages/MyPayments";
 import Emergency from "./pages/Emergency";
 import NotFound from "./pages/NotFound";
 
