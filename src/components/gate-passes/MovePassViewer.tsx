@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,7 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh] print:shadow-none print:border-none">
         <DialogHeader className="shrink-0">
@@ -212,10 +214,11 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
         </div>
       </DialogContent>
 
-      {/* Large QR Code Overlay */}
-      {showLargeQr && (
+    </Dialog>
+
+      {showLargeQr && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
           onClick={() => setShowLargeQr(false)}
         >
           <div
@@ -233,9 +236,10 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
               Pass ID: {pass.id.slice(0, 8).toUpperCase()}
             </p>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </Dialog>
+    </>
   );
 }
 
