@@ -433,7 +433,7 @@ const MyGatePasses = () => {
                 <Plus className="mr-1.5 h-4 w-4" /> Vehicle Pass
               </Button>
               <Button size="sm" variant="outline" onClick={() => setMoveDialogOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" /> Move Pass
+                <Plus className="mr-1.5 h-4 w-4" /> Tenant Move Pass
               </Button>
             </div>
           </div>
