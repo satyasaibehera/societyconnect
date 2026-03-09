@@ -15,6 +15,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
+interface NoticeType {
+  id: string;
+  name: string;
+  label: string;
+  color: string;
+  has_structured_fields: boolean;
+  sort_order: number;
+}
+
 interface Notice {
   id: string;
   title: string;
@@ -27,37 +36,38 @@ interface Notice {
   created_at: string;
 }
 
-type NoticeType = "notice" | "meeting_minutes" | "circular";
-
-const typeLabels: Record<string, string> = {
-  notice: "Notice",
-  meeting_minutes: "Meeting Minutes",
-  circular: "Circular",
-};
-
-const typeBadgeColors: Record<string, string> = {
-  notice: "bg-primary",
-  meeting_minutes: "bg-amber-600",
-  circular: "bg-emerald-600",
-};
-
 const Notices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [noticeTypes, setNoticeTypes] = useState<NoticeType[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
 
   // Form state
-  const [noticeType, setNoticeType] = useState<NoticeType>("notice");
+  const [selectedType, setSelectedType] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [meetingDate, setMeetingDate] = useState("");
   const [attendees, setAttendees] = useState("");
   const [keyDecisions, setKeyDecisions] = useState("");
   const [actionItems, setActionItems] = useState("");
+
+  const fetchNoticeTypes = useCallback(async () => {
+    const sid = await getSocietyId();
+    if (!sid) return;
+    const { data } = await supabase
+      .from("notice_types")
+      .select("*")
+      .eq("society_id", sid)
+      .eq("is_active", true)
+      .order("sort_order");
+    const types = (data as NoticeType[]) || [];
+    setNoticeTypes(types);
+    if (types.length > 0 && !selectedType) setSelectedType(types[0].name);
+  }, []);
 
   const fetchNotices = useCallback(async () => {
     setLoading(true);
@@ -69,10 +79,11 @@ const Notices = () => {
     setLoading(false);
   }, []);
 
+  useEffect(() => { fetchNoticeTypes(); }, [fetchNoticeTypes]);
   useEffect(() => { fetchNotices(); }, [fetchNotices]);
 
   const resetForm = () => {
-    setNoticeType("notice");
+    setSelectedType(noticeTypes[0]?.name || "notice");
     setTitle("");
     setDescription("");
     setMeetingDate("");
@@ -80,6 +91,9 @@ const Notices = () => {
     setKeyDecisions("");
     setActionItems("");
   };
+
+  const getTypeConfig = (name: string) => noticeTypes.find((t) => t.name === name);
+  const currentTypeConfig = getTypeConfig(selectedType);
 
   const handleAdd = async () => {
     if (!title.trim()) return;
@@ -90,12 +104,12 @@ const Notices = () => {
     const payload: Record<string, any> = {
       title,
       description: description || null,
-      notice_type: noticeType,
+      notice_type: selectedType,
       society_id: societyId,
       created_by: user?.id,
     };
 
-    if (noticeType === "meeting_minutes") {
+    if (currentTypeConfig?.has_structured_fields) {
       payload.meeting_date = meetingDate || null;
       payload.attendees = attendees || null;
       payload.key_decisions = keyDecisions || null;
@@ -104,7 +118,7 @@ const Notices = () => {
 
     const { error } = await supabase.from("notices").insert(payload as any);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else { toast({ title: `${typeLabels[noticeType]} posted` }); resetForm(); setDialogOpen(false); fetchNotices(); }
+    else { toast({ title: `${getTypeConfig(selectedType)?.label || "Post"} published` }); resetForm(); setDialogOpen(false); fetchNotices(); }
     setSaving(false);
   };
 
@@ -123,9 +137,9 @@ const Notices = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="notice">Notices</TabsTrigger>
-              <TabsTrigger value="meeting_minutes">Minutes</TabsTrigger>
-              <TabsTrigger value="circular">Circulars</TabsTrigger>
+              {noticeTypes.map((t) => (
+                <TabsTrigger key={t.name} value={t.name}>{t.label}</TabsTrigger>
+              ))}
             </TabsList>
           </Tabs>
           <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gradient-primary text-primary-foreground">
@@ -140,69 +154,71 @@ const Notices = () => {
         ) : filtered.length === 0 ? (
           <Card className="p-12 text-center text-muted-foreground">
             <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No {activeTab === "all" ? "posts" : typeLabels[activeTab]?.toLowerCase() || "posts"} yet.</p>
+            <p className="text-sm">No posts yet.</p>
           </Card>
         ) : (
           <div className="grid gap-4">
-            {filtered.map((n) => (
-              <Card key={n.id} className="p-5">
-                <div className="flex justify-between items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <Badge className={`${typeBadgeColors[n.notice_type] || "bg-muted"} text-white text-[10px]`}>
-                        {typeLabels[n.notice_type] || n.notice_type}
-                      </Badge>
-                      {n.meeting_date && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(n.meeting_date).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="font-display font-semibold text-lg">{n.title}</h3>
-                    {n.description && <p className="text-muted-foreground text-sm mt-1 whitespace-pre-wrap">{n.description}</p>}
-
-                    {/* Meeting minutes structured fields */}
-                    {n.notice_type === "meeting_minutes" && (
-                      <div className="mt-3 space-y-2 text-sm">
-                        {n.attendees && (
-                          <div className="flex items-start gap-2">
-                            <Users className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <div>
-                              <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Attendees</p>
-                              <p className="whitespace-pre-wrap">{n.attendees}</p>
-                            </div>
-                          </div>
-                        )}
-                        {n.key_decisions && (
-                          <div className="flex items-start gap-2">
-                            <CheckSquare className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <div>
-                              <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Key Decisions</p>
-                              <p className="whitespace-pre-wrap">{n.key_decisions}</p>
-                            </div>
-                          </div>
-                        )}
-                        {n.action_items && (
-                          <div className="flex items-start gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                            <div>
-                              <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Action Items</p>
-                              <p className="whitespace-pre-wrap">{n.action_items}</p>
-                            </div>
-                          </div>
+            {filtered.map((n) => {
+              const tc = getTypeConfig(n.notice_type);
+              return (
+                <Card key={n.id} className="p-5">
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <Badge className={`${tc?.color || "bg-muted"} text-white text-[10px]`}>
+                          {tc?.label || n.notice_type}
+                        </Badge>
+                        {n.meeting_date && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(n.meeting_date).toLocaleDateString()}
+                          </span>
                         )}
                       </div>
-                    )}
+                      <h3 className="font-display font-semibold text-lg">{n.title}</h3>
+                      {n.description && <p className="text-muted-foreground text-sm mt-1 whitespace-pre-wrap">{n.description}</p>}
 
-                    <p className="text-xs text-muted-foreground mt-2">{new Date(n.created_at).toLocaleDateString()}</p>
+                      {tc?.has_structured_fields && (
+                        <div className="mt-3 space-y-2 text-sm">
+                          {n.attendees && (
+                            <div className="flex items-start gap-2">
+                              <Users className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Attendees</p>
+                                <p className="whitespace-pre-wrap">{n.attendees}</p>
+                              </div>
+                            </div>
+                          )}
+                          {n.key_decisions && (
+                            <div className="flex items-start gap-2">
+                              <CheckSquare className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Key Decisions</p>
+                                <p className="whitespace-pre-wrap">{n.key_decisions}</p>
+                              </div>
+                            </div>
+                          )}
+                          {n.action_items && (
+                            <div className="flex items-start gap-2">
+                              <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Action Items</p>
+                                <p className="whitespace-pre-wrap">{n.action_items}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="text-xs text-muted-foreground mt-2">{new Date(n.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive h-8 w-8 shrink-0" onClick={() => handleDelete(n.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive h-8 w-8 shrink-0" onClick={() => handleDelete(n.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -214,12 +230,12 @@ const Notices = () => {
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
               <Label>Type *</Label>
-              <Select value={noticeType} onValueChange={(v) => setNoticeType(v as NoticeType)}>
+              <Select value={selectedType} onValueChange={setSelectedType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="notice">Notice</SelectItem>
-                  <SelectItem value="meeting_minutes">Meeting Minutes</SelectItem>
-                  <SelectItem value="circular">Circular</SelectItem>
+                  {noticeTypes.map((t) => (
+                    <SelectItem key={t.name} value={t.name}>{t.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -232,7 +248,7 @@ const Notices = () => {
               <Textarea placeholder="Details..." rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
 
-            {noticeType === "meeting_minutes" && (
+            {currentTypeConfig?.has_structured_fields && (
               <>
                 <div className="space-y-2">
                   <Label>Meeting Date</Label>
@@ -244,11 +260,11 @@ const Notices = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Key Decisions</Label>
-                  <Textarea placeholder="Decisions taken in the meeting..." rows={3} value={keyDecisions} onChange={(e) => setKeyDecisions(e.target.value)} />
+                  <Textarea placeholder="Decisions taken..." rows={3} value={keyDecisions} onChange={(e) => setKeyDecisions(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Action Items</Label>
-                  <Textarea placeholder="Follow-up actions with owners..." rows={3} value={actionItems} onChange={(e) => setActionItems(e.target.value)} />
+                  <Textarea placeholder="Follow-up actions..." rows={3} value={actionItems} onChange={(e) => setActionItems(e.target.value)} />
                 </div>
               </>
             )}
