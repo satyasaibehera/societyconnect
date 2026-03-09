@@ -265,15 +265,15 @@ const MyFamily = () => {
                 </div>
                 {/* Content row: Details left, Photo right */}
                 <div className="flex gap-3">
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <div className="text-xs text-muted-foreground space-y-1 flex-1">
                       {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                       {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
                       {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
                       {m.age && <p>Age: {m.age}</p>}
                       {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
                     </div>
-                    <div className="flex items-center gap-1 pt-1">
+                    <div className="flex items-center gap-1 mt-auto pt-2">
                       {typeBadge(m.resident_type)} {statusBadge(m.status)}
                     </div>
                   </div>
