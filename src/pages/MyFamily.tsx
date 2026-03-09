@@ -339,18 +339,6 @@ const MyFamily = () => {
               </div>
             </div>
             <div><Label>Date of Birth</Label><Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} /></div>
-            {!editingMember && (
-              <div>
-                <Label>Type</Label>
-                <Select value={form.resident_type} onValueChange={(v) => setForm({ ...form, resident_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="family">Family Member</SelectItem>
-                    <SelectItem value="tenant">Tenant</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button onClick={handleSave} disabled={saving || !form.full_name || (!editingMember && !capturedImage)}>
