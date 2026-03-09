@@ -99,6 +99,7 @@ const MyFamily = () => {
       age: m.age?.toString() || "",
       gender: m.gender || "",
       resident_type: m.resident_type,
+      photo_url: "",
     });
     setDialogOpen(true);
   };
