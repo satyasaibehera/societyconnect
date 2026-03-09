@@ -144,6 +144,53 @@ export type Database = {
           },
         ]
       }
+      emergency_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          id: string
+          message: string | null
+          raised_by: string
+          resolved_at: string | null
+          resolved_by: string | null
+          society_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          raised_by: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          society_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          id?: string
+          message?: string | null
+          raised_by?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          society_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emergency_alerts_society_id_fkey"
+            columns: ["society_id"]
+            isOneToOne: false
+            referencedRelation: "societies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       helper_assignments: {
         Row: {
           created_at: string
