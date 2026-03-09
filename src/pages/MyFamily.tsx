@@ -283,9 +283,18 @@ const MyFamily = () => {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editingMember ? "Edit Member" : "Add Family Member"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            <CameraCapture
+              onCapture={(blob) => { setPhotoBlob(blob); setCapturedImage(URL.createObjectURL(blob)); }}
+              capturedImage={capturedImage}
+              onClear={() => { setCapturedImage(null); setPhotoBlob(null); }}
+              required={!editingMember}
+            />
+            {!editingMember && !capturedImage && (
+              <p className="text-xs text-destructive">A live photo is required for registration.</p>
+            )}
             <div><Label>Full Name *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
             <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div>
