@@ -12,6 +12,7 @@ import { Users, Plus, Loader2, UserPlus, Phone, Calendar, ArrowRightLeft, Crown,
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { CameraCapture } from "@/components/camera/CameraCapture";
 
 interface FamilyMember {
   id: string;
