@@ -48,6 +48,18 @@ const MyFamily = () => {
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
 
   const [form, setForm] = useState(emptyForm);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+
+  const uploadPhoto = async (): Promise<string | null> => {
+    if (!photoBlob) return null;
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const filePath = `photos/${fileName}`;
+    const { error } = await supabase.storage.from("resident-photos").upload(filePath, photoBlob, { contentType: "image/jpeg" });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from("resident-photos").getPublicUrl(filePath);
+    return urlData.publicUrl;
+  };
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
