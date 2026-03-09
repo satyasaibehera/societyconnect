@@ -84,7 +84,7 @@ const MyFamily = () => {
     setLoading(true);
     const { data } = await supabase
       .from("residents")
-      .select("id, full_name, phone, resident_type, relationship, date_of_birth, age, gender, status")
+      .select("id, full_name, phone, resident_type, relationship, date_of_birth, age, gender, status, photo_url")
       .eq("unit_id", unitId);
     setMembers(data || []);
     setLoading(false);
