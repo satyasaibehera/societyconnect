@@ -900,7 +900,7 @@ const MyGatePasses = () => {
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
-              <PackageOpen className="h-5 w-5" /> Request Move In / Out Pass
+              <PackageOpen className="h-5 w-5" /> Request Tenant Move In / Out Pass
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
