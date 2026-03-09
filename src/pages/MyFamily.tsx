@@ -47,6 +47,7 @@ const MyFamily = () => {
   const [myResidentId, setMyResidentId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<{ url: string; name: string } | null>(null);
 
   const [form, setForm] = useState(emptyForm);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
