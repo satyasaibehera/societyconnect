@@ -122,8 +122,23 @@ const MyFamily = () => {
 
   const handleSave = async () => {
     if (!form.full_name) return;
+    // Photo required for new members (non-edit)
+    if (!editingMember && !capturedImage) {
+      toast({ title: "Photo required", description: "Please capture a live photo.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
-    const payload = {
+
+    let photoUrl: string | null = null;
+    try {
+      photoUrl = await uploadPhoto();
+    } catch (err: any) {
+      toast({ title: "Photo upload failed", description: err.message, variant: "destructive" });
+      setSaving(false);
+      return;
+    }
+
+    const payload: Record<string, any> = {
       full_name: form.full_name,
       phone: form.phone || null,
       relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
@@ -131,6 +146,7 @@ const MyFamily = () => {
       age: form.age ? parseInt(form.age) : null,
       gender: form.gender || null,
     };
+    if (photoUrl) payload.photo_url = photoUrl;
 
     if (editingMember) {
       const { error } = await supabase.from("residents").update(payload).eq("id", editingMember.id);
