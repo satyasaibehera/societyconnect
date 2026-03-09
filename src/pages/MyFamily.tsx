@@ -340,7 +340,7 @@ const MyFamily = () => {
             )}
           </div>
           <DialogFooter>
-            <Button onClick={handleSave} disabled={saving || !form.full_name}>
+            <Button onClick={handleSave} disabled={saving || !form.full_name || (!editingMember && !capturedImage)}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editingMember ? "Save Changes" : "Add Member"}
             </Button>
           </DialogFooter>
