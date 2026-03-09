@@ -41,8 +41,9 @@ interface Props {
 }
 
 export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
-  if (!pass) return null;
+  const [showLargeQr, setShowLargeQr] = useState(false);
 
+  if (!pass) return null;
   const isMoveIn = pass.pass_type === "move_in";
   const qrValue = JSON.stringify({
     passId: pass.id,
