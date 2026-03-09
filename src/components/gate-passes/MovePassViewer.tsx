@@ -91,9 +91,13 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
                 {pass.status === "approved" ? "APPROVED" : pass.status.toUpperCase().replace("_", " ")}
               </Badge>
             </div>
-            <div className="shrink-0 border rounded-lg p-2 bg-card">
+            <button
+              onClick={() => setShowLargeQr(true)}
+              className="shrink-0 border rounded-lg p-2 bg-card cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all active:scale-95"
+              title="Tap to enlarge QR code"
+            >
               <QRCodeSVG value={qrValue} size={80} />
-            </div>
+            </button>
           </div>
 
           {/* Pass ID */}
