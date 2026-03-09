@@ -144,9 +144,10 @@ const Residents = () => {
       resident_type: form.resident_type,
       date_of_birth: form.date_of_birth || null,
       unit_id: form.unit_id || null,
+      photo_url: form.photo_url || null,
       society_id: societyId,
       user_id: user?.id,
-      status: "pending" as any,
+      status: "pending" as const,
     });
 
     if (error) throw error;
