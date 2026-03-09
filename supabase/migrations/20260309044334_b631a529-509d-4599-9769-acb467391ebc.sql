@@ -1,0 +1,2 @@
+ALTER TABLE public.residents DROP CONSTRAINT residents_resident_type_check;
+ALTER TABLE public.residents ADD CONSTRAINT residents_resident_type_check CHECK (resident_type = ANY (ARRAY['owner'::text, 'tenant'::text, 'family'::text]));
