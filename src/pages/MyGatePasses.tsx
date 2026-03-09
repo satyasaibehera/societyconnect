@@ -281,20 +281,6 @@ const MyGatePasses = () => {
       fetchPasses();
     }
   };
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({
-        title: "Move pass requested",
-        description: requiresAdminForMove
-          ? "Pending flat owner + society admin approval."
-          : "Pending flat owner approval.",
-      });
-      setMoveDialogOpen(false);
-      setMoveForm({ pass_type: "move_in", scheduled_date: "", notes: "" });
-      fetchPasses();
-    }
-  };
 
   /* ── Approve / Reject visitors & vehicles ──────────────────── */
   const handleVisitorAction = async (id: string, approve: boolean) => {
