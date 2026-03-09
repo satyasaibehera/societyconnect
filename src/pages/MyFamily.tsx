@@ -47,6 +47,7 @@ const MyFamily = () => {
   const [myResidentId, setMyResidentId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<{ url: string; name: string } | null>(null);
 
   const [form, setForm] = useState(emptyForm);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -285,7 +286,12 @@ const MyFamily = () => {
                   {/* Photo: 3-line height (~54px) */}
                   <div className="shrink-0 self-start">
                     {m.photo_url ? (
-                      <img src={m.photo_url} alt={m.full_name} className="w-14 h-14 rounded-md object-cover border-2 border-border shadow-sm" />
+                      <img
+                        src={m.photo_url}
+                        alt={m.full_name}
+                        className="w-14 h-14 rounded-md object-cover border-2 border-border shadow-sm cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => setPhotoPreview({ url: m.photo_url!, name: m.full_name })}
+                      />
                     ) : (
                       <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center border-2 border-border">
                         <Users className="h-6 w-6 text-muted-foreground" />
@@ -393,6 +399,22 @@ const MyFamily = () => {
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Confirm Transfer
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo Preview Modal */}
+      <Dialog open={!!photoPreview} onOpenChange={() => setPhotoPreview(null)}>
+        <DialogContent className="sm:max-w-lg p-2">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{photoPreview?.name}</DialogTitle>
+          </DialogHeader>
+          {photoPreview && (
+            <img
+              src={photoPreview.url}
+              alt={photoPreview.name}
+              className="w-full h-auto max-h-[80vh] object-contain rounded-md"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
