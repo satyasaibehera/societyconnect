@@ -61,7 +61,7 @@ const MyTenants = () => {
     setLoading(true);
     const { data } = await supabase
       .from("residents")
-      .select("id, full_name, phone, date_of_birth, status, tenancy_start_date, tenancy_end_date, has_vacated")
+      .select("id, full_name, phone, date_of_birth, status, tenancy_start_date, tenancy_end_date, has_vacated, photo_url")
       .eq("unit_id", unitId)
       .eq("resident_type", "tenant");
     setTenants(data || []);
