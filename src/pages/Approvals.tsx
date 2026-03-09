@@ -263,7 +263,7 @@ const Approvals = () => {
     <DashboardLayout title="Approvals">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {categories.map((cat) => {
             const config = categoryConfig[cat];
             const Icon = config.icon;
