@@ -229,7 +229,7 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Resident Type</Label>
+              <Label>Resident type</Label>
               <Select value={form.resident_type} onValueChange={(v) => setForm({ ...form, resident_type: v })}>
                 <SelectTrigger>
                   <SelectValue />
