@@ -157,16 +157,18 @@ const Residents = () => {
 
   const handleEdit = async (form: ResidentFormData) => {
     if (!editData) return;
+    const updateData: Record<string, any> = {
+      full_name: form.full_name,
+      phone: form.phone || null,
+      email: form.email || null,
+      resident_type: form.resident_type,
+      date_of_birth: form.date_of_birth || null,
+      unit_id: form.unit_id || null,
+    };
+    if (form.photo_url) updateData.photo_url = form.photo_url;
     const { error } = await supabase
       .from("residents")
-      .update({
-        full_name: form.full_name,
-        phone: form.phone || null,
-        email: form.email || null,
-        resident_type: form.resident_type,
-        date_of_birth: form.date_of_birth || null,
-        unit_id: form.unit_id || null,
-      })
+      .update(updateData as any)
       .eq("id", editData.id);
 
     if (error) throw error;
