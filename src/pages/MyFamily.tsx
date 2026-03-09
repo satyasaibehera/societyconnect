@@ -259,7 +259,7 @@ const MyFamily = () => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {members.map((m) => (
-              <Card key={m.id} className={`p-4 ${m.resident_type === "owner" ? "border-primary/40" : ""}`}>
+              <Card key={m.id} className={`p-4 flex flex-col ${m.resident_type === "owner" ? "border-primary/40" : ""}`}>
                 {/* Top row: Name + Edit */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -271,7 +271,7 @@ const MyFamily = () => {
                   </Button>
                 </div>
                 {/* Content row: Details left, Photo right */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-1">
                   <div className="flex-1 min-w-0 flex flex-col">
                     <div className="text-xs text-muted-foreground space-y-1 flex-1">
                       <p className="capitalize">Relationship: {m.resident_type === "owner" ? "Self" : (m.relationship || "—")}</p>
