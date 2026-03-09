@@ -449,7 +449,7 @@ const MyGatePasses = () => {
                 <UserCheck className="h-10 w-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No visitor pass requests yet.</p>
                 <Button size="sm" className="mt-4" onClick={() => setVisitorDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Request First Visitor Pass
+                  <Plus className="mr-2 h-4 w-4" /> Request Visitor Pass
                 </Button>
               </Card>
             ) : (
