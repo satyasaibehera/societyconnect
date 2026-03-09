@@ -161,12 +161,18 @@ const MyFamily = () => {
     } else {
       if (!unitId || !societyId) { setSaving(false); return; }
       const { error } = await supabase.from("residents").insert({
-        ...payload,
+        full_name: form.full_name,
+        phone: form.phone || null,
+        relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
+        date_of_birth: form.date_of_birth || null,
+        age: form.age ? parseInt(form.age) : null,
+        gender: form.gender || null,
+        photo_url: photoUrl,
         resident_type: form.resident_type,
         unit_id: unitId,
         society_id: societyId,
         user_id: user?.id,
-        status: "pending",
+        status: "pending" as const,
       });
       setSaving(false);
       if (error) {
