@@ -273,6 +273,16 @@ const RegisterResident = () => {
             </div>
           )}
 
+          <CameraCapture
+            onCapture={(blob) => { setPhotoBlob(blob); setCapturedImage(URL.createObjectURL(blob)); }}
+            capturedImage={capturedImage}
+            onClear={() => { setCapturedImage(null); setPhotoBlob(null); }}
+            required
+          />
+          {!capturedImage && (
+            <p className="text-xs text-destructive">A live photo is required to register.</p>
+          )}
+
           <div className="space-y-2">
             <Label>Full Name *</Label>
             <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
