@@ -56,7 +56,7 @@ const residentItems = [
   { title: "My Helpers", url: "/my-helpers", icon: Wrench },
   { title: "My Vehicles", url: "/my-vehicles", icon: Car },
   { title: "My Tenants", url: "/my-tenants", icon: KeyRound },
-  { title: "My Gate Passes", url: "/my-gate-passes", icon: DoorOpen },
+  { title: "My Approvals", url: "/my-gate-passes", icon: DoorOpen },
 ];
 
 const communityItems = [
