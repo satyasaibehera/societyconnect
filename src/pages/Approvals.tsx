@@ -120,6 +120,22 @@ const Approvals = () => {
       })
     );
 
+    // Fetch pending move passes (pending_owner and pending_admin)
+    const { data: movePasses } = await supabase
+      .from("move_passes")
+      .select("id, pass_type, status, scheduled_date, notes, created_at")
+      .in("status", ["pending_owner", "pending_admin"]);
+    (movePasses as any[])?.forEach((m) =>
+      pending.push({
+        id: m.id,
+        category: "move_passes",
+        title: m.pass_type === "move_in" ? "Move In Request" : "Move Out Request",
+        subtitle: m.status === "pending_owner" ? "Awaiting Owner" : "Awaiting Admin",
+        detail: m.notes || (m.scheduled_date ? `Scheduled: ${m.scheduled_date}` : "No details"),
+        created_at: m.created_at,
+      })
+    );
+
     // Sort by newest first
     pending.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setItems(pending);
