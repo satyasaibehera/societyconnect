@@ -174,15 +174,16 @@ const MyTenants = () => {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {tenants.map((t) => (
               <Card key={t.id} className={`p-4 ${t.has_vacated ? "opacity-60" : ""}`}>
-                <div className="flex gap-4">
-                  {/* Left: Info */}
+                {/* Top row: Name + Edit */}
+                <div className="flex items-center justify-between mb-2">
+                  <p className={`font-medium text-sm truncate ${t.has_vacated ? "line-through" : ""}`}>{t.full_name}</p>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(t)}>
+                    <Pencil className="h-3 w-3" />
+                  </Button>
+                </div>
+                {/* Content row: Details left, Photo right */}
+                <div className="flex gap-3">
                   <div className="flex-1 min-w-0 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className={`font-medium text-sm truncate ${t.has_vacated ? "line-through" : ""}`}>{t.full_name}</p>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(t)}>
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                    </div>
                     <div className="text-xs text-muted-foreground space-y-1">
                       {t.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{t.phone}</p>}
                       {t.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />DOB: {t.date_of_birth}</p>}
@@ -193,26 +194,26 @@ const MyTenants = () => {
                       <Badge className="bg-id-tenant text-white text-[10px] capitalize">Tenant</Badge>
                       {statusBadge(t.status, t.has_vacated)}
                     </div>
-                    <Button
-                      variant={t.has_vacated ? "outline" : "destructive"}
-                      size="sm"
-                      className="w-full text-xs"
-                      onClick={() => { setVacateTarget(t); setVacateDialogOpen(true); }}
-                    >
-                      {t.has_vacated ? "Restore Tenant" : "Mark as Vacated"}
-                    </Button>
                   </div>
-                  {/* Right: Photo */}
-                  <div className="shrink-0">
+                  {/* Photo: 3-line height (~54px) */}
+                  <div className="shrink-0 self-start">
                     {t.photo_url ? (
-                      <img src={t.photo_url} alt={t.full_name} className="w-20 h-20 rounded-md object-cover border-2 border-border shadow-sm" />
+                      <img src={t.photo_url} alt={t.full_name} className="w-14 h-14 rounded-md object-cover border-2 border-border shadow-sm" />
                     ) : (
-                      <div className="w-20 h-20 rounded-md bg-muted flex items-center justify-center border-2 border-border">
-                        <Users className="h-8 w-8 text-muted-foreground" />
+                      <div className="w-14 h-14 rounded-md bg-muted flex items-center justify-center border-2 border-border">
+                        <Users className="h-6 w-6 text-muted-foreground" />
                       </div>
                     )}
                   </div>
                 </div>
+                <Button
+                  variant={t.has_vacated ? "outline" : "destructive"}
+                  size="sm"
+                  className="w-full text-xs mt-2"
+                  onClick={() => { setVacateTarget(t); setVacateDialogOpen(true); }}
+                >
+                  {t.has_vacated ? "Restore Tenant" : "Mark as Vacated"}
+                </Button>
               </Card>
             ))}
           </div>
