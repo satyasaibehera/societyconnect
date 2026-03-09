@@ -267,8 +267,8 @@ const MyFamily = () => {
                 <div className="flex gap-3">
                   <div className="flex-1 min-w-0 flex flex-col">
                     <div className="text-xs text-muted-foreground space-y-1 flex-1">
-                      {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                       <p className="capitalize">Relationship: {m.resident_type === "owner" ? "Self" : (m.relationship || "—")}</p>
+                      {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
                       {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
                       <p>Age: {m.age ?? (m.date_of_birth ? Math.floor((Date.now() - new Date(m.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : "—")}</p>
                     </div>
