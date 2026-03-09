@@ -377,6 +377,9 @@ const Settings = () => {
                   </div>
                 )}
               </Card>
+              <Card className="p-6 mt-6">
+                <NoticeTypeManager />
+              </Card>
             </TabsContent>
           )}
 
