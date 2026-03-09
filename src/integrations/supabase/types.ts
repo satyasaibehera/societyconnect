@@ -452,6 +452,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          metadata: Json | null
+          recipient_id: string
+          related_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          metadata?: Json | null
+          recipient_id: string
+          related_id?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          metadata?: Json | null
+          recipient_id?: string
+          related_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       office_bearers: {
         Row: {
           created_at: string
