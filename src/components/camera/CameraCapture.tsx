@@ -205,6 +205,10 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
             autoPlay
             playsInline
             muted
+            onLoadedMetadata={() => {
+              // Ensure playback starts once metadata (dimensions) are loaded
+              videoRef.current?.play().catch(console.error);
+            }}
             className={cn(
               "w-full rounded-lg border bg-black aspect-[4/3] object-cover",
               facingMode === "user" && "scale-x-[-1]"
