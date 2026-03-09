@@ -48,6 +48,7 @@ const Settings = () => {
   // Society settings
   const [societyId, setSocietyId] = useState<string | null>(null);
   const [tempPassHours, setTempPassHours] = useState(24);
+  const [requiresAdminForMove, setRequiresAdminForMove] = useState(false);
   const [editingSociety, setEditingSociety] = useState(false);
   const [savingSociety, setSavingSociety] = useState(false);
   const [societyLoading, setSocietyLoading] = useState(true);
