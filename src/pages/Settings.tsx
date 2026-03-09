@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserPlus, Shield, Loader2, Pencil, Save, X, Building2 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { NoticeTypeManager } from "@/components/settings/NoticeTypeManager";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
