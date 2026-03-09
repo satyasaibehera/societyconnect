@@ -419,26 +419,41 @@ export type Database = {
       }
       notices: {
         Row: {
+          action_items: string | null
+          attendees: string | null
           created_at: string
           created_by: string | null
           description: string | null
           id: string
+          key_decisions: string | null
+          meeting_date: string | null
+          notice_type: string
           society_id: string
           title: string
         }
         Insert: {
+          action_items?: string | null
+          attendees?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
+          key_decisions?: string | null
+          meeting_date?: string | null
+          notice_type?: string
           society_id: string
           title: string
         }
         Update: {
+          action_items?: string | null
+          attendees?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
+          key_decisions?: string | null
+          meeting_date?: string | null
+          notice_type?: string
           society_id?: string
           title?: string
         }
