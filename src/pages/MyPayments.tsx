@@ -137,7 +137,7 @@ export default function MyPayments() {
 
     setResidentInfo(resData as ResidentInfo | null);
 
-    const promises: Promise<unknown>[] = [
+    const [catRes, recRes] = await Promise.all([
       supabase
         .from("payment_categories")
         .select("*")
@@ -150,40 +150,35 @@ export default function MyPayments() {
         .eq("payer_user_id", user.id)
         .order("declared_at", { ascending: false })
         .limit(50),
-    ];
+    ]);
+
+    setCategories((catRes.data as PaymentCategory[]) || []);
+    setRecords((recRes.data as PaymentRecord[]) || []);
 
     // If tenant, fetch owner config for rent
     if (resData?.unit_id && resData.resident_type === "tenant") {
-      promises.push(
-        supabase
-          .from("owner_payment_config")
-          .select("*")
-          .eq("unit_id", resData.unit_id)
-          .eq("is_active", true)
-          .limit(1)
-          .maybeSingle()
-      );
+      const { data } = await supabase
+        .from("owner_payment_config")
+        .select("*")
+        .eq("unit_id", resData.unit_id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      setOwnerConfig((data as OwnerConfig) || null);
     }
 
     // If owner, fetch own config
     if (resData?.unit_id && resData.resident_type === "owner") {
-      promises.push(
-        supabase
-          .from("owner_payment_config")
-          .select("*")
-          .eq("owner_user_id", user.id)
-          .eq("unit_id", resData.unit_id)
-          .limit(1)
-          .maybeSingle()
-      );
+      const { data } = await supabase
+        .from("owner_payment_config")
+        .select("*")
+        .eq("owner_user_id", user.id)
+        .eq("unit_id", resData.unit_id)
+        .limit(1)
+        .maybeSingle();
+      setOwnerConfig((data as OwnerConfig) || null);
     }
 
-    const results = await Promise.all(promises);
-    setCategories(((results[0] as any)?.data as PaymentCategory[]) || []);
-    setRecords(((results[1] as any)?.data as PaymentRecord[]) || []);
-    if (results[2]) {
-      setOwnerConfig(((results[2] as any)?.data as OwnerConfig) || null);
-    }
     setLoading(false);
   };
 
