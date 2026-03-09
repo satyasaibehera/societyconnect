@@ -149,6 +149,29 @@ const Approvals = () => {
   const handleAction = async (item: PendingItem, action: "approved" | "rejected") => {
     setActionLoading(item.id);
     try {
+      // Move passes have their own multi-step logic
+      if (item.category === "move_passes") {
+        const { data: mp } = await supabase
+          .from("move_passes")
+          .select("status")
+          .eq("id", item.id)
+          .single();
+        if (!mp) throw new Error("Move pass not found");
+        const updates: any =
+          mp.status === "pending_owner"
+            ? action === "approved"
+              ? { status: "pending_admin", owner_approved_by: user?.id, owner_approved_at: new Date().toISOString() }
+              : { status: "rejected", owner_rejection_reason: "Rejected by owner", owner_approved_by: user?.id, owner_approved_at: new Date().toISOString() }
+            : action === "approved"
+              ? { status: "approved", admin_approved_by: user?.id, admin_approved_at: new Date().toISOString() }
+              : { status: "rejected", admin_rejection_reason: "Rejected by admin", admin_approved_by: user?.id, admin_approved_at: new Date().toISOString() };
+        const { error } = await supabase.from("move_passes").update(updates).eq("id", item.id);
+        if (error) throw error;
+        toast({ title: action === "approved" ? "Approved ✓" : "Rejected", description: `${item.title} updated.` });
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        return;
+      }
+
       const table = item.category === "role_requests" ? "role_requests" : item.category;
       const updateData: any = { status: action };
 
