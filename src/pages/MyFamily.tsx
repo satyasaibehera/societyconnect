@@ -252,47 +252,51 @@ const MyFamily = () => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {members.map((m) => (
-              <Card key={m.id} className={`p-4 space-y-2 ${m.resident_type === "owner" ? "border-primary/40" : ""}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+              <Card key={m.id} className={`p-4 ${m.resident_type === "owner" ? "border-primary/40" : ""}`}>
+                <div className="flex gap-4">
+                  {/* Left: Info */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary shrink-0" />}
+                        <p className="font-medium text-sm truncate">{m.full_name}</p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(m)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
+                      {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
+                      {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
+                      {m.age && <p>Age: {m.age}</p>}
+                      {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 pt-1">
+                      {typeBadge(m.resident_type)} {statusBadge(m.status)}
+                    </div>
+                    {isOwner && m.resident_type !== "owner" && m.status === "approved" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        onClick={() => { setTransferTargetId(m.id); setTransferDialogOpen(true); }}
+                      >
+                        <ArrowRightLeft className="mr-1.5 h-3 w-3" /> Transfer Ownership
+                      </Button>
+                    )}
+                  </div>
+                  {/* Right: Photo */}
+                  <div className="shrink-0">
                     {m.photo_url ? (
-                      <img src={m.photo_url} alt={m.full_name} className="w-10 h-10 rounded-full object-cover border" />
+                      <img src={m.photo_url} alt={m.full_name} className="w-20 h-20 rounded-md object-cover border-2 border-border shadow-sm" />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border">
-                        <Users className="h-5 w-5 text-muted-foreground" />
+                      <div className="w-20 h-20 rounded-md bg-muted flex items-center justify-center border-2 border-border">
+                        <Users className="h-8 w-8 text-muted-foreground" />
                       </div>
                     )}
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        {m.resident_type === "owner" && <Crown className="h-3.5 w-3.5 text-primary" />}
-                        <p className="font-medium text-sm">{m.full_name}</p>
-                      </div>
-                    </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(m)}>
-                    <Pencil className="h-3 w-3" />
-                  </Button>
                 </div>
-                <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                  {m.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{m.phone}</p>}
-                  {m.relationship && <p className="capitalize">Relationship: {m.relationship}</p>}
-                  {m.gender && <p className="capitalize">Gender: {m.gender}</p>}
-                  {m.age && <p>Age: {m.age}</p>}
-                  {m.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />{m.date_of_birth}</p>}
-                </div>
-                <div className="flex items-center gap-1 pt-1">
-                  {typeBadge(m.resident_type)} {statusBadge(m.status)}
-                </div>
-                {isOwner && m.resident_type !== "owner" && m.status === "approved" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs"
-                    onClick={() => { setTransferTargetId(m.id); setTransferDialogOpen(true); }}
-                  >
-                    <ArrowRightLeft className="mr-1.5 h-3 w-3" /> Transfer Ownership
-                  </Button>
-                )}
               </Card>
             ))}
           </div>

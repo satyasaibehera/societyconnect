@@ -21,6 +21,7 @@ interface Tenant {
   tenancy_start_date: string | null;
   tenancy_end_date: string | null;
   has_vacated: boolean;
+  photo_url: string | null;
 }
 
 const emptyForm = { full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" };
@@ -60,7 +61,7 @@ const MyTenants = () => {
     setLoading(true);
     const { data } = await supabase
       .from("residents")
-      .select("id, full_name, phone, date_of_birth, status, tenancy_start_date, tenancy_end_date, has_vacated")
+      .select("id, full_name, phone, date_of_birth, status, tenancy_start_date, tenancy_end_date, has_vacated, photo_url")
       .eq("unit_id", unitId)
       .eq("resident_type", "tenant");
     setTenants(data || []);
@@ -172,31 +173,46 @@ const MyTenants = () => {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {tenants.map((t) => (
-              <Card key={t.id} className={`p-4 space-y-2 ${t.has_vacated ? "opacity-60" : ""}`}>
-                <div className="flex items-center justify-between">
-                  <p className={`font-medium text-sm truncate ${t.has_vacated ? "line-through" : ""}`}>{t.full_name}</p>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(t)}>
-                    <Pencil className="h-3 w-3" />
-                  </Button>
+              <Card key={t.id} className={`p-4 ${t.has_vacated ? "opacity-60" : ""}`}>
+                <div className="flex gap-4">
+                  {/* Left: Info */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className={`font-medium text-sm truncate ${t.has_vacated ? "line-through" : ""}`}>{t.full_name}</p>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => openEdit(t)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      {t.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{t.phone}</p>}
+                      {t.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />DOB: {t.date_of_birth}</p>}
+                      {t.tenancy_start_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />Start: {t.tenancy_start_date}</p>}
+                      {t.tenancy_end_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />End: {t.tenancy_end_date}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 pt-1">
+                      <Badge className="bg-id-tenant text-white text-[10px] capitalize">Tenant</Badge>
+                      {statusBadge(t.status, t.has_vacated)}
+                    </div>
+                    <Button
+                      variant={t.has_vacated ? "outline" : "destructive"}
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => { setVacateTarget(t); setVacateDialogOpen(true); }}
+                    >
+                      {t.has_vacated ? "Restore Tenant" : "Mark as Vacated"}
+                    </Button>
+                  </div>
+                  {/* Right: Photo */}
+                  <div className="shrink-0">
+                    {t.photo_url ? (
+                      <img src={t.photo_url} alt={t.full_name} className="w-20 h-20 rounded-md object-cover border-2 border-border shadow-sm" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-md bg-muted flex items-center justify-center border-2 border-border">
+                        <Users className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  {t.phone && <p className="flex items-center gap-1"><Phone className="h-3 w-3" />{t.phone}</p>}
-                  {t.date_of_birth && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />DOB: {t.date_of_birth}</p>}
-                  {t.tenancy_start_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />Start: {t.tenancy_start_date}</p>}
-                  {t.tenancy_end_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />End: {t.tenancy_end_date}</p>}
-                </div>
-                <div className="flex items-center gap-1 pt-1">
-                  <Badge className="bg-id-tenant text-white text-[10px] capitalize">Tenant</Badge>
-                  {statusBadge(t.status, t.has_vacated)}
-                </div>
-                <Button
-                  variant={t.has_vacated ? "outline" : "destructive"}
-                  size="sm"
-                  className="w-full text-xs"
-                  onClick={() => { setVacateTarget(t); setVacateDialogOpen(true); }}
-                >
-                  {t.has_vacated ? "Restore Tenant" : "Mark as Vacated"}
-                </Button>
               </Card>
             ))}
           </div>
