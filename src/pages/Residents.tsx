@@ -383,6 +383,7 @@ const Residents = () => {
         units={units}
         initialData={editData?.form ?? null}
         mode={editData ? "edit" : "add"}
+        isAdmin={isManagement}
       />
     </DashboardLayout>
   );
