@@ -21,6 +21,7 @@ interface Tenant {
   tenancy_start_date: string | null;
   tenancy_end_date: string | null;
   has_vacated: boolean;
+  photo_url: string | null;
 }
 
 const emptyForm = { full_name: "", phone: "", date_of_birth: "", tenancy_start_date: "", tenancy_end_date: "" };
