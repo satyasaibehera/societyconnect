@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/select";
 import {
   UserCheck, Car, Plus, Loader2, Phone, Clock, Check, X, Ticket,
-  PackageOpen, ArrowDownToLine, ArrowUpFromLine, CalendarDays, FileCheck,
+  PackageOpen, ArrowDownToLine, ArrowUpFromLine, CalendarDays, FileCheck, Eye,
 } from "lucide-react";
+import { MovePassViewer } from "@/components/gate-passes/MovePassViewer";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
