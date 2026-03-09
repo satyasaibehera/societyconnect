@@ -140,12 +140,16 @@ const MyFamily = () => {
       return;
     }
 
+    const calculatedAge = form.date_of_birth
+      ? Math.floor((Date.now() - new Date(form.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      : null;
+
     const payload: Record<string, any> = {
       full_name: form.full_name,
       phone: form.phone || null,
       relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
       date_of_birth: form.date_of_birth || null,
-      age: form.age ? parseInt(form.age) : null,
+      age: calculatedAge,
       gender: form.gender || null,
     };
     if (photoUrl) payload.photo_url = photoUrl;
