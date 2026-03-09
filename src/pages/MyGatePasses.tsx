@@ -433,7 +433,7 @@ const MyGatePasses = () => {
                 <Plus className="mr-1.5 h-4 w-4" /> Vehicle Pass
               </Button>
               <Button size="sm" variant="outline" onClick={() => setMoveDialogOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" /> Move Pass
+                <Plus className="mr-1.5 h-4 w-4" /> Tenant Move Pass
               </Button>
             </div>
           </div>
@@ -596,7 +596,7 @@ const MyGatePasses = () => {
                 <PackageOpen className="h-10 w-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">No move-in / move-out pass requests yet.</p>
                 <Button size="sm" className="mt-4" onClick={() => setMoveDialogOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Request Move Pass
+                  <Plus className="mr-2 h-4 w-4" /> Request Tenant Move Pass
                 </Button>
               </Card>
             ) : (
@@ -900,7 +900,7 @@ const MyGatePasses = () => {
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-display flex items-center gap-2">
-              <PackageOpen className="h-5 w-5" /> Request Move In / Out Pass
+              <PackageOpen className="h-5 w-5" /> Request Tenant Move In / Out Pass
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-1">
