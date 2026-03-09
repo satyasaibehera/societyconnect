@@ -211,6 +211,30 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
           </Button>
         </div>
       </DialogContent>
+
+      {/* Large QR Code Overlay */}
+      {showLargeQr && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setShowLargeQr(false)}
+        >
+          <div
+            className="relative bg-card rounded-2xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowLargeQr(false)}
+              className="absolute top-3 right-3 rounded-full p-1 hover:bg-muted transition-colors"
+            >
+              <X className="h-5 w-5 text-muted-foreground" />
+            </button>
+            <QRCodeSVG value={qrValue} size={280} />
+            <p className="text-xs text-muted-foreground font-mono">
+              Pass ID: {pass.id.slice(0, 8).toUpperCase()}
+            </p>
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }
