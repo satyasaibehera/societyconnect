@@ -31,6 +31,7 @@ import MyTenants from "./pages/MyTenants";
 import RegisterResident from "./pages/RegisterResident";
 import VehiclePasses from "./pages/VehiclePasses";
 import MyGatePasses from "./pages/MyGatePasses";
+import Emergency from "./pages/Emergency";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
