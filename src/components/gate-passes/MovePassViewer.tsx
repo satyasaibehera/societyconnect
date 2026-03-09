@@ -193,9 +193,10 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
             </>
           )}
         </div>
+        </ScrollArea>
 
         {/* Print button */}
-        <div className="flex justify-end gap-2 pt-2 print:hidden">
+        <div className="flex justify-end gap-2 pt-2 shrink-0 print:hidden">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
