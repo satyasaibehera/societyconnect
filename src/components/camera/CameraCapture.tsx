@@ -28,29 +28,44 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
     }).catch(() => {});
   }, []);
 
-  const startCameraWithMode = useCallback(async (mode: "user" | "environment") => {
+  // CRITICAL: Must be called directly from user gesture (button click)
+  const startCamera = useCallback(async () => {
     setError(null);
     try {
+      console.log("Starting camera with facingMode:", facingMode);
       const constraints: MediaStreamConstraints = {
-        video: { facingMode: mode, width: { ideal: 640 }, height: { ideal: 480 } },
+        video: { facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
         audio: false,
       };
-      // CRITICAL: getUserMedia must be called directly from user gesture
+      
       const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("Camera stream obtained:", mediaStream.getTracks());
+      
       setStream(mediaStream);
       setCameraActive(true);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        videoRef.current.play().catch(() => {});
+        console.log("Stream attached to video element");
+        // Explicitly play the video - this is critical for preview
+        try {
+          await videoRef.current.play();
+          console.log("Video playback started");
+        } catch (playError) {
+          console.error("Error playing video:", playError);
+        }
       }
-    } catch (err) {
-      setError("Camera access denied. Please allow camera permission and try again.");
+    } catch (err: any) {
+      console.error("Camera access error:", err);
+      if (err.name === "NotAllowedError") {
+        setError("Camera access denied. Please allow camera permission in your browser settings.");
+      } else if (err.name === "NotFoundError") {
+        setError("No camera found on this device.");
+      } else {
+        setError("Could not access camera. Please check permissions and try again.");
+      }
     }
-  }, []);
-
-  const startCamera = useCallback(() => {
-    return startCameraWithMode(facingMode);
-  }, [facingMode, startCameraWithMode]);
+  }, [facingMode]);
 
   const stopCamera = useCallback(() => {
     if (stream) {
@@ -67,34 +82,80 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
     };
   }, [stream]);
 
-  const switchCamera = useCallback(() => {
-    // Stop existing stream first
-    if (stream) stream.getTracks().forEach((t) => t.stop());
-    setStream(null);
+  const switchCamera = useCallback(async () => {
+    // Stop existing stream
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+    }
+    
+    // Toggle facing mode
     const newMode = facingMode === "user" ? "environment" : "user";
     setFacingMode(newMode);
-    // Restart directly (called from click handler, gesture context preserved)
-    startCameraWithMode(newMode);
-  }, [stream, facingMode, startCameraWithMode]);
+    
+    // Start camera with new mode
+    setError(null);
+    try {
+      const constraints: MediaStreamConstraints = {
+        video: { facingMode: newMode, width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      };
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      setStream(mediaStream);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        await videoRef.current.play();
+      }
+    } catch (err: any) {
+      console.error("Error switching camera:", err);
+      setError("Could not switch camera. Please try again.");
+    }
+  }, [stream, facingMode]);
 
   const capturePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) {
+      console.error("Video or canvas ref not available");
+      return;
+    }
+    
     const video = videoRef.current;
     const canvas = canvasRef.current;
+    
+    // Check if video has valid dimensions
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error("Video dimensions not ready");
+      setError("Camera preview not ready. Please wait a moment and try again.");
+      return;
+    }
+    
+    console.log("Capturing photo, video dimensions:", video.videoWidth, "x", video.videoHeight);
+    
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      console.error("Could not get canvas context");
+      return;
+    }
 
     // Mirror for front camera
     if (facingMode === "user") {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
+    
     ctx.drawImage(video, 0, 0);
+    
     canvas.toBlob(
       (blob) => {
-        if (blob) onCapture(blob);
+        if (blob) {
+          console.log("Photo captured successfully, size:", blob.size);
+          onCapture(blob);
+        } else {
+          console.error("Failed to create blob from canvas");
+          setError("Failed to capture photo. Please try again.");
+        }
         stopCamera();
       },
       "image/jpeg",
@@ -144,6 +205,10 @@ export function CameraCapture({ onCapture, capturedImage, onClear, required, cla
             autoPlay
             playsInline
             muted
+            onLoadedMetadata={() => {
+              // Ensure playback starts once metadata (dimensions) are loaded
+              videoRef.current?.play().catch(console.error);
+            }}
             className={cn(
               "w-full rounded-lg border bg-black aspect-[4/3] object-cover",
               facingMode === "user" && "scale-x-[-1]"
