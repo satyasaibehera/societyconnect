@@ -740,6 +740,17 @@ const MyGatePasses = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* View approved gate pass */}
+                    {m.status === "approved" && (
+                      <Button
+                        size="sm"
+                        className="w-full h-8 text-xs gradient-primary text-primary-foreground gap-1.5 mt-1"
+                        onClick={() => setViewingPass(m)}
+                      >
+                        <Eye className="h-3 w-3" /> View Gate Pass
+                      </Button>
+                    )}
                   </Card>
                 ))}
               </div>
