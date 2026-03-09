@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -55,15 +56,16 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg print:shadow-none print:border-none">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh] print:shadow-none print:border-none">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="font-display flex items-center gap-2">
             <FileCheck className="h-5 w-5 text-success" />
             Move {isMoveIn ? "In" : "Out"} Gate Pass
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4" id="gate-pass-content">
+        <ScrollArea className="flex-1 overflow-y-auto -mx-1 px-1">
+        <div className="space-y-4 pb-2" id="gate-pass-content">
           {/* Header with QR */}
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
@@ -191,9 +193,10 @@ export function MovePassViewer({ open, onOpenChange, pass, unitLabel }: Props) {
             </>
           )}
         </div>
+        </ScrollArea>
 
         {/* Print button */}
-        <div className="flex justify-end gap-2 pt-2 print:hidden">
+        <div className="flex justify-end gap-2 pt-2 shrink-0 print:hidden">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
