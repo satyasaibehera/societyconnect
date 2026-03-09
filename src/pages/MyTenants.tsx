@@ -137,9 +137,9 @@ const MyTenants = () => {
   };
 
   const statusBadge = (status: string, vacated: boolean) => {
-    if (vacated) return <Badge className="bg-destructive text-white text-[10px]">Vacated</Badge>;
+    if (vacated) return <Badge className="bg-destructive text-white text-[10px] capitalize">Vacated</Badge>;
     const map: Record<string, string> = { approved: "bg-green-500", pending: "bg-yellow-500", rejected: "bg-red-500" };
-    return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px]`}>{status}</Badge>;
+    return <Badge className={`${map[status] || "bg-muted"} text-white text-[10px] capitalize`}>{status}</Badge>;
   };
 
   const handleVacate = async (tenantId: string, currentlyVacated: boolean) => {
@@ -186,7 +186,7 @@ const MyTenants = () => {
                   {t.tenancy_end_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />End: {t.tenancy_end_date}</p>}
                 </div>
                 <div className="flex items-center gap-1 pt-1">
-                  <Badge className="bg-id-tenant text-white text-[10px]">Tenant</Badge>
+                  <Badge className="bg-id-tenant text-white text-[10px] capitalize">Tenant</Badge>
                   {statusBadge(t.status, t.has_vacated)}
                 </div>
                 <Button
