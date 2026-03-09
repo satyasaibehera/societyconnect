@@ -186,7 +186,7 @@ const MyTenants = () => {
                   {t.tenancy_end_date && <p className="flex items-center gap-1"><Calendar className="h-3 w-3" />End: {t.tenancy_end_date}</p>}
                 </div>
                 <div className="flex items-center gap-1 pt-1">
-                  <Badge className="bg-id-tenant text-white text-[10px]">Tenant</Badge>
+                  <Badge className="bg-id-tenant text-white text-[10px] capitalize">Tenant</Badge>
                   {statusBadge(t.status, t.has_vacated)}
                 </div>
                 <Button
