@@ -401,6 +401,22 @@ const MyFamily = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Photo Preview Modal */}
+      <Dialog open={!!photoPreview} onOpenChange={() => setPhotoPreview(null)}>
+        <DialogContent className="sm:max-w-lg p-2">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{photoPreview?.name}</DialogTitle>
+          </DialogHeader>
+          {photoPreview && (
+            <img
+              src={photoPreview.url}
+              alt={photoPreview.name}
+              className="w-full h-auto max-h-[80vh] object-contain rounded-md"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
