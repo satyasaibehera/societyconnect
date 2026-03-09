@@ -31,6 +31,8 @@ import MyTenants from "./pages/MyTenants";
 import RegisterResident from "./pages/RegisterResident";
 import VehiclePasses from "./pages/VehiclePasses";
 import MyGatePasses from "./pages/MyGatePasses";
+import Payments from "./pages/Payments";
+import MyPayments from "./pages/MyPayments";
 import Emergency from "./pages/Emergency";
 import NotFound from "./pages/NotFound";
 
@@ -69,6 +71,8 @@ const App = () => (
             <Route path="/my-vehicles" element={<ProtectedRoute><MyVehicles /></ProtectedRoute>} />
             <Route path="/my-tenants" element={<ProtectedRoute><MyTenants /></ProtectedRoute>} />
             <Route path="/my-gate-passes" element={<ProtectedRoute><MyGatePasses /></ProtectedRoute>} />
+            <Route path="/my-payments" element={<ProtectedRoute><MyPayments /></ProtectedRoute>} />
+            <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
             <Route path="/emergency" element={<ProtectedRoute><Emergency /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

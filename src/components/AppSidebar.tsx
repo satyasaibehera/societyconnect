@@ -21,6 +21,8 @@ import {
   Eye,
   KeyRound,
   DoorOpen,
+  CreditCard,
+  IndianRupee,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -47,6 +49,7 @@ const mainItems = [
   { title: "Security", url: "/security", icon: Shield },
   { title: "Vehicles", url: "/vehicles", icon: Car },
   { title: "Helpers", url: "/helpers", icon: Wrench },
+  { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Office Bearers", url: "/office-bearers", icon: Award },
 ];
 
@@ -56,6 +59,7 @@ const residentItems = [
   { title: "My Helpers", url: "/my-helpers", icon: Wrench },
   { title: "My Vehicles", url: "/my-vehicles", icon: Car },
   { title: "My Tenants", url: "/my-tenants", icon: KeyRound },
+  { title: "My Payments", url: "/my-payments", icon: IndianRupee },
   { title: "My Approvals", url: "/my-gate-passes", icon: DoorOpen },
 ];
 
