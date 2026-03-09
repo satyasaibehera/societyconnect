@@ -248,7 +248,14 @@ const MyGatePasses = () => {
     setSaving(true);
     const { error } = await supabase.from("move_passes").insert({
       pass_type: moveForm.pass_type,
+      tenant_name: moveForm.tenant_name || null,
+      tenant_phone: moveForm.tenant_phone || null,
+      tenant_email: moveForm.tenant_email || null,
+      purpose: moveForm.purpose || null,
+      vehicle_number: moveForm.vehicle_number || null,
+      vehicle_type: moveForm.vehicle_type || null,
       scheduled_date: moveForm.scheduled_date || null,
+      scheduled_time: moveForm.scheduled_time || null,
       notes: moveForm.notes || null,
       unit_id: myUnitId,
       society_id: societyId,
@@ -256,6 +263,24 @@ const MyGatePasses = () => {
       status: "pending_owner",
     } as any);
     setSaving(false);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({
+        title: "Move pass requested",
+        description: requiresAdminForMove
+          ? "Pending flat owner + society admin approval."
+          : "Pending flat owner approval.",
+      });
+      setMoveDialogOpen(false);
+      setMoveForm({
+        pass_type: "move_in", tenant_name: "", tenant_phone: "", tenant_email: "",
+        purpose: "", vehicle_number: "", vehicle_type: "",
+        scheduled_date: "", scheduled_time: "", notes: "",
+      });
+      fetchPasses();
+    }
+  };
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
