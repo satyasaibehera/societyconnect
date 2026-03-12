@@ -144,9 +144,11 @@ const Notices = () => {
               ))}
             </TabsList>
           </Tabs>
-          <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gradient-primary text-primary-foreground">
-            <Plus className="mr-2 h-4 w-4" /> New Post
-          </Button>
+          {isManagement && (
+            <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gradient-primary text-primary-foreground">
+              <Plus className="mr-2 h-4 w-4" /> New Post
+            </Button>
+          )}
         </div>
 
         <p className="text-muted-foreground text-sm">{filtered.length} item{filtered.length !== 1 && "s"}</p>
