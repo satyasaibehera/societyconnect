@@ -34,6 +34,7 @@ import MyGatePasses from "./pages/MyGatePasses";
 import Payments from "./pages/Payments";
 import MyPayments from "./pages/MyPayments";
 import Emergency from "./pages/Emergency";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
