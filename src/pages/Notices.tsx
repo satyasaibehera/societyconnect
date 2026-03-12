@@ -216,9 +216,11 @@ const Notices = () => {
 
                       <p className="text-xs text-muted-foreground mt-2">{new Date(n.created_at).toLocaleDateString()}</p>
                     </div>
-                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive h-8 w-8 shrink-0" onClick={() => handleDelete(n.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {isManagement && (
+                      <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive h-8 w-8 shrink-0" onClick={() => handleDelete(n.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </Card>
               );
