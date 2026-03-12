@@ -174,22 +174,12 @@ const Settings = () => {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: newAdminEmail,
-        password: newAdminPassword,
-        options: {
-          data: { full_name: newAdminName },
-        },
+      const { data, error } = await supabase.functions.invoke("create-admin-user", {
+        body: { email: newAdminEmail, password: newAdminPassword, full_name: newAdminName },
       });
 
       if (error) throw error;
-      if (!data.user) throw new Error("Failed to create user");
-
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert({ user_id: data.user.id, role: "super_admin" as any });
-
-      if (roleError) throw roleError;
+      if (data?.error) throw new Error(data.error);
 
       toast({ title: "Super Admin added!", description: `${newAdminEmail} now has super admin access.` });
       setNewAdminEmail("");

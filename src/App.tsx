@@ -34,6 +34,7 @@ import MyGatePasses from "./pages/MyGatePasses";
 import Payments from "./pages/Payments";
 import MyPayments from "./pages/MyPayments";
 import Emergency from "./pages/Emergency";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/register-resident" element={<ProtectedRoute><RegisterResident /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
