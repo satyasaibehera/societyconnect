@@ -14,6 +14,7 @@ import { ClipboardList, Plus, Loader2, Trash2, FileText, Users, CheckSquare, Cal
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface NoticeType {
   id: string;
