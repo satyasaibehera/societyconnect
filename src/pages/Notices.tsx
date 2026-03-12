@@ -40,6 +40,7 @@ interface Notice {
 const Notices = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isManagement } = useUserRole();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [noticeTypes, setNoticeTypes] = useState<NoticeType[]>([]);
   const [loading, setLoading] = useState(true);
