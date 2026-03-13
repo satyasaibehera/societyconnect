@@ -67,8 +67,8 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
   if (submitted) {
     return (
       <div className="space-y-6 animate-fade-in text-center">
-        <div className="mx-auto h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-          <CheckCircle2 className="h-8 w-8 text-green-600" />
+        <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+          <CheckCircle2 className="h-8 w-8 text-primary" />
         </div>
         <h2 className="font-display text-xl font-bold">Registration Submitted!</h2>
         <p className="text-sm text-muted-foreground">

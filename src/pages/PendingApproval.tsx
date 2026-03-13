@@ -9,8 +9,8 @@ const PendingApproval = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="max-w-md w-full p-8 text-center space-y-5">
-        <div className="mx-auto h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center">
-          <Clock className="h-8 w-8 text-amber-600" />
+        <div className="mx-auto h-16 w-16 rounded-full bg-accent flex items-center justify-center">
+          <Clock className="h-8 w-8 text-accent-foreground" />
         </div>
         <h1 className="font-display text-xl font-bold">Registration Pending</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
