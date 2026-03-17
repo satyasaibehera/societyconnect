@@ -23,6 +23,11 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { roles } = useUserRole();
+
+  const roleLabel = roles.length > 0
+    ? roles.map(r => r.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())).join(", ")
+    : "Member";
 
   const handleLogout = async () => {
     await signOut();
