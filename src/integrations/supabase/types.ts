@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_controls: {
+        Row: {
+          id: string
+          is_enabled: boolean
+          module_key: string
+          role_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          is_enabled?: boolean
+          module_key: string
+          role_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          is_enabled?: boolean
+          module_key?: string
+          role_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       approval_delegates: {
         Row: {
           created_at: string
