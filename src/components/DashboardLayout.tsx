@@ -68,7 +68,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-3 py-2">
                     <p className="text-sm font-medium truncate">{user?.email}</p>
-                    <p className="text-xs text-muted-foreground">Super Admin</p>
+                    <p className="text-xs text-muted-foreground">{roleLabel}</p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/settings")}>
