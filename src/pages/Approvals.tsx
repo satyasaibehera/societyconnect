@@ -36,6 +36,7 @@ const Approvals = () => {
   const [items, setItems] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [detailItem, setDetailItem] = useState<{ id: string; category: string } | null>(null);
 
   const fetchPending = async () => {
     setLoading(true);
