@@ -257,6 +257,15 @@ const Approvals = () => {
               <div className="flex gap-2 shrink-0">
                 <Button
                   size="sm"
+                  variant="ghost"
+                  onClick={() => setDetailItem({ id: item.id, category: item.category })}
+                  className="h-8 px-2"
+                  title="View details"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
                   onClick={() => handleAction(item, "approved")}
                   disabled={actionLoading === item.id}
                   className="gradient-primary text-primary-foreground h-8 px-3"
