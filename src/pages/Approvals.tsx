@@ -344,6 +344,13 @@ const Approvals = () => {
             ))}
           </Tabs>
         )}
+
+        <ApprovalDetailDialog
+          open={!!detailItem}
+          onOpenChange={(open) => !open && setDetailItem(null)}
+          itemId={detailItem?.id || null}
+          category={detailItem?.category || null}
+        />
       </div>
     </DashboardLayout>
   );
