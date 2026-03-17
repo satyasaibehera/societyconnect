@@ -4,10 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen } from "lucide-react";
+import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { ApprovalDetailDialog } from "@/components/approvals/ApprovalDetailDialog";
 
 type ApprovalCategory = "visitors" | "residents" | "helpers" | "vehicles" | "role_requests" | "move_passes";
 
@@ -35,6 +36,7 @@ const Approvals = () => {
   const [items, setItems] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [detailItem, setDetailItem] = useState<{ id: string; category: string } | null>(null);
 
   const fetchPending = async () => {
     setLoading(true);
@@ -255,6 +257,15 @@ const Approvals = () => {
               <div className="flex gap-2 shrink-0">
                 <Button
                   size="sm"
+                  variant="ghost"
+                  onClick={() => setDetailItem({ id: item.id, category: item.category })}
+                  className="h-8 px-2"
+                  title="View details"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
                   onClick={() => handleAction(item, "approved")}
                   disabled={actionLoading === item.id}
                   className="gradient-primary text-primary-foreground h-8 px-3"
@@ -333,6 +344,13 @@ const Approvals = () => {
             ))}
           </Tabs>
         )}
+
+        <ApprovalDetailDialog
+          open={!!detailItem}
+          onOpenChange={(open) => !open && setDetailItem(null)}
+          itemId={detailItem?.id || null}
+          category={detailItem?.category || null}
+        />
       </div>
     </DashboardLayout>
   );

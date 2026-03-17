@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Search, LogOut, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NotificationBell } from "@/components/NotificationBell";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +23,11 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { roles } = useUserRole();
+
+  const roleLabel = roles.length > 0
+    ? roles.map(r => r.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())).join(", ")
+    : "Member";
 
   const handleLogout = async () => {
     await signOut();
@@ -62,7 +68,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-3 py-2">
                     <p className="text-sm font-medium truncate">{user?.email}</p>
-                    <p className="text-xs text-muted-foreground">Super Admin</p>
+                    <p className="text-xs text-muted-foreground">{roleLabel}</p>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/settings")}>
