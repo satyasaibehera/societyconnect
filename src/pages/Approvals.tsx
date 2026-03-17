@@ -4,10 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen } from "lucide-react";
+import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { ApprovalDetailDialog } from "@/components/approvals/ApprovalDetailDialog";
 
 type ApprovalCategory = "visitors" | "residents" | "helpers" | "vehicles" | "role_requests" | "move_passes";
 
