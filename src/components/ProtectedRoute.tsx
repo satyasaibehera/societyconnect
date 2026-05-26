@@ -67,9 +67,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
       // 4. No registration found at all — could be legacy user
       setApprovalStatus("approved");
-    } catch {
-      // On error, default to approved to avoid locking out users
-      setApprovalStatus("approved");
+    } catch (err) {
+      // Fail closed: if we cannot verify approval, treat the user as pending
+      // rather than silently granting access.
+      console.error("Approval check failed", err);
+      setApprovalStatus("pending");
     }
   };
 

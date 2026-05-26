@@ -83,9 +83,20 @@ Deno.serve(async (req) => {
       delivered = await sendEmailViaResend(target, code);
     }
 
-    // Dev-mode fallback: if no real delivery channel is configured, return the code
-    // so the registration UI can show it to the user. This is a development convenience.
-    const dev_code = delivered ? null : code;
+    // Dev-mode fallback: ONLY return the raw code in the response when an
+    // explicit dev flag is set. Never expose OTP codes in production, since
+    // doing so completely defeats out-of-band verification.
+    const devMode = (Deno.env.get("OTP_DEV_MODE") || "").toLowerCase() === "true";
+    const dev_code = !delivered && devMode ? code : null;
+
+    if (!delivered && !devMode) {
+      // No delivery channel configured for this kind. Surface a clear error
+      // instead of silently leaking the code.
+      if (kind === "phone") {
+        throw new Error("SMS delivery is not configured. Please contact support.");
+      }
+      throw new Error("Email delivery is not configured. Please contact support.");
+    }
 
     return new Response(
       JSON.stringify({ success: true, delivered, dev_code, expires_at }),
