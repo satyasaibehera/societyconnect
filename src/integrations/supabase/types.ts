@@ -1530,6 +1530,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_owned_unit_ids: {
+        Args: { _society_id: string }
+        Returns: {
+          unit_id: string
+        }[]
+      }
       get_user_resident_id: { Args: { _user_id: string }; Returns: string }
       get_user_unit_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
