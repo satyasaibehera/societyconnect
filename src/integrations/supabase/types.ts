@@ -1539,6 +1539,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_society_member: {
+        Args: { _society_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_unit_approver: {
         Args: { _unit_id: string; _user_id: string }
         Returns: boolean
