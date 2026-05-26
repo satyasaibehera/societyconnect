@@ -19,18 +19,33 @@ Deno.serve(async (req) => {
     });
 
     const body = await req.json();
-    const { type, email, password, full_name } = body;
+    const { type, email, password, full_name, phone } = body;
 
     if (!email || !password || !type || !full_name) {
       throw new Error("Missing required fields: email, password, full_name, type");
     }
+    if (!phone) throw new Error("Phone number is required");
+
+    // Enforce OTP verification: both email and phone must have a verified, unexpired code
+    const sinceIso = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { data: emailOtp } = await adminClient
+      .from("otp_codes").select("verified_at")
+      .eq("kind", "email").eq("target", email).gte("created_at", sinceIso)
+      .order("created_at", { ascending: false }).limit(1);
+    if (!emailOtp?.[0]?.verified_at) throw new Error("Email is not verified. Please verify the OTP sent to your email.");
+
+    const { data: phoneOtp } = await adminClient
+      .from("otp_codes").select("verified_at")
+      .eq("kind", "phone").eq("target", phone).gte("created_at", sinceIso)
+      .order("created_at", { ascending: false }).limit(1);
+    if (!phoneOtp?.[0]?.verified_at) throw new Error("Phone is not verified. Please verify the OTP sent to your phone.");
 
     // Create user with email auto-confirmed
     const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name },
+      user_metadata: { full_name, phone },
     });
     if (createError) throw createError;
     if (!newUser.user) throw new Error("Failed to create user");
@@ -71,7 +86,7 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else if (type === "resident") {
-      const { society_id, unit_id, phone, date_of_birth, resident_type, photo_base64 } = body;
+      const { society_id, unit_id, date_of_birth, resident_type, photo_base64 } = body;
       if (!society_id || !unit_id) throw new Error("Society and unit are required");
 
       let photo_url: string | null = null;
