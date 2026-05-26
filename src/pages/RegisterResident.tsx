@@ -40,8 +40,10 @@ const RegisterResident = () => {
 
   const uploadPhoto = async (): Promise<string | null> => {
     if (!photoBlob) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-    const filePath = `photos/${fileName}`;
+    const filePath = `${user.id}/${fileName}`;
     const { error } = await supabase.storage.from("resident-photos").upload(filePath, photoBlob, { contentType: "image/jpeg" });
     if (error) throw error;
     const { data: urlData } = supabase.storage.from("resident-photos").getPublicUrl(filePath);

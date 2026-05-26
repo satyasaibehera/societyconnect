@@ -117,8 +117,10 @@ export function ResidentFormDialog({ open, onOpenChange, onSubmit, units, initia
   const uploadPhoto = async (): Promise<string | null> => {
     if (!photoBlob) return form.photo_url || null;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
-    const filePath = `photos/${fileName}`;
+    const filePath = `${user.id}/${fileName}`;
 
     const { error } = await supabase.storage
       .from("resident-photos")
