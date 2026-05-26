@@ -615,6 +615,39 @@ export type Database = {
           },
         ]
       }
+      otp_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          kind: string
+          target: string
+          verified_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          kind: string
+          target: string
+          verified_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          target?: string
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       owner_payment_config: {
         Row: {
           account_holder_name: string | null

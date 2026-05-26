@@ -4,6 +4,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide browser-injected password reveal buttons so our custom eye toggle is the only one shown */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 @layer base {
   :root {
     --background: 220 20% 97%;

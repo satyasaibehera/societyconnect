@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/camera/CameraCapture";
+import { PhoneInput, fullPhone } from "./PhoneInput";
+import { OtpVerifyField } from "./OtpVerifyField";
 
 interface Society {
   id: string;
@@ -39,6 +41,10 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const [showPassword, setShowPassword] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [countryCode, setCountryCode] = useState("+91");
+  const [phoneNumber, setPhoneNumber] = useState("");
 
   const [form, setForm] = useState({
     full_name: "",
@@ -52,6 +58,9 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   });
 
   const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+  const fullPhoneNumber = fullPhone(countryCode, phoneNumber);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+  const phoneValid = /^\+\d{1,4}\d{7,12}$/.test(fullPhoneNumber);
 
   // Fetch active societies
   useEffect(() => {
@@ -152,6 +161,10 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
       toast({ title: "Photo required", description: "Please capture a live photo.", variant: "destructive" });
       return;
     }
+    if (!emailVerified || !phoneVerified) {
+      toast({ title: "Verify email and phone", description: "Both OTPs must be verified before submitting.", variant: "destructive" });
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -166,7 +179,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
           email: form.email,
           password: form.password,
           full_name: form.full_name,
-          phone: form.phone,
+          phone: fullPhoneNumber,
           date_of_birth: form.date_of_birth,
           society_id: form.society_id,
           unit_id: form.unit_id,
@@ -178,6 +191,8 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Ensure no auto-login
+      await supabase.auth.signOut();
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: "Registration failed", description: err.message, variant: "destructive" });
@@ -191,6 +206,10 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     setForm({ full_name: "", email: "", password: "", phone: "", date_of_birth: "", society_id: "", unit_id: "", resident_type: "owner" });
     setCapturedImage(null);
     setPhotoBlob(null);
+    setEmailVerified(false);
+    setPhoneVerified(false);
+    setPhoneNumber("");
+    setCountryCode("+91");
     onOpenChange(false);
   };
 
@@ -228,8 +247,11 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <Label>Email *</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input type="email" placeholder="your@email.com" value={form.email} onChange={(e) => update("email", e.target.value)} className="pl-10" />
+                <Input type="email" placeholder="your@email.com" value={form.email}
+                  onChange={(e) => { update("email", e.target.value); setEmailVerified(false); }}
+                  className="pl-10" disabled={emailVerified} />
               </div>
+              <OtpVerifyField kind="email" target={form.email} canSend={emailValid} verified={emailVerified} onVerified={() => setEmailVerified(true)} />
             </div>
             <div className="space-y-2">
               <Label>Password *</Label>
@@ -245,8 +267,15 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
             </div>
 
             <div className="space-y-2">
-              <Label>Phone</Label>
-              <Input value={form.phone} onChange={(e) => update("phone", e.target.value)} placeholder="+91 98765 43210" />
+              <Label>Phone Number *</Label>
+              <PhoneInput
+                countryCode={countryCode}
+                number={phoneNumber}
+                onCountryChange={(c) => { setCountryCode(c); setPhoneVerified(false); }}
+                onNumberChange={(n) => { setPhoneNumber(n); setPhoneVerified(false); }}
+                disabled={phoneVerified}
+              />
+              <OtpVerifyField kind="phone" target={fullPhoneNumber} canSend={phoneValid} verified={phoneVerified} onVerified={() => setPhoneVerified(true)} />
             </div>
             <div className="space-y-2">
               <Label>Date of Birth</Label>
@@ -348,7 +377,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <Button variant="outline" onClick={resetAndClose} className="flex-1">Cancel</Button>
               <Button
                 onClick={handleSubmit}
-                disabled={submitting || !form.full_name || !form.email || !form.password || !form.unit_id || !capturedImage}
+                disabled={submitting || !form.full_name || !form.email || !form.password || !form.unit_id || !capturedImage || !emailVerified || !phoneVerified}
                 className="flex-1 gradient-primary text-primary-foreground"
               >
                 {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</> : "Submit Registration"}

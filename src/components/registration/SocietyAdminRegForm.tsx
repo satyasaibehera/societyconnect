@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PhoneInput, fullPhone } from "./PhoneInput";
+import { OtpVerifyField } from "./OtpVerifyField";
 
 interface SocietyAdminRegFormProps {
   onBack: () => void;
@@ -16,6 +18,10 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [countryCode, setCountryCode] = useState("+91");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -27,6 +33,9 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
   });
 
   const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+  const fullPhoneNumber = fullPhone(countryCode, phoneNumber);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+  const phoneValid = /^\+\d{1,4}\d{7,12}$/.test(fullPhoneNumber);
 
   const handleSubmit = async () => {
     if (!form.full_name || !form.email || !form.password || !form.society_name) {
@@ -35,6 +44,10 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
     }
     if (form.password.length < 6) {
       toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+    if (!emailVerified || !phoneVerified) {
+      toast({ title: "Verify email and phone", description: "Both OTPs must be verified before submitting.", variant: "destructive" });
       return;
     }
 
@@ -46,6 +59,7 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
           email: form.email,
           password: form.password,
           full_name: form.full_name,
+          phone: fullPhoneNumber,
           society_name: form.society_name,
           address: form.address,
           city: form.city,
@@ -56,6 +70,8 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      // Ensure no auto-login: sign the user out if Supabase auto-signed them in
+      await supabase.auth.signOut();
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: "Registration failed", description: err.message, variant: "destructive" });
@@ -108,8 +124,22 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
           <Label>Email *</Label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input type="email" placeholder="admin@society.com" value={form.email} onChange={(e) => update("email", e.target.value)} className="pl-10" />
+            <Input type="email" placeholder="admin@society.com" value={form.email}
+              onChange={(e) => { update("email", e.target.value); setEmailVerified(false); }}
+              className="pl-10" disabled={emailVerified} />
           </div>
+          <OtpVerifyField kind="email" target={form.email} canSend={emailValid} verified={emailVerified} onVerified={() => setEmailVerified(true)} />
+        </div>
+        <div className="space-y-2">
+          <Label>Phone Number *</Label>
+          <PhoneInput
+            countryCode={countryCode}
+            number={phoneNumber}
+            onCountryChange={(c) => { setCountryCode(c); setPhoneVerified(false); }}
+            onNumberChange={(n) => { setPhoneNumber(n); setPhoneVerified(false); }}
+            disabled={phoneVerified}
+          />
+          <OtpVerifyField kind="phone" target={fullPhoneNumber} canSend={phoneValid} verified={phoneVerified} onVerified={() => setPhoneVerified(true)} />
         </div>
         <div className="space-y-2">
           <Label>Password *</Label>
@@ -151,7 +181,11 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
         </div>
       </div>
 
-      <Button onClick={handleSubmit} disabled={submitting} className="w-full gradient-primary text-primary-foreground">
+      <Button
+        onClick={handleSubmit}
+        disabled={submitting || !emailVerified || !phoneVerified}
+        className="w-full gradient-primary text-primary-foreground"
+      >
         {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</> : "Submit Registration"}
       </Button>
 
