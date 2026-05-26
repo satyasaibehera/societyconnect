@@ -103,15 +103,13 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
         .select("id, unit_number, building_id")
         .in("building_id", buildingIds);
 
-      // Check which units have approved owners
-      const { data: ownedUnits } = await supabase
-        .from("residents")
-        .select("unit_id")
-        .eq("resident_type", "owner")
-        .eq("status", "approved")
-        .eq("society_id", form.society_id);
+      // Check which units have approved owners (via secure RPC — anon has no
+      // direct read access to the residents table to protect PII).
+      const { data: ownedUnits } = await supabase.rpc("get_owned_unit_ids", {
+        _society_id: form.society_id,
+      });
 
-      const ownedUnitIds = new Set(ownedUnits?.map((r) => r.unit_id) || []);
+      const ownedUnitIds = new Set((ownedUnits || []).map((r: any) => r.unit_id));
 
       const unitOptions: UnitOption[] = (allUnits || []).map((u) => ({
         id: u.id,
