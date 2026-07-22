@@ -379,7 +379,9 @@ CREATE TABLE IF NOT EXISTS ${SCHEMA}.residents (
   email text,
   tenancy_start_date date,
   tenancy_end_date date,
-  has_vacated boolean NOT NULL DEFAULT false
+  has_vacated boolean NOT NULL DEFAULT false,
+  is_ownership_transfer boolean NOT NULL DEFAULT false,
+  supporting_document_url text
 );
 `.trim(),
     }),

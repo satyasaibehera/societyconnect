@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Home, Users, AlertCircle, Loader2, CheckCircle2, Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Home, Users, AlertCircle, Loader2, CheckCircle2, Eye, EyeOff, Mail, Lock, User, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import { PhoneInput, fullPhone } from "./PhoneInput";
 import { OtpVerifyField } from "./OtpVerifyField";
 
 type Society = SocietyListItem;
-
 type UnitOption = FlatOption;
 
 interface ResidentRegDialogProps {
@@ -40,6 +39,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const [phoneVerified, setPhoneVerified] = useState(false);
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [ownershipDoc, setOwnershipDoc] = useState<File | null>(null);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -56,6 +56,13 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const fullPhoneNumber = fullPhone(countryCode, phoneNumber);
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
   const phoneValid = /^\+\d{1,4}\d{7,12}$/.test(fullPhoneNumber);
+
+  const isOwner = form.resident_type === "owner";
+  const selectedUnit = useMemo(
+    () => units.find((u) => u.id === form.unit_id) ?? null,
+    [units, form.unit_id],
+  );
+  const isOwnershipTransfer = Boolean(isOwner && selectedUnit?.has_owner);
 
   // Fetch active societies from the tenant router (Neon), not Supabase
   useEffect(() => {
@@ -91,7 +98,6 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     return () => {
       cancelled = true;
     };
-    // toast is stable enough for error reporting; avoid re-fetch loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -127,6 +133,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
 
     fetchUnits();
     setForm((f) => ({ ...f, unit_id: "" }));
+    setOwnershipDoc(null);
 
     return () => {
       cancelled = true;
@@ -134,10 +141,10 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.society_id]);
 
-  const isOwner = form.resident_type === "owner";
-  const availableUnits = isOwner
-    ? units.filter((u) => !u.has_owner)
-    : units.filter((u) => u.has_owner);
+  // Clear ownership doc when transfer mode turns off
+  useEffect(() => {
+    if (!isOwnershipTransfer) setOwnershipDoc(null);
+  }, [isOwnershipTransfer]);
 
   const blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -168,12 +175,29 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
       toast({ title: "Verify email and phone", description: "Both OTPs must be verified before submitting.", variant: "destructive" });
       return;
     }
+    if (isOwnershipTransfer && !ownershipDoc) {
+      toast({
+        title: "Ownership proof required",
+        description: "Upload Sale Deed, Index II, or Tax Receipt to claim ownership transfer.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSubmitting(true);
     try {
       let photo_base64: string | null = null;
       if (photoBlob) {
         photo_base64 = await blobToBase64(photoBlob);
+      }
+
+      let supporting_document_base64: string | null = null;
+      let supporting_document_filename: string | null = null;
+      let supporting_document_content_type: string | null = null;
+      if (ownershipDoc) {
+        supporting_document_base64 = await blobToBase64(ownershipDoc);
+        supporting_document_filename = ownershipDoc.name;
+        supporting_document_content_type = ownershipDoc.type || "application/octet-stream";
       }
 
       const { data, error } = await supabase.functions.invoke("register-account", {
@@ -183,22 +207,27 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
           password: form.password,
           full_name: form.full_name,
           phone: fullPhoneNumber,
-          date_of_birth: form.date_of_birth,
+          date_of_birth: form.date_of_birth || null,
           society_id: form.society_id,
           unit_id: form.unit_id,
           resident_type: form.resident_type,
           photo_base64,
+          is_ownership_transfer: isOwnershipTransfer,
+          supporting_document_base64,
+          supporting_document_filename,
+          supporting_document_content_type,
+          supporting_document_url: null,
         },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Ensure no auto-login
       await signOut();
       setSubmitted(true);
-    } catch (err: any) {
-      toast({ title: "Registration failed", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Registration failed";
+      toast({ title: "Registration failed", description: message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -206,15 +235,36 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
 
   const resetAndClose = () => {
     setSubmitted(false);
-    setForm({ full_name: "", email: "", password: "", phone: "", date_of_birth: "", society_id: "", unit_id: "", resident_type: "owner" });
+    setForm({
+      full_name: "",
+      email: "",
+      password: "",
+      phone: "",
+      date_of_birth: "",
+      society_id: "",
+      unit_id: "",
+      resident_type: "owner",
+    });
     setCapturedImage(null);
     setPhotoBlob(null);
     setEmailVerified(false);
     setPhoneVerified(false);
     setPhoneNumber("");
     setCountryCode("+91");
+    setOwnershipDoc(null);
     onOpenChange(false);
   };
+
+  const submitDisabled =
+    submitting ||
+    !form.full_name ||
+    !form.email ||
+    !form.password ||
+    !form.unit_id ||
+    !capturedImage ||
+    !emailVerified ||
+    !phoneVerified ||
+    (isOwnershipTransfer && !ownershipDoc);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetAndClose(); }}>
@@ -228,16 +278,17 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
             <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="font-display text-lg font-bold">Registration Submitted!</h2>
+            <h2 className="font-display text-lg font-bold">
+              {isOwnershipTransfer ? "Ownership Transfer Claim Submitted!" : "Registration Submitted!"}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Your resident registration is pending approval by the Society Admin.
+              Your request is pending approval by the Society Admin.
               You'll be able to sign in once approved.
             </p>
             <Button onClick={resetAndClose} variant="outline" className="w-full">Close</Button>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Account Details */}
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Account Details</p>
             <div className="space-y-2">
               <Label>Full Name *</Label>
@@ -285,7 +336,6 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <Input type="date" value={form.date_of_birth} onChange={(e) => update("date_of_birth", e.target.value)} />
             </div>
 
-            {/* Society Selection */}
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pt-2">Society & Flat</p>
             <div className="space-y-2">
               <Label>Select Society *</Label>
@@ -316,7 +366,6 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
 
             {form.society_id && (
               <>
-                {/* Registration Type */}
                 <div className="space-y-2">
                   <Label>I am registering as</Label>
                   <Select value={form.resident_type} onValueChange={(v) => setForm({ ...form, resident_type: v, unit_id: "" })}>
@@ -332,36 +381,32 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                   </Select>
                 </div>
 
-                {/* Info banner */}
                 <div className={`rounded-lg p-3 text-xs text-muted-foreground flex gap-2 ${isOwner ? "bg-primary/5 border border-primary/20" : "bg-accent/50 border border-accent"}`}>
                   <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   <span>
                     {isOwner
-                      ? "As the flat owner, you'll be the primary contact. Only one owner per flat is allowed."
-                      : "You can only register for a flat that already has an approved owner."}
+                      ? "All flats are selectable. Choosing an occupied flat as Flat Owner starts an ownership transfer claim."
+                      : "Family members can register for any flat; society admin will review your request."}
                   </span>
                 </div>
 
-                {/* Unit Selection */}
                 <div className="space-y-2">
                   <Label>Select Your Flat *</Label>
                   {loadingUnits ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground p-3"><Loader2 className="h-4 w-4 animate-spin" /> Loading flats...</div>
-                  ) : availableUnits.length === 0 ? (
+                  ) : units.length === 0 ? (
                     <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                      {isOwner
-                        ? "All flats already have an owner registered."
-                        : "No flats with an approved owner found. The flat owner must register first."}
+                      No flats found for this society yet.
                     </div>
                   ) : (
                     <Select value={form.unit_id} onValueChange={(v) => update("unit_id", v)}>
                       <SelectTrigger><SelectValue placeholder="Choose your flat" /></SelectTrigger>
                       <SelectContent>
-                        {availableUnits.map((u) => (
+                        {units.map((u) => (
                           <SelectItem key={u.id} value={u.id}>
                             <span className="flex items-center gap-2">
                               {u.building_name} — {u.unit_number}
-                              {u.has_owner && <Badge variant="secondary" className="text-[9px] ml-1">Owner verified</Badge>}
+                              {u.has_owner && <Badge variant="secondary" className="text-[9px] ml-1">Occupied</Badge>}
                             </span>
                           </SelectItem>
                         ))}
@@ -369,10 +414,33 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                     </Select>
                   )}
                 </div>
+
+                {isOwnershipTransfer && (
+                  <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                    <Label htmlFor="ownership-doc">
+                      Upload Proof of Ownership: Sale Deed, Index II, or Tax Receipt *
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      This flat already has an approved owner. Submit supporting documents to claim ownership transfer.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="ownership-doc"
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                        onChange={(e) => setOwnershipDoc(e.target.files?.[0] ?? null)}
+                        className="cursor-pointer"
+                      />
+                      <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </div>
+                    {ownershipDoc && (
+                      <p className="text-xs text-muted-foreground truncate">Selected: {ownershipDoc.name}</p>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
-            {/* Photo Capture */}
             <CameraCapture
               onCapture={(blob) => { setPhotoBlob(blob); setCapturedImage(URL.createObjectURL(blob)); }}
               capturedImage={capturedImage}
@@ -385,10 +453,16 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <Button variant="outline" onClick={resetAndClose} className="flex-1">Cancel</Button>
               <Button
                 onClick={handleSubmit}
-                disabled={submitting || !form.full_name || !form.email || !form.password || !form.unit_id || !capturedImage || !emailVerified || !phoneVerified}
+                disabled={submitDisabled}
                 className="flex-1 gradient-primary text-primary-foreground"
               >
-                {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</> : "Submit Registration"}
+                {submitting ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                ) : isOwnershipTransfer ? (
+                  "Submit Ownership Transfer Claim"
+                ) : (
+                  "Submit Registration"
+                )}
               </Button>
             </div>
           </div>

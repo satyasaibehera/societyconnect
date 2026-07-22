@@ -207,12 +207,12 @@ export default function Payments() {
   };
 
   const handleVerify = async (recordId: string, approve: boolean, reason?: string) => {
-    const update: Record<string, unknown> = {
+    const update = {
       status: approve ? "verified" : "rejected",
       verified_by: user?.id,
       verified_at: new Date().toISOString(),
+      ...(!approve && reason ? { rejection_reason: reason } : {}),
     };
-    if (!approve && reason) update.rejection_reason = reason;
 
     const { error } = await supabase.from("payment_records").update(update).eq("id", recordId);
     if (error) {

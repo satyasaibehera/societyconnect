@@ -86,8 +86,24 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else if (type === "resident") {
-      const { society_id, unit_id, date_of_birth, resident_type, photo_base64 } = body;
+      const {
+        society_id,
+        unit_id,
+        date_of_birth,
+        resident_type,
+        photo_base64,
+        is_ownership_transfer,
+        supporting_document_base64,
+        supporting_document_filename,
+        supporting_document_content_type,
+        supporting_document_url: supporting_document_url_input,
+      } = body;
       if (!society_id || !unit_id) throw new Error("Society and unit are required");
+
+      const isOwnershipTransfer = Boolean(is_ownership_transfer);
+      if (isOwnershipTransfer && !(supporting_document_base64 || supporting_document_url_input)) {
+        throw new Error("Proof of ownership document is required for ownership transfer claims.");
+      }
 
       let photo_url: string | null = null;
       if (photo_base64) {
@@ -105,6 +121,25 @@ Deno.serve(async (req) => {
         photo_url = urlData.publicUrl;
       }
 
+      let supporting_document_url: string | null = supporting_document_url_input || null;
+      if (supporting_document_base64) {
+        const safeName = String(supporting_document_filename || "ownership-proof.pdf")
+          .replace(/[^a-zA-Z0-9._-]/g, "_");
+        const contentType = supporting_document_content_type || "application/pdf";
+        const fileName = `ownership-docs/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`;
+        const binaryStr = atob(supporting_document_base64);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const { error: docUploadErr } = await adminClient.storage
+          .from("resident-photos")
+          .upload(fileName, bytes, { contentType });
+        if (docUploadErr) throw docUploadErr;
+        const { data: docUrlData } = adminClient.storage.from("resident-photos").getPublicUrl(fileName);
+        supporting_document_url = docUrlData.publicUrl;
+      }
+
       const { error: resError } = await adminClient.from("residents").insert({
         full_name,
         phone: phone || null,
@@ -115,11 +150,18 @@ Deno.serve(async (req) => {
         user_id: userId,
         photo_url,
         status: "pending",
+        is_ownership_transfer: isOwnershipTransfer,
+        supporting_document_url,
       });
       if (resError) throw resError;
 
       return new Response(
-        JSON.stringify({ success: true, user_id: userId, registration_type: "resident" }),
+        JSON.stringify({
+          success: true,
+          user_id: userId,
+          registration_type: "resident",
+          is_ownership_transfer: isOwnershipTransfer,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {

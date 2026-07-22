@@ -372,12 +372,12 @@ export default function MyPayments() {
   };
 
   const handleVerifyRent = async (recordId: string, approve: boolean) => {
-    const update: Record<string, unknown> = {
+    const update = {
       status: approve ? "verified" : "rejected",
       verified_by: user?.id,
       verified_at: new Date().toISOString(),
+      ...(approve ? {} : { rejection_reason: "Payment not confirmed by owner" }),
     };
-    if (!approve) update.rejection_reason = "Payment not confirmed by owner";
 
     const { error } = await supabase.from("payment_records").update(update).eq("id", recordId);
     if (error) {
