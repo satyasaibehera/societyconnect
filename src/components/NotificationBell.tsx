@@ -200,7 +200,7 @@ export function NotificationBell() {
       .channel("user-notifications")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "notifications" },
+        { event: "*", schema: "society_connect", table: "notifications" },
         () => fetchNotifications()
       )
       .subscribe();

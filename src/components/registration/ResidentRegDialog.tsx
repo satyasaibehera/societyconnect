@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { signOut } from "@/services/authService";
 import { useToast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/camera/CameraCapture";
 import { PhoneInput, fullPhone } from "./PhoneInput";
@@ -190,7 +191,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
       if (data?.error) throw new Error(data.error);
 
       // Ensure no auto-login
-      await supabase.auth.signOut();
+      await signOut();
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: "Registration failed", description: err.message, variant: "destructive" });

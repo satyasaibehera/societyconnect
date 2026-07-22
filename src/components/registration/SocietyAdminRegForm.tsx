@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { signOut } from "@/services/authService";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInput, fullPhone } from "./PhoneInput";
 import { OtpVerifyField } from "./OtpVerifyField";
@@ -70,8 +71,8 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Ensure no auto-login: sign the user out if Supabase auto-signed them in
-      await supabase.auth.signOut();
+      // Ensure no auto-login: sign the user out if auth provider auto-signed them in
+      await signOut();
       setSubmitted(true);
     } catch (err: any) {
       toast({ title: "Registration failed", description: err.message, variant: "destructive" });

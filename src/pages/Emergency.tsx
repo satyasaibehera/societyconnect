@@ -111,7 +111,7 @@ export default function Emergency() {
       .channel("emergency-alerts-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "emergency_alerts" },
+        { event: "*", schema: "society_connect", table: "emergency_alerts" },
         () => fetchAlerts()
       )
       .subscribe();
