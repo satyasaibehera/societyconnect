@@ -41,8 +41,9 @@ const Login = () => {
       const { error } = await signIn({ email, password });
       if (error) throw error;
       navigate("/dashboard");
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Sign in failed";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }

@@ -2,16 +2,19 @@ import { useState } from "react";
 import { CheckCircle2, Loader2, Send, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { sendOtp, verifyOtp } from "@/services/authService";
 import { useToast } from "@/hooks/use-toast";
+
+/** Local mock phone OTP — Twilio is not configured on this Supabase instance. */
+const MOCK_PHONE_OTP = "9999";
 
 interface OtpVerifyFieldProps {
   kind: "email" | "phone";
-  target: string;          // email address or "+<cc><number>"
-  canSend: boolean;        // true once target is valid
+  target: string; // email address or "+<cc><number>"
+  canSend: boolean; // true once target is valid
   verified: boolean;
   onVerified: () => void;
-  onReset?: () => void;    // call when user edits the underlying target
+  onReset?: () => void; // call when user edits the underlying target
 }
 
 export function OtpVerifyField({ kind, target, canSend, verified, onVerified }: OtpVerifyFieldProps) {
@@ -20,45 +23,74 @@ export function OtpVerifyField({ kind, target, canSend, verified, onVerified }: 
   const [verifying, setVerifying] = useState(false);
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
+  const [mockPhoneCode, setMockPhoneCode] = useState<string | null>(null);
+
+  const expectedLength = kind === "phone" ? MOCK_PHONE_OTP.length : 6;
 
   const send = async () => {
     if (!canSend || sending) return;
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-otp", {
-        body: { kind, target },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setSent(true);
-      if (data?.dev_code) {
+      // Phone OTP: mock locally — do not call Supabase/Twilio or the router.
+      if (kind === "phone") {
+        setMockPhoneCode(MOCK_PHONE_OTP);
+        setCode("");
+        setSent(true);
         toast({
-          title: `Dev OTP for ${kind === "email" ? "email" : "phone"}`,
-          description: `Code: ${data.dev_code} — (live delivery not configured; using dev mode)`,
+          title: "[DEV MODE] Verification code is 9999",
+          description: "Twilio is not configured. Use this mock code to continue.",
+        });
+        return;
+      }
+
+      const { data, error } = await sendOtp(target, { kind: "email" });
+      if (error) throw error;
+
+      setSent(true);
+      const devCode =
+        data && typeof data === "object" && "dev_code" in data
+          ? (data as { dev_code?: string }).dev_code
+          : undefined;
+
+      if (devCode) {
+        toast({
+          title: "Dev OTP for email",
+          description: `Code: ${devCode} — (live delivery not configured; using dev mode)`,
         });
       } else {
-        toast({ title: "Code sent", description: `Check your ${kind === "email" ? "inbox" : "phone"} for the 6-digit code.` });
+        toast({
+          title: "Code sent",
+          description: "Check your inbox for the 6-digit code.",
+        });
       }
-    } catch (err: any) {
-      toast({ title: "Failed to send code", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send code";
+      toast({ title: "Failed to send code", description: message, variant: "destructive" });
     } finally {
       setSending(false);
     }
   };
 
   const verify = async () => {
-    if (code.length !== 6 || verifying) return;
+    if (code.length !== expectedLength || verifying) return;
     setVerifying(true);
     try {
-      const { data, error } = await supabase.functions.invoke("verify-otp", {
-        body: { kind, target, code },
-      });
+      if (kind === "phone") {
+        if (code !== (mockPhoneCode || MOCK_PHONE_OTP)) {
+          throw new Error("Invalid verification code");
+        }
+        onVerified();
+        toast({ title: "Phone verified" });
+        return;
+      }
+
+      const { error } = await verifyOtp(target, code, { kind: "email" });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
       onVerified();
-      toast({ title: `${kind === "email" ? "Email" : "Phone"} verified` });
-    } catch (err: any) {
-      toast({ title: "Verification failed", description: err.message, variant: "destructive" });
+      toast({ title: "Email verified" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Verification failed";
+      toast({ title: "Verification failed", description: message, variant: "destructive" });
     } finally {
       setVerifying(false);
     }
@@ -83,13 +115,13 @@ export function OtpVerifyField({ kind, target, canSend, verified, onVerified }: 
         <div className="flex gap-2">
           <Input
             inputMode="numeric"
-            maxLength={6}
-            placeholder="6-digit code"
+            maxLength={expectedLength}
+            placeholder={kind === "phone" ? "4-digit code" : "6-digit code"}
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, expectedLength))}
             className="flex-1"
           />
-          <Button type="button" size="sm" disabled={code.length !== 6 || verifying} onClick={verify}>
+          <Button type="button" size="sm" disabled={code.length !== expectedLength || verifying} onClick={verify}>
             {verifying ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
             Verify
           </Button>

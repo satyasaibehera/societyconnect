@@ -8,23 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/services/authService";
+import { fetchActiveSocietiesDetailed, type SocietyListItem } from "@/services/societiesService";
+import { fetchFlatOptionsForSociety, type FlatOption } from "@/services/buildingsService";
 import { useToast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/camera/CameraCapture";
 import { PhoneInput, fullPhone } from "./PhoneInput";
 import { OtpVerifyField } from "./OtpVerifyField";
 
-interface Society {
-  id: string;
-  name: string;
-  city: string | null;
-}
+type Society = SocietyListItem;
 
-interface UnitOption {
-  id: string;
-  unit_number: string;
-  building_name: string;
-  has_owner: boolean;
-}
+type UnitOption = FlatOption;
 
 interface ResidentRegDialogProps {
   open: boolean;
@@ -36,6 +29,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const [societies, setSocieties] = useState<Society[]>([]);
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [loadingSocieties, setLoadingSocieties] = useState(true);
+  const [societiesError, setSocietiesError] = useState<string | null>(null);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -63,71 +57,81 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
   const phoneValid = /^\+\d{1,4}\d{7,12}$/.test(fullPhoneNumber);
 
-  // Fetch active societies
+  // Fetch active societies from the tenant router (Neon), not Supabase
   useEffect(() => {
     if (!open) return;
-    const fetchSocieties = async () => {
+    let cancelled = false;
+
+    const loadSocieties = async () => {
       setLoadingSocieties(true);
-      const { data } = await supabase
-        .from("societies")
-        .select("id, name, city")
-        .eq("is_active", true)
-        .order("name");
-      setSocieties(data || []);
-      setLoadingSocieties(false);
+      setSocietiesError(null);
+      try {
+        const result = await fetchActiveSocietiesDetailed();
+        if (cancelled) return;
+        setSocieties(result.societies);
+        setSocietiesError(result.error);
+        if (result.error) {
+          toast({
+            title: "Could not load societies",
+            description: result.error,
+            variant: "destructive",
+          });
+        }
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Failed to load societies";
+        setSocieties([]);
+        setSocietiesError(message);
+      } finally {
+        if (!cancelled) setLoadingSocieties(false);
+      }
     };
-    fetchSocieties();
+
+    loadSocieties();
+    return () => {
+      cancelled = true;
+    };
+    // toast is stable enough for error reporting; avoid re-fetch loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Fetch units when society changes
+  // Fetch buildings/flats from the tenant router when society changes
   useEffect(() => {
-    if (!form.society_id) { setUnits([]); return; }
+    if (!form.society_id) {
+      setUnits([]);
+      return;
+    }
+
+    let cancelled = false;
+
     const fetchUnits = async () => {
       setLoadingUnits(true);
-      // Get buildings for this society
-      const { data: buildings } = await supabase
-        .from("buildings")
-        .select("id, name")
-        .eq("society_id", form.society_id);
-
-      if (!buildings || buildings.length === 0) {
-        setUnits([]);
-        setLoadingUnits(false);
-        return;
+      try {
+        const options = await fetchFlatOptionsForSociety(form.society_id);
+        if (!cancelled) setUnits(options);
+      } catch (err: unknown) {
+        console.warn("[ResidentRegDialog] Failed to load buildings/flats:", err);
+        if (!cancelled) {
+          setUnits([]);
+          const message = err instanceof Error ? err.message : "Failed to load flats";
+          toast({
+            title: "Could not load flats",
+            description: message,
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!cancelled) setLoadingUnits(false);
       }
-
-      const buildingIds = buildings.map((b) => b.id);
-      const buildingMap = Object.fromEntries(buildings.map((b) => [b.id, b.name]));
-
-      const { data: allUnits } = await supabase
-        .from("units")
-        .select("id, unit_number, building_id")
-        .in("building_id", buildingIds);
-
-      // Check which units have approved owners (via secure RPC — anon has no
-      // direct read access to the residents table to protect PII).
-      const { data: ownedUnits } = await supabase.rpc("get_owned_unit_ids", {
-        _society_id: form.society_id,
-      });
-
-      const ownedUnitIds = new Set((ownedUnits || []).map((r: any) => r.unit_id));
-
-      const unitOptions: UnitOption[] = (allUnits || []).map((u) => ({
-        id: u.id,
-        unit_number: u.unit_number,
-        building_name: buildingMap[u.building_id] || "",
-        has_owner: ownedUnitIds.has(u.id),
-      }));
-
-      unitOptions.sort((a, b) =>
-        a.building_name.localeCompare(b.building_name) || a.unit_number.localeCompare(b.unit_number)
-      );
-
-      setUnits(unitOptions);
-      setLoadingUnits(false);
     };
+
     fetchUnits();
     setForm((f) => ({ ...f, unit_id: "" }));
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.society_id]);
 
   const isOwner = form.resident_type === "owner";
@@ -288,8 +292,13 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               {loadingSocieties ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground p-3"><Loader2 className="h-4 w-4 animate-spin" /> Loading societies...</div>
               ) : societies.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                  No active societies found. A society must be registered and approved first.
+                <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground space-y-1">
+                  <p>No active societies found. A society must be registered and approved first.</p>
+                  {societiesError && (
+                    <p className="text-xs text-destructive">
+                      Router error: {societiesError}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <Select value={form.society_id} onValueChange={(v) => update("society_id", v)}>

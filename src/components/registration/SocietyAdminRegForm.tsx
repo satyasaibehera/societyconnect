@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Building2, ArrowLeft, Eye, EyeOff, Mail, Lock, User, MapPin, Loader2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Mail, Lock, User, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/services/authService";
+import { onboardSociety } from "@/services/societyOnboardingService";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInput, fullPhone } from "./PhoneInput";
 import { OtpVerifyField } from "./OtpVerifyField";
@@ -54,28 +53,31 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
 
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("register-account", {
-        body: {
-          type: "society_admin",
+      const result = await onboardSociety({
+        society_name: form.society_name,
+        address: form.address,
+        city: form.city,
+        state: form.state,
+        isActive: false,
+        provisionDatabase: true,
+        admin: {
           email: form.email,
           password: form.password,
           full_name: form.full_name,
           phone: fullPhoneNumber,
-          society_name: form.society_name,
-          address: form.address,
-          city: form.city,
-          state: form.state,
         },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (!result.success) {
+        throw new Error(result.error || "Society registration failed");
+      }
 
       // Ensure no auto-login: sign the user out if auth provider auto-signed them in
       await signOut();
       setSubmitted(true);
-    } catch (err: any) {
-      toast({ title: "Registration failed", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Registration failed";
+      toast({ title: "Registration failed", description: message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }

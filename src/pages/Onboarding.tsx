@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { provisionSocietyTenant } from "@/services/societyOnboardingService";
 
 const STEPS = [
   { id: 1, title: "Society Details", description: "Basic information about your society" },
@@ -158,6 +159,24 @@ const Onboarding = () => {
       if (societyError) throw societyError;
 
       setSavedSocietyId(society.id);
+
+      // Dynamically provision tenant schema/seeds via manifest (table-agnostic engine)
+      const provisionResult = await provisionSocietyTenant({
+        societyId: society.id,
+        society_name: societyName,
+        address,
+        city,
+        state,
+        isActive: true,
+      });
+
+      if (!provisionResult.success) {
+        console.warn("Tenant provisioning warning:", provisionResult.error, provisionResult.routerResponse);
+        toast({
+          title: "Society created — provisioning pending",
+          description: provisionResult.error || "Schema provisioning will be retried by the platform.",
+        });
+      }
 
       // 2. Create buildings and collect their IDs
       for (const building of buildings) {
