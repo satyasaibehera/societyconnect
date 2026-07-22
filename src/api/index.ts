@@ -1,5 +1,6 @@
 import cors from "cors";
 import express, { type Express } from "express";
+import additionRequestsRouter from "./routes/additionRequests";
 import buildingsRouter from "./routes/buildings";
 import registerRouter from "./routes/register";
 import societiesRouter from "./routes/societies";
@@ -9,6 +10,7 @@ import societiesRouter from "./routes/societies";
  * - GET  /api/societies
  * - GET  /api/buildings?society_id=...
  * - POST /api/register
+ * - POST /api/addition-requests
  */
 export function createApiApp(): Express {
   const app = express();
@@ -23,6 +25,7 @@ export function createApiApp(): Express {
   app.use("/api/societies", societiesRouter);
   app.use("/api/buildings", buildingsRouter);
   app.use("/api/register", registerRouter);
+  app.use("/api/addition-requests", additionRequestsRouter);
 
   return app;
 }

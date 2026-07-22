@@ -5,18 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/services/authService";
 import { fetchActiveSocietiesDetailed, type SocietyListItem } from "@/services/societiesService";
-import { fetchFlatOptionsForSociety, type FlatOption } from "@/services/buildingsService";
+import {
+  fetchBuildingsForSociety,
+  submitAdditionRequest,
+  type BuildingFlat,
+  type BuildingWithFlats,
+} from "@/services/buildingsService";
 import { useToast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/camera/CameraCapture";
 import { PhoneInput, fullPhone } from "./PhoneInput";
 import { OtpVerifyField } from "./OtpVerifyField";
 
 type Society = SocietyListItem;
-type UnitOption = FlatOption;
 
 interface ResidentRegDialogProps {
   open: boolean;
@@ -26,12 +31,13 @@ interface ResidentRegDialogProps {
 export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps) {
   const { toast } = useToast();
   const [societies, setSocieties] = useState<Society[]>([]);
-  const [units, setUnits] = useState<UnitOption[]>([]);
+  const [buildings, setBuildings] = useState<BuildingWithFlats[]>([]);
   const [loadingSocieties, setLoadingSocieties] = useState(true);
   const [societiesError, setSocietiesError] = useState<string | null>(null);
-  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [loadingBuildings, setLoadingBuildings] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedAsTransfer, setSubmittedAsTransfer] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
@@ -40,6 +46,13 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [ownershipDoc, setOwnershipDoc] = useState<File | null>(null);
+  const [showAdditionForm, setShowAdditionForm] = useState(false);
+  const [submittingAddition, setSubmittingAddition] = useState(false);
+  const [additionForm, setAdditionForm] = useState({
+    building_name: "",
+    flat_number: "",
+    notes: "",
+  });
 
   const [form, setForm] = useState({
     full_name: "",
@@ -48,7 +61,8 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     phone: "",
     date_of_birth: "",
     society_id: "",
-    unit_id: "",
+    building_id: "",
+    flat_id: "",
     resident_type: "owner",
   });
 
@@ -58,13 +72,21 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const phoneValid = /^\+\d{1,4}\d{7,12}$/.test(fullPhoneNumber);
 
   const isOwner = form.resident_type === "owner";
-  const selectedUnit = useMemo(
-    () => units.find((u) => u.id === form.unit_id) ?? null,
-    [units, form.unit_id],
-  );
-  const isOwnershipTransfer = Boolean(isOwner && selectedUnit?.has_owner);
 
-  // Fetch active societies from the tenant router (Neon), not Supabase
+  const selectedBuilding = useMemo(
+    () => buildings.find((b) => b.id === form.building_id) ?? null,
+    [buildings, form.building_id],
+  );
+
+  const availableFlats: BuildingFlat[] = selectedBuilding?.flats ?? [];
+
+  const selectedFlat = useMemo(
+    () => availableFlats.find((f) => f.id === form.flat_id) ?? null,
+    [availableFlats, form.flat_id],
+  );
+
+  const isOwnershipTransfer = Boolean(isOwner && selectedFlat?.is_occupied);
+
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -101,39 +123,39 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Fetch buildings/flats from the tenant router when society changes
+  // Load buildings (+ nested flats) from local GET /api/buildings
   useEffect(() => {
     if (!form.society_id) {
-      setUnits([]);
+      setBuildings([]);
       return;
     }
 
     let cancelled = false;
 
-    const fetchUnits = async () => {
-      setLoadingUnits(true);
+    const loadBuildings = async () => {
+      setLoadingBuildings(true);
       try {
-        const options = await fetchFlatOptionsForSociety(form.society_id);
-        if (!cancelled) setUnits(options);
+        const list = await fetchBuildingsForSociety(form.society_id);
+        if (!cancelled) setBuildings(list);
       } catch (err: unknown) {
-        console.warn("[ResidentRegDialog] Failed to load buildings/flats:", err);
+        console.warn("[ResidentRegDialog] Failed to load /api/buildings:", err);
         if (!cancelled) {
-          setUnits([]);
-          const message = err instanceof Error ? err.message : "Failed to load flats";
+          setBuildings([]);
           toast({
-            title: "Could not load flats",
-            description: message,
+            title: "Could not load buildings",
+            description: err instanceof Error ? err.message : "Failed to load buildings",
             variant: "destructive",
           });
         }
       } finally {
-        if (!cancelled) setLoadingUnits(false);
+        if (!cancelled) setLoadingBuildings(false);
       }
     };
 
-    fetchUnits();
-    setForm((f) => ({ ...f, unit_id: "" }));
+    loadBuildings();
+    setForm((f) => ({ ...f, building_id: "", flat_id: "" }));
     setOwnershipDoc(null);
+    setShowAdditionForm(false);
 
     return () => {
       cancelled = true;
@@ -141,25 +163,70 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.society_id]);
 
-  // Clear ownership doc when transfer mode turns off
   useEffect(() => {
     if (!isOwnershipTransfer) setOwnershipDoc(null);
   }, [isOwnershipTransfer]);
 
-  const blobToBase64 = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
-        resolve(result.split(",")[1]); // strip data:image/...;base64,
+        resolve(result.split(",")[1]);
       };
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+
+  const handleBuildingChange = (buildingId: string) => {
+    setForm((f) => ({ ...f, building_id: buildingId, flat_id: "" }));
+    setOwnershipDoc(null);
+  };
+
+  const handleSubmitAddition = async () => {
+    if (!form.society_id) {
+      toast({ title: "Select a society first", variant: "destructive" });
+      return;
+    }
+    if (!additionForm.building_name.trim() || !additionForm.flat_number.trim()) {
+      toast({ title: "Building name and flat number are required", variant: "destructive" });
+      return;
+    }
+    if (!form.full_name.trim()) {
+      toast({ title: "Enter your full name so admin can contact you", variant: "destructive" });
+      return;
+    }
+
+    setSubmittingAddition(true);
+    try {
+      await submitAdditionRequest({
+        society_id: form.society_id,
+        requester_name: form.full_name,
+        requester_phone: fullPhoneNumber || undefined,
+        requester_email: form.email || undefined,
+        building_name: additionForm.building_name.trim(),
+        flat_number: additionForm.flat_number.trim(),
+        notes: additionForm.notes.trim() || undefined,
+      });
+      toast({
+        title: "Request sent to admin",
+        description: "We'll notify you once the building/flat is added.",
+      });
+      setAdditionForm({ building_name: "", flat_number: "", notes: "" });
+      setShowAdditionForm(false);
+    } catch (err: unknown) {
+      toast({
+        title: "Could not submit request",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingAddition(false);
+    }
   };
 
   const handleSubmit = async () => {
-    if (!form.full_name || !form.email || !form.password || !form.society_id || !form.unit_id) {
+    if (!form.full_name || !form.email || !form.password || !form.society_id || !form.building_id || !form.flat_id) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
@@ -178,7 +245,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     if (isOwnershipTransfer && !ownershipDoc) {
       toast({
         title: "Ownership proof required",
-        description: "Upload Sale Deed, Index II, or Tax Receipt to claim ownership transfer.",
+        description: "Upload Sale Deed or Tax Receipt to claim ownership transfer.",
         variant: "destructive",
       });
       return;
@@ -187,9 +254,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     setSubmitting(true);
     try {
       let photo_base64: string | null = null;
-      if (photoBlob) {
-        photo_base64 = await blobToBase64(photoBlob);
-      }
+      if (photoBlob) photo_base64 = await blobToBase64(photoBlob);
 
       let supporting_document_base64: string | null = null;
       let supporting_document_filename: string | null = null;
@@ -209,7 +274,9 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
           phone: fullPhoneNumber,
           date_of_birth: form.date_of_birth || null,
           society_id: form.society_id,
-          unit_id: form.unit_id,
+          building_id: form.building_id,
+          flat_id: form.flat_id,
+          unit_id: form.flat_id,
           resident_type: form.resident_type,
           photo_base64,
           is_ownership_transfer: isOwnershipTransfer,
@@ -223,6 +290,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      setSubmittedAsTransfer(isOwnershipTransfer);
       await signOut();
       setSubmitted(true);
     } catch (err: unknown) {
@@ -235,6 +303,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
 
   const resetAndClose = () => {
     setSubmitted(false);
+    setSubmittedAsTransfer(false);
     setForm({
       full_name: "",
       email: "",
@@ -242,9 +311,11 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
       phone: "",
       date_of_birth: "",
       society_id: "",
-      unit_id: "",
+      building_id: "",
+      flat_id: "",
       resident_type: "owner",
     });
+    setBuildings([]);
     setCapturedImage(null);
     setPhotoBlob(null);
     setEmailVerified(false);
@@ -252,6 +323,8 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     setPhoneNumber("");
     setCountryCode("+91");
     setOwnershipDoc(null);
+    setShowAdditionForm(false);
+    setAdditionForm({ building_name: "", flat_number: "", notes: "" });
     onOpenChange(false);
   };
 
@@ -260,7 +333,8 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     !form.full_name ||
     !form.email ||
     !form.password ||
-    !form.unit_id ||
+    !form.building_id ||
+    !form.flat_id ||
     !capturedImage ||
     !emailVerified ||
     !phoneVerified ||
@@ -279,7 +353,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <CheckCircle2 className="h-8 w-8 text-primary" />
             </div>
             <h2 className="font-display text-lg font-bold">
-              {isOwnershipTransfer ? "Ownership Transfer Claim Submitted!" : "Registration Submitted!"}
+              {submittedAsTransfer ? "Ownership Transfer Claim Submitted!" : "Registration Submitted!"}
             </h2>
             <p className="text-sm text-muted-foreground">
               Your request is pending approval by the Society Admin.
@@ -345,9 +419,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                 <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground space-y-1">
                   <p>No active societies found. A society must be registered and approved first.</p>
                   {societiesError && (
-                    <p className="text-xs text-destructive">
-                      Router error: {societiesError}
-                    </p>
+                    <p className="text-xs text-destructive">Router error: {societiesError}</p>
                   )}
                 </div>
               ) : (
@@ -368,7 +440,10 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <>
                 <div className="space-y-2">
                   <Label>I am registering as</Label>
-                  <Select value={form.resident_type} onValueChange={(v) => setForm({ ...form, resident_type: v, unit_id: "" })}>
+                  <Select
+                    value={form.resident_type}
+                    onValueChange={(v) => setForm({ ...form, resident_type: v, flat_id: "" })}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="owner">
@@ -385,28 +460,30 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                   <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   <span>
                     {isOwner
-                      ? "All flats are selectable. Choosing an occupied flat as Flat Owner starts an ownership transfer claim."
+                      ? "Choose building then flat. An occupied flat as Flat Owner starts an ownership transfer claim."
                       : "Family members can register for any flat; society admin will review your request."}
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Select Your Flat *</Label>
-                  {loadingUnits ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3"><Loader2 className="h-4 w-4 animate-spin" /> Loading flats...</div>
-                  ) : units.length === 0 ? (
+                  <Label>Select Building *</Label>
+                  {loadingBuildings ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading buildings...
+                    </div>
+                  ) : buildings.length === 0 ? (
                     <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                      No flats found for this society yet.
+                      No buildings found for this society yet.
                     </div>
                   ) : (
-                    <Select value={form.unit_id} onValueChange={(v) => update("unit_id", v)}>
-                      <SelectTrigger><SelectValue placeholder="Choose your flat" /></SelectTrigger>
+                    <Select value={form.building_id} onValueChange={handleBuildingChange}>
+                      <SelectTrigger><SelectValue placeholder="Choose your building" /></SelectTrigger>
                       <SelectContent>
-                        {units.map((u) => (
-                          <SelectItem key={u.id} value={u.id}>
-                            <span className="flex items-center gap-2">
-                              {u.building_name} — {u.unit_number}
-                              {u.has_owner && <Badge variant="secondary" className="text-[9px] ml-1">Occupied</Badge>}
+                        {buildings.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name}
+                            <span className="text-muted-foreground ml-2 text-xs">
+                              ({b.flats.length} flat{b.flats.length === 1 ? "" : "s"})
                             </span>
                           </SelectItem>
                         ))}
@@ -415,13 +492,97 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                   )}
                 </div>
 
+                {form.building_id && (
+                  <div className="space-y-2">
+                    <Label>Select Flat *</Label>
+                    {availableFlats.length === 0 ? (
+                      <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                        No flats found in this building.
+                      </div>
+                    ) : (
+                      <Select value={form.flat_id} onValueChange={(v) => update("flat_id", v)}>
+                        <SelectTrigger><SelectValue placeholder="Choose your flat" /></SelectTrigger>
+                        <SelectContent>
+                          {availableFlats.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              <span className="flex items-center gap-2">
+                                {f.flat_number}
+                                {f.is_occupied && (
+                                  <Badge variant="secondary" className="text-[9px] ml-1">Occupied</Badge>
+                                )}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    className="text-sm text-primary font-medium hover:underline"
+                    onClick={() => setShowAdditionForm((v) => !v)}
+                  >
+                    Can&apos;t find your building/flat?
+                  </button>
+                </div>
+
+                {showAdditionForm && (
+                  <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/30">
+                    <p className="text-xs text-muted-foreground">
+                      Request Addition — society admin will review and add the missing building/flat.
+                    </p>
+                    <div className="space-y-2">
+                      <Label>Building name *</Label>
+                      <Input
+                        placeholder="e.g. Tower B"
+                        value={additionForm.building_name}
+                        onChange={(e) => setAdditionForm((f) => ({ ...f, building_name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Flat number *</Label>
+                      <Input
+                        placeholder="e.g. B-1204"
+                        value={additionForm.flat_number}
+                        onChange={(e) => setAdditionForm((f) => ({ ...f, flat_number: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Notes (optional)</Label>
+                      <Textarea
+                        placeholder="Any extra details for admin"
+                        value={additionForm.notes}
+                        onChange={(e) => setAdditionForm((f) => ({ ...f, notes: e.target.value }))}
+                        rows={2}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={submittingAddition}
+                      onClick={handleSubmitAddition}
+                      className="w-full"
+                    >
+                      {submittingAddition ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</>
+                      ) : (
+                        "Submit Request to Admin"
+                      )}
+                    </Button>
+                  </div>
+                )}
+
                 {isOwnershipTransfer && (
                   <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
                     <Label htmlFor="ownership-doc">
-                      Upload Proof of Ownership: Sale Deed, Index II, or Tax Receipt *
+                      Proof of Ownership (Sale Deed / Tax Receipt) *
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      This flat already has an approved owner. Submit supporting documents to claim ownership transfer.
+                      This flat is marked occupied. Upload proof to submit an ownership transfer claim.
                     </p>
                     <div className="flex items-center gap-2">
                       <Input

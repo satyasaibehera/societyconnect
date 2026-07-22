@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      // Forward local /api/* to the Express registration API during Vite dev
+      "/api": {
+        target: process.env.VITE_API_PROXY_TARGET || "http://localhost:8787",
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

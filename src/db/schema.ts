@@ -60,9 +60,26 @@ export const registrationRequests = pgTable("registration_requests", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Admin queue: resident can't find building/flat during registration. */
+export const additionRequests = pgTable("addition_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  societyId: uuid("society_id")
+    .notNull()
+    .references(() => societies.id, { onDelete: "cascade" }),
+  requesterName: text("requester_name").notNull(),
+  requesterPhone: text("requester_phone"),
+  requesterEmail: text("requester_email"),
+  buildingName: text("building_name").notNull(),
+  flatNumber: text("flat_number").notNull(),
+  notes: text("notes"),
+  status: varchar("status", { length: 32 }).notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const societiesRelations = relations(societies, ({ many }) => ({
   buildings: many(buildings),
   registrationRequests: many(registrationRequests),
+  additionRequests: many(additionRequests),
 }));
 
 export const buildingsRelations = relations(buildings, ({ one, many }) => ({
@@ -97,7 +114,15 @@ export const registrationRequestsRelations = relations(registrationRequests, ({ 
   }),
 }));
 
+export const additionRequestsRelations = relations(additionRequests, ({ one }) => ({
+  society: one(societies, {
+    fields: [additionRequests.societyId],
+    references: [societies.id],
+  }),
+}));
+
 export type Society = typeof societies.$inferSelect;
 export type Building = typeof buildings.$inferSelect;
 export type Flat = typeof flats.$inferSelect;
 export type RegistrationRequest = typeof registrationRequests.$inferSelect;
+export type AdditionRequest = typeof additionRequests.$inferSelect;
