@@ -1,7 +1,3 @@
-/**
- * Local API base for registration catalog endpoints.
- * Empty string → same-origin `/api/...` (Vite proxy in dev).
- */
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 export type BuildingFlat = {
@@ -16,30 +12,6 @@ export type BuildingWithFlats = {
   name: string;
   society_id?: string;
   flats: BuildingFlat[];
-};
-
-/** @deprecated Use BuildingFlat — kept for older call sites */
-export type BuildingUnit = {
-  id: string;
-  unit_number: string;
-  floor?: number;
-  building_id?: string;
-  has_owner: boolean;
-};
-
-/** @deprecated Use BuildingWithFlats */
-export type BuildingWithUnits = {
-  id: string;
-  name: string;
-  society_id?: string;
-  units: BuildingUnit[];
-};
-
-export type FlatOption = {
-  id: string;
-  unit_number: string;
-  building_name: string;
-  has_owner: boolean;
 };
 
 type LooseRow = Record<string, unknown>;
@@ -79,21 +51,14 @@ function normalizeFlats(raw: unknown, buildingId: string): BuildingFlat[] {
     .map((item): BuildingFlat | null => {
       const row = asRecord(item);
       if (!row) return null;
-      const id = pickString(row, ["id", "flat_id", "unit_id", "unitId"]);
-      const flatNumber = pickString(row, [
-        "flat_number",
-        "flatNumber",
-        "unit_number",
-        "unitNumber",
-        "number",
-        "label",
-      ]);
+      const id = pickString(row, ["id", "flat_id", "unit_id"]);
+      const flatNumber = pickString(row, ["flat_number", "flatNumber", "unit_number", "number"]);
       if (!id || !flatNumber) return null;
       return {
         id,
         building_id: pickString(row, ["building_id", "buildingId"]) ?? buildingId,
         flat_number: flatNumber,
-        is_occupied: pickBoolean(row, ["is_occupied", "isOccupied", "has_owner", "hasOwner", "owned"]),
+        is_occupied: pickBoolean(row, ["is_occupied", "isOccupied", "has_owner", "owned"]),
       };
     })
     .filter((f): f is BuildingFlat => f !== null)
@@ -128,9 +93,7 @@ function normalizeBuildings(payload: unknown): BuildingWithFlats[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/**
- * GET /api/buildings?society_id=… — local Express API (via Vite proxy in dev).
- */
+/** GET /api/buildings?society_id=… */
 export async function fetchBuildingsForSociety(societyId: string): Promise<BuildingWithFlats[]> {
   const url = `${API_BASE}/api/buildings?society_id=${encodeURIComponent(societyId)}`;
   console.log("[buildingsService] Fetching buildings — URL:", url);
@@ -156,24 +119,51 @@ export async function fetchBuildingsForSociety(societyId: string): Promise<Build
     throw new Error(message);
   }
 
-  const buildings = normalizeBuildings(raw);
-  console.log("[buildingsService] Normalized buildings:", buildings.length);
-  return buildings;
+  return normalizeBuildings(raw);
+}
+
+export type RegisterPayload = {
+  society_id: string;
+  building_id: string;
+  flat_id: string;
+  full_name: string;
+  phone_number: string;
+  is_ownership_transfer: boolean;
+  supporting_document_url?: string | null;
+  supporting_document_base64?: string | null;
+  supporting_document_content_type?: string | null;
+};
+
+/** POST /api/register */
+export async function submitRegistration(payload: RegisterPayload): Promise<unknown> {
+  const url = `${API_BASE}/api/register`;
+  console.log("[buildingsService] Submitting registration — URL:", url);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      raw && typeof raw === "object" && "error" in raw && typeof (raw as { error: unknown }).error === "string"
+        ? (raw as { error: string }).error
+        : `API returned ${response.status}`;
+    throw new Error(message);
+  }
+  return raw;
 }
 
 export type AdditionRequestPayload = {
   society_id: string;
-  requester_name: string;
-  requester_phone?: string;
-  requester_email?: string;
-  building_name: string;
-  flat_number: string;
+  requested_type: "building" | "flat";
+  requested_name: string;
   notes?: string;
 };
 
-/**
- * POST /api/addition-requests — ask admin to add a missing building/flat.
- */
+/** POST /api/addition-requests */
 export async function submitAdditionRequest(payload: AdditionRequestPayload): Promise<void> {
   const url = `${API_BASE}/api/addition-requests`;
   console.log("[buildingsService] Submitting addition request — URL:", url);
@@ -192,25 +182,4 @@ export async function submitAdditionRequest(payload: AdditionRequestPayload): Pr
         : `API returned ${response.status}`;
     throw new Error(message);
   }
-}
-
-/** Legacy helper — flattens nested flats for single-select UIs. */
-export async function fetchFlatOptionsForSociety(societyId: string): Promise<FlatOption[]> {
-  const buildings = await fetchBuildingsForSociety(societyId);
-  const options: FlatOption[] = [];
-  for (const building of buildings) {
-    for (const flat of building.flats) {
-      options.push({
-        id: flat.id,
-        unit_number: flat.flat_number,
-        building_name: building.name,
-        has_owner: flat.is_occupied,
-      });
-    }
-  }
-  return options.sort(
-    (a, b) =>
-      a.building_name.localeCompare(b.building_name) ||
-      a.unit_number.localeCompare(b.unit_number),
-  );
 }

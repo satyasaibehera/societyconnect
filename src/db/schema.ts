@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
   boolean,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -11,7 +12,21 @@ import {
 /**
  * Core registry tables for society / building / flat hierarchy
  * and resident registration (including ownership-transfer claims).
+ *
+ * societies: id, name, code
+ * buildings: id, society_id FK → societies.id, name
+ * flats: id, building_id FK → buildings.id, flat_number, is_occupied
+ * registration_requests: id, society_id, building_id, flat_id, full_name,
+ *   phone_number, is_ownership_transfer, supporting_document_url, status
+ * addition_requests: id, society_id, requested_type ('building' | 'flat'),
+ *   requested_name, notes
  */
+
+export const additionRequestedTypeEnum = pgEnum("addition_requested_type", [
+  "building",
+  "flat",
+]);
+
 export const societies = pgTable("societies", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
@@ -60,17 +75,13 @@ export const registrationRequests = pgTable("registration_requests", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Admin queue: resident can't find building/flat during registration. */
 export const additionRequests = pgTable("addition_requests", {
   id: uuid("id").defaultRandom().primaryKey(),
   societyId: uuid("society_id")
     .notNull()
     .references(() => societies.id, { onDelete: "cascade" }),
-  requesterName: text("requester_name").notNull(),
-  requesterPhone: text("requester_phone"),
-  requesterEmail: text("requester_email"),
-  buildingName: text("building_name").notNull(),
-  flatNumber: text("flat_number").notNull(),
+  requestedType: additionRequestedTypeEnum("requested_type").notNull(),
+  requestedName: text("requested_name").notNull(),
   notes: text("notes"),
   status: varchar("status", { length: 32 }).notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

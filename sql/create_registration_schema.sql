@@ -38,23 +38,25 @@ CREATE TABLE IF NOT EXISTS registration_requests (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_buildings_society_id ON buildings (society_id);
-CREATE INDEX IF NOT EXISTS idx_flats_building_id ON flats (building_id);
-CREATE INDEX IF NOT EXISTS idx_registration_requests_society_id ON registration_requests (society_id);
-CREATE INDEX IF NOT EXISTS idx_registration_requests_status ON registration_requests (status);
+DO $$ BEGIN
+  CREATE TYPE addition_requested_type AS ENUM ('building', 'flat');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS addition_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   society_id uuid NOT NULL REFERENCES societies(id) ON DELETE CASCADE,
-  requester_name text NOT NULL,
-  requester_phone text,
-  requester_email text,
-  building_name text NOT NULL,
-  flat_number text NOT NULL,
+  requested_type addition_requested_type NOT NULL,
+  requested_name text NOT NULL,
   notes text,
   status varchar(32) NOT NULL DEFAULT 'pending',
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE INDEX IF NOT EXISTS idx_buildings_society_id ON buildings (society_id);
+CREATE INDEX IF NOT EXISTS idx_flats_building_id ON flats (building_id);
+CREATE INDEX IF NOT EXISTS idx_registration_requests_society_id ON registration_requests (society_id);
+CREATE INDEX IF NOT EXISTS idx_registration_requests_status ON registration_requests (status);
 CREATE INDEX IF NOT EXISTS idx_addition_requests_society_id ON addition_requests (society_id);
 CREATE INDEX IF NOT EXISTS idx_addition_requests_status ON addition_requests (status);

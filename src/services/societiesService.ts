@@ -1,11 +1,10 @@
-const ROUTER_URL = (
-  import.meta.env.VITE_ROUTER_API_URL || "https://universal-tenant-router.netlify.app"
-).replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 export type SocietyListItem = {
   id: string;
   name: string;
-  city: string | null;
+  code?: string | null;
+  city?: string | null;
   is_active?: boolean;
 };
 
@@ -19,14 +18,11 @@ export type FetchSocietiesResult = {
 
 type LooseSociety = Record<string, unknown>;
 
-type RouterSocietiesPayload =
+type SocietiesPayload =
   | LooseSociety[]
   | {
       societies?: LooseSociety[];
       data?: LooseSociety[];
-      results?: LooseSociety[];
-      items?: LooseSociety[];
-      rows?: LooseSociety[];
       error?: string;
       message?: string;
     };
@@ -46,58 +42,28 @@ function pickString(row: LooseSociety, keys: string[]): string | null {
   return null;
 }
 
-function pickActive(row: LooseSociety): boolean | undefined {
-  const value = row.is_active ?? row.active ?? row.isActive;
-  if (value === undefined || value === null) return undefined;
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") return value !== 0;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (["true", "1", "yes", "active"].includes(normalized)) return true;
-    if (["false", "0", "no", "inactive"].includes(normalized)) return false;
-  }
-  return undefined;
-}
-
-function extractRawList(payload: RouterSocietiesPayload): LooseSociety[] {
-  if (Array.isArray(payload)) return payload;
-
-  const nestedKeys = ["societies", "data", "results", "items", "rows"] as const;
-  for (const key of nestedKeys) {
-    const value = payload[key];
-    if (Array.isArray(value)) return value as LooseSociety[];
-  }
-
-  const dataObj = asRecord(payload.data);
-  if (dataObj) {
-    for (const key of nestedKeys) {
-      const value = dataObj[key];
-      if (Array.isArray(value)) return value as LooseSociety[];
-    }
-  }
-
-  return [];
-}
-
-function normalizeSocieties(payload: RouterSocietiesPayload): SocietyListItem[] {
-  const raw = extractRawList(payload);
+function normalizeSocieties(payload: SocietiesPayload): SocietyListItem[] {
+  const root = asRecord(payload);
+  const raw = Array.isArray(payload)
+    ? payload
+    : Array.isArray(root?.societies)
+      ? (root!.societies as LooseSociety[])
+      : Array.isArray(root?.data)
+        ? (root!.data as LooseSociety[])
+        : [];
 
   return raw
     .map((row): SocietyListItem | null => {
       if (!row || typeof row !== "object") return null;
-      const id = pickString(row, ["id", "society_id", "societyId", "uuid"]);
-      const name = pickString(row, ["name", "society_name", "societyName", "title"]);
+      const id = pickString(row, ["id", "society_id", "societyId"]);
+      const name = pickString(row, ["name", "society_name", "societyName"]);
       if (!id || !name) return null;
-
-      const city = pickString(row, ["city", "location_city", "town"]);
-      const isActive = pickActive(row);
-      if (isActive === false) return null;
-
       return {
         id,
         name,
-        city,
-        is_active: isActive ?? true,
+        code: pickString(row, ["code"]),
+        city: pickString(row, ["city"]),
+        is_active: true,
       };
     })
     .filter((s): s is SocietyListItem => s !== null)
@@ -105,12 +71,11 @@ function normalizeSocieties(payload: RouterSocietiesPayload): SocietyListItem[] 
 }
 
 /**
- * Public registration catalog — no Authorization header.
- * Router marks GET /api/societies as a public route (active societies only).
+ * GET /api/societies — local Express API (Vite proxies /api in dev).
  */
 export async function fetchActiveSocietiesDetailed(): Promise<FetchSocietiesResult> {
-  const url = `${ROUTER_URL}/api/societies`;
-  console.log("[societiesService] Fetching active societies (public) — URL:", url);
+  const url = `${API_BASE}/api/societies`;
+  console.log("[societiesService] Fetching active societies — URL:", url);
 
   try {
     const response = await fetch(url, {
@@ -119,13 +84,9 @@ export async function fetchActiveSocietiesDetailed(): Promise<FetchSocietiesResu
     });
 
     const contentType = response.headers.get("content-type") || "";
-    let raw: unknown = null;
-
-    if (contentType.includes("application/json")) {
-      raw = await response.json();
-    } else {
-      raw = await response.text();
-    }
+    const raw = contentType.includes("application/json")
+      ? await response.json()
+      : await response.text();
 
     console.log("[societiesService] Response status:", response.status);
     console.log("[societiesService] Parsed JSON payload:", raw);
@@ -134,9 +95,7 @@ export async function fetchActiveSocietiesDetailed(): Promise<FetchSocietiesResu
       const message =
         raw && typeof raw === "object" && "error" in raw && typeof (raw as { error: unknown }).error === "string"
           ? (raw as { error: string }).error
-          : `Router returned ${response.status}`;
-
-      console.warn("[societiesService] Societies request failed:", message);
+          : `API returned ${response.status}`;
 
       return {
         societies: [],
@@ -147,11 +106,8 @@ export async function fetchActiveSocietiesDetailed(): Promise<FetchSocietiesResu
       };
     }
 
-    const societies = normalizeSocieties(raw as RouterSocietiesPayload);
-    console.log(
-      "[societiesService] Normalized societies array (" + societies.length + "):",
-      societies,
-    );
+    const societies = normalizeSocieties(raw as SocietiesPayload);
+    console.log("[societiesService] Normalized societies:", societies.length);
 
     return {
       societies,
@@ -161,7 +117,7 @@ export async function fetchActiveSocietiesDetailed(): Promise<FetchSocietiesResu
       raw,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to fetch societies from router";
+    const message = err instanceof Error ? err.message : "Failed to fetch societies";
     console.warn("[societiesService] Network error:", message, err);
     return {
       societies: [],
@@ -173,7 +129,6 @@ export async function fetchActiveSocietiesDetailed(): Promise<FetchSocietiesResu
   }
 }
 
-/** Convenience wrapper used by UI components. */
 export async function fetchActiveSocieties(): Promise<SocietyListItem[]> {
   const result = await fetchActiveSocietiesDetailed();
   return result.societies;

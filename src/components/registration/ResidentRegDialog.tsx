@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { signOut } from "@/services/authService";
 import { fetchActiveSocietiesDetailed, type SocietyListItem } from "@/services/societiesService";
 import {
   fetchBuildingsForSociety,
   submitAdditionRequest,
+  submitRegistration,
   type BuildingFlat,
   type BuildingWithFlats,
 } from "@/services/buildingsService";
@@ -48,9 +48,13 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const [ownershipDoc, setOwnershipDoc] = useState<File | null>(null);
   const [showAdditionForm, setShowAdditionForm] = useState(false);
   const [submittingAddition, setSubmittingAddition] = useState(false);
-  const [additionForm, setAdditionForm] = useState({
-    building_name: "",
-    flat_number: "",
+  const [additionForm, setAdditionForm] = useState<{
+    requested_type: "building" | "flat";
+    requested_name: string;
+    notes: string;
+  }>({
+    requested_type: "building",
+    requested_name: "",
     notes: "",
   });
 
@@ -188,12 +192,11 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
       toast({ title: "Select a society first", variant: "destructive" });
       return;
     }
-    if (!additionForm.building_name.trim() || !additionForm.flat_number.trim()) {
-      toast({ title: "Building name and flat number are required", variant: "destructive" });
-      return;
-    }
-    if (!form.full_name.trim()) {
-      toast({ title: "Enter your full name so admin can contact you", variant: "destructive" });
+    if (!additionForm.requested_name.trim()) {
+      toast({
+        title: additionForm.requested_type === "building" ? "Building name is required" : "Flat number is required",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -201,18 +204,15 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     try {
       await submitAdditionRequest({
         society_id: form.society_id,
-        requester_name: form.full_name,
-        requester_phone: fullPhoneNumber || undefined,
-        requester_email: form.email || undefined,
-        building_name: additionForm.building_name.trim(),
-        flat_number: additionForm.flat_number.trim(),
+        requested_type: additionForm.requested_type,
+        requested_name: additionForm.requested_name.trim(),
         notes: additionForm.notes.trim() || undefined,
       });
       toast({
         title: "Request sent to admin",
         description: "We'll notify you once the building/flat is added.",
       });
-      setAdditionForm({ building_name: "", flat_number: "", notes: "" });
+      setAdditionForm({ requested_type: "building", requested_name: "", notes: "" });
       setShowAdditionForm(false);
     } catch (err: unknown) {
       toast({
@@ -253,42 +253,24 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
 
     setSubmitting(true);
     try {
-      let photo_base64: string | null = null;
-      if (photoBlob) photo_base64 = await blobToBase64(photoBlob);
-
       let supporting_document_base64: string | null = null;
-      let supporting_document_filename: string | null = null;
       let supporting_document_content_type: string | null = null;
       if (ownershipDoc) {
         supporting_document_base64 = await blobToBase64(ownershipDoc);
-        supporting_document_filename = ownershipDoc.name;
         supporting_document_content_type = ownershipDoc.type || "application/octet-stream";
       }
 
-      const { data, error } = await supabase.functions.invoke("register-account", {
-        body: {
-          type: "resident",
-          email: form.email,
-          password: form.password,
-          full_name: form.full_name,
-          phone: fullPhoneNumber,
-          date_of_birth: form.date_of_birth || null,
-          society_id: form.society_id,
-          building_id: form.building_id,
-          flat_id: form.flat_id,
-          unit_id: form.flat_id,
-          resident_type: form.resident_type,
-          photo_base64,
-          is_ownership_transfer: isOwnershipTransfer,
-          supporting_document_base64,
-          supporting_document_filename,
-          supporting_document_content_type,
-          supporting_document_url: null,
-        },
+      // Local Express API: POST /api/register
+      await submitRegistration({
+        society_id: form.society_id,
+        building_id: form.building_id,
+        flat_id: form.flat_id,
+        full_name: form.full_name,
+        phone_number: fullPhoneNumber,
+        is_ownership_transfer: isOwnershipTransfer,
+        supporting_document_base64,
+        supporting_document_content_type,
       });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
 
       setSubmittedAsTransfer(isOwnershipTransfer);
       await signOut();
@@ -324,7 +306,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     setCountryCode("+91");
     setOwnershipDoc(null);
     setShowAdditionForm(false);
-    setAdditionForm({ building_name: "", flat_number: "", notes: "" });
+    setAdditionForm({ requested_type: "building", requested_name: "", notes: "" });
     onOpenChange(false);
   };
 
@@ -419,7 +401,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                 <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground space-y-1">
                   <p>No active societies found. A society must be registered and approved first.</p>
                   {societiesError && (
-                    <p className="text-xs text-destructive">Router error: {societiesError}</p>
+                    <p className="text-xs text-destructive">API error: {societiesError}</p>
                   )}
                 </div>
               ) : (
@@ -428,7 +410,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                   <SelectContent>
                     {societies.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.name}{s.city ? ` — ${s.city}` : ""}
+                        {s.name}{s.code ? ` (${s.code})` : s.city ? ` — ${s.city}` : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -532,22 +514,35 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                 {showAdditionForm && (
                   <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/30">
                     <p className="text-xs text-muted-foreground">
-                      Request Addition — society admin will review and add the missing building/flat.
+                      Request Addition — society admin will review and add the missing building or flat.
                     </p>
                     <div className="space-y-2">
-                      <Label>Building name *</Label>
-                      <Input
-                        placeholder="e.g. Tower B"
-                        value={additionForm.building_name}
-                        onChange={(e) => setAdditionForm((f) => ({ ...f, building_name: e.target.value }))}
-                      />
+                      <Label>What&apos;s missing? *</Label>
+                      <Select
+                        value={additionForm.requested_type}
+                        onValueChange={(v: "building" | "flat") =>
+                          setAdditionForm((f) => ({ ...f, requested_type: v, requested_name: "" }))
+                        }
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="building">Building</SelectItem>
+                          <SelectItem value="flat">Flat</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Flat number *</Label>
+                      <Label>
+                        {additionForm.requested_type === "building" ? "Building name *" : "Flat number *"}
+                      </Label>
                       <Input
-                        placeholder="e.g. B-1204"
-                        value={additionForm.flat_number}
-                        onChange={(e) => setAdditionForm((f) => ({ ...f, flat_number: e.target.value }))}
+                        placeholder={
+                          additionForm.requested_type === "building" ? "e.g. Tower B" : "e.g. B-1204"
+                        }
+                        value={additionForm.requested_name}
+                        onChange={(e) =>
+                          setAdditionForm((f) => ({ ...f, requested_name: e.target.value }))
+                        }
                       />
                     </div>
                     <div className="space-y-2">

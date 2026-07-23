@@ -14,6 +14,8 @@ type RegisterBody = {
   phone?: string;
   is_ownership_transfer?: boolean;
   supporting_document_url?: string | null;
+  supporting_document_base64?: string | null;
+  supporting_document_content_type?: string | null;
   status?: string;
 };
 
@@ -31,9 +33,15 @@ router.post("/", async (req, res) => {
     const fullName = String(body.full_name || "").trim();
     const phoneNumber = String(body.phone_number || body.phone || "").trim();
     const isOwnershipTransfer = Boolean(body.is_ownership_transfer);
-    const supportingDocumentUrl = body.supporting_document_url
+
+    let supportingDocumentUrl = body.supporting_document_url
       ? String(body.supporting_document_url).trim()
       : null;
+
+    if (!supportingDocumentUrl && body.supporting_document_base64) {
+      const contentType = body.supporting_document_content_type || "application/octet-stream";
+      supportingDocumentUrl = `data:${contentType};base64,${body.supporting_document_base64}`;
+    }
 
     if (!societyId || !buildingId || !flatId || !fullName || !phoneNumber) {
       res.status(400).json({
@@ -45,14 +53,13 @@ router.post("/", async (req, res) => {
 
     if (isOwnershipTransfer && !supportingDocumentUrl) {
       res.status(400).json({
-        error: "supporting_document_url is required for ownership transfer claims",
+        error: "Proof of Ownership document is required for ownership transfer claims",
       });
       return;
     }
 
     const db = getDb();
 
-    // Validate hierarchy: building belongs to society, flat belongs to building
     const [building] = await db
       .select({ id: buildings.id, societyId: buildings.societyId })
       .from(buildings)
@@ -79,7 +86,6 @@ router.post("/", async (req, res) => {
       return;
     }
 
-    // Ownership transfer is only valid when claiming an occupied flat as owner
     if (isOwnershipTransfer && !flat.isOccupied) {
       res.status(400).json({
         error: "is_ownership_transfer requires an occupied flat",
