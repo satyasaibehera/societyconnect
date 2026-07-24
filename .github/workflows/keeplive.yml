@@ -1,0 +1,38 @@
+name: Database Keep-Alive
+
+on:
+  schedule:
+    # Runs daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  ping-db:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pg client
+        run: npm install pg
+
+      - name: Ping Database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          node -e '
+          const { Client } = require("pg");
+          const client = new Client({ connectionString: process.env.DATABASE_URL });
+          client.connect()
+            .then(() => client.query("SELECT 1;"))
+            .then(() => {
+              console.log("Database ping successful!");
+              return client.end();
+            })
+            .catch(err => {
+              console.error("Database ping failed:", err);
+              process.exit(1);
+            });
+          '
