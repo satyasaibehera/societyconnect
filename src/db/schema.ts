@@ -10,16 +10,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Core registry tables for society / building / flat hierarchy
- * and resident registration (including ownership-transfer claims).
+ * Core registry + dependent registration state machine.
  *
- * societies: id, name, code
- * buildings: id, society_id FK → societies.id, name
- * flats: id, building_id FK → buildings.id, flat_number, is_occupied
- * registration_requests: id, society_id, building_id, flat_id, full_name,
- *   phone_number, is_ownership_transfer, supporting_document_url, status
- * addition_requests: id, society_id, requested_type ('building' | 'flat'),
- *   requested_name, notes
+ * FlatRequest  → addition_requests (PENDING until Society Admin approves)
+ * UserRegistration → registration_requests
+ *   WAITING_FOR_FLAT while linked FlatRequest is unapproved
+ *   READY_FOR_REVIEW once flat exists in master flats table
  */
 
 export const additionRequestedTypeEnum = pgEnum("addition_requested_type", [
@@ -31,8 +27,8 @@ export const societies = pgTable("societies", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   code: varchar("code", { length: 64 }),
-  /** Used by GET /api/societies to return only active societies. */
-  isActive: boolean("is_active").notNull().default(true),
+  city: text("city"),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -55,36 +51,53 @@ export const flats = pgTable("flats", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const registrationRequests = pgTable("registration_requests", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  societyId: uuid("society_id")
-    .notNull()
-    .references(() => societies.id, { onDelete: "cascade" }),
-  buildingId: uuid("building_id")
-    .notNull()
-    .references(() => buildings.id, { onDelete: "cascade" }),
-  flatId: uuid("flat_id")
-    .notNull()
-    .references(() => flats.id, { onDelete: "cascade" }),
-  fullName: text("full_name").notNull(),
-  phoneNumber: text("phone_number").notNull(),
-  isOwnershipTransfer: boolean("is_ownership_transfer").notNull().default(false),
-  supportingDocumentUrl: text("supporting_document_url"),
-  status: varchar("status", { length: 32 }).notNull().default("pending"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
-
+/** FlatRequest — proposed building/flat pending Society Admin approval. */
 export const additionRequests = pgTable("addition_requests", {
   id: uuid("id").defaultRandom().primaryKey(),
   societyId: uuid("society_id")
     .notNull()
     .references(() => societies.id, { onDelete: "cascade" }),
   requestedType: additionRequestedTypeEnum("requested_type").notNull(),
+  /** Display / legacy single-name field */
   requestedName: text("requested_name").notNull(),
+  buildingName: text("building_name"),
+  flatNumber: text("flat_number"),
   notes: text("notes"),
-  status: varchar("status", { length: 32 }).notNull().default("pending"),
+  status: varchar("status", { length: 32 }).notNull().default("PENDING"),
+  resolvedBuildingId: uuid("resolved_building_id").references(() => buildings.id, {
+    onDelete: "set null",
+  }),
+  resolvedFlatId: uuid("resolved_flat_id").references(() => flats.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * UserRegistration — may link to a FlatRequest while waiting for flat creation.
+ * building_id / flat_id are null until the FlatRequest is approved.
+ */
+export const registrationRequests = pgTable("registration_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  societyId: uuid("society_id")
+    .notNull()
+    .references(() => societies.id, { onDelete: "cascade" }),
+  buildingId: uuid("building_id").references(() => buildings.id, { onDelete: "cascade" }),
+  flatId: uuid("flat_id").references(() => flats.id, { onDelete: "cascade" }),
+  flatRequestId: uuid("flat_request_id").references(() => additionRequests.id, {
+    onDelete: "set null",
+  }),
+  fullName: text("full_name").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  email: text("email"),
+  residentType: varchar("resident_type", { length: 32 }),
+  isOwnershipTransfer: boolean("is_ownership_transfer").notNull().default(false),
+  supportingDocumentUrl: text("supporting_document_url"),
+  /** WAITING_FOR_FLAT | READY_FOR_REVIEW | approved | rejected */
+  status: varchar("status", { length: 32 }).notNull().default("READY_FOR_REVIEW"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const societiesRelations = relations(societies, ({ many }) => ({
@@ -110,6 +123,14 @@ export const flatsRelations = relations(flats, ({ one, many }) => ({
   registrationRequests: many(registrationRequests),
 }));
 
+export const additionRequestsRelations = relations(additionRequests, ({ one, many }) => ({
+  society: one(societies, {
+    fields: [additionRequests.societyId],
+    references: [societies.id],
+  }),
+  registrationRequests: many(registrationRequests),
+}));
+
 export const registrationRequestsRelations = relations(registrationRequests, ({ one }) => ({
   society: one(societies, {
     fields: [registrationRequests.societyId],
@@ -123,12 +144,9 @@ export const registrationRequestsRelations = relations(registrationRequests, ({ 
     fields: [registrationRequests.flatId],
     references: [flats.id],
   }),
-}));
-
-export const additionRequestsRelations = relations(additionRequests, ({ one }) => ({
-  society: one(societies, {
-    fields: [additionRequests.societyId],
-    references: [societies.id],
+  flatRequest: one(additionRequests, {
+    fields: [registrationRequests.flatRequestId],
+    references: [additionRequests.id],
   }),
 }));
 

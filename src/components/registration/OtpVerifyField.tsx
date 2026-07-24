@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Send, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 
 /** Local mock phone OTP — Twilio is not configured on this Supabase instance. */
 const MOCK_PHONE_OTP = "9999";
+const RESEND_COOLDOWN_SECONDS = 30;
 
 interface OtpVerifyFieldProps {
   kind: "email" | "phone";
@@ -24,11 +25,23 @@ export function OtpVerifyField({ kind, target, canSend, verified, onVerified }: 
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
   const [mockPhoneCode, setMockPhoneCode] = useState<string | null>(null);
+  const [cooldownTimer, setCooldownTimer] = useState(0);
 
   const expectedLength = kind === "phone" ? MOCK_PHONE_OTP.length : 6;
+  const sendDisabled = !canSend || sending || cooldownTimer > 0 || verified;
+
+  useEffect(() => {
+    if (cooldownTimer <= 0) return;
+    const id = window.setInterval(() => {
+      setCooldownTimer((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [cooldownTimer]);
+
+  const startCooldown = () => setCooldownTimer(RESEND_COOLDOWN_SECONDS);
 
   const send = async () => {
-    if (!canSend || sending) return;
+    if (!canSend || sending || cooldownTimer > 0 || verified) return;
     setSending(true);
     try {
       // Phone OTP: mock locally — do not call Supabase/Twilio or the router.
@@ -36,6 +49,7 @@ export function OtpVerifyField({ kind, target, canSend, verified, onVerified }: 
         setMockPhoneCode(MOCK_PHONE_OTP);
         setCode("");
         setSent(true);
+        startCooldown();
         toast({
           title: "[DEV MODE] Verification code is 9999",
           description: "Twilio is not configured. Use this mock code to continue.",
@@ -47,6 +61,7 @@ export function OtpVerifyField({ kind, target, canSend, verified, onVerified }: 
       if (error) throw error;
 
       setSent(true);
+      startCooldown();
       const devCode =
         data && typeof data === "object" && "dev_code" in data
           ? (data as { dev_code?: string }).dev_code
@@ -99,17 +114,34 @@ export function OtpVerifyField({ kind, target, canSend, verified, onVerified }: 
   if (verified) {
     return (
       <div className="flex items-center gap-2 text-xs text-success bg-success/10 rounded-md px-3 py-2">
-        <CheckCircle2 className="h-4 w-4" /> Verified
+        <CheckCircle2 className="h-4 w-4" /> Verified ✓
       </div>
     );
   }
 
+  const sendLabel =
+    cooldownTimer > 0
+      ? `Wait ${cooldownTimer}s`
+      : sending
+        ? null
+        : "Send verification code";
+
+  const resendLabel =
+    cooldownTimer > 0 ? `Resend in ${cooldownTimer}s` : "Resend";
+
   return (
     <div className="space-y-2">
       {!sent ? (
-        <Button type="button" variant="outline" size="sm" disabled={!canSend || sending} onClick={send} className="w-full">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={sendDisabled}
+          onClick={send}
+          className="w-full"
+        >
           {sending ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Send className="h-3 w-3 mr-2" />}
-          Send verification code
+          {sendLabel ?? "Send verification code"}
         </Button>
       ) : (
         <div className="flex gap-2">
@@ -125,8 +157,9 @@ export function OtpVerifyField({ kind, target, canSend, verified, onVerified }: 
             {verifying ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ShieldCheck className="h-3 w-3 mr-1" />}
             Verify
           </Button>
-          <Button type="button" size="sm" variant="ghost" disabled={sending} onClick={send}>
-            Resend
+          <Button type="button" size="sm" variant="ghost" disabled={sendDisabled} onClick={send}>
+            {sending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+            {resendLabel}
           </Button>
         </div>
       )}

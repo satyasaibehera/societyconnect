@@ -11,7 +11,6 @@ import { signOut } from "@/services/authService";
 import { fetchActiveSocietiesDetailed, type SocietyListItem } from "@/services/societiesService";
 import {
   fetchBuildingsForSociety,
-  submitAdditionRequest,
   submitRegistration,
   type BuildingFlat,
   type BuildingWithFlats,
@@ -46,15 +45,11 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [ownershipDoc, setOwnershipDoc] = useState<File | null>(null);
-  const [showAdditionForm, setShowAdditionForm] = useState(false);
-  const [submittingAddition, setSubmittingAddition] = useState(false);
-  const [additionForm, setAdditionForm] = useState<{
-    requested_type: "building" | "flat";
-    requested_name: string;
-    notes: string;
-  }>({
-    requested_type: "building",
-    requested_name: "",
+  const [requestNewFlat, setRequestNewFlat] = useState(false);
+  const [submittedWaitingForFlat, setSubmittedWaitingForFlat] = useState(false);
+  const [customFlat, setCustomFlat] = useState({
+    building_name: "",
+    flat_number: "",
     notes: "",
   });
 
@@ -89,7 +84,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     [availableFlats, form.flat_id],
   );
 
-  const isOwnershipTransfer = Boolean(isOwner && selectedFlat?.is_occupied);
+  const isOwnershipTransfer = Boolean(!requestNewFlat && isOwner && selectedFlat?.is_occupied);
 
   useEffect(() => {
     if (!open) return;
@@ -159,7 +154,8 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     loadBuildings();
     setForm((f) => ({ ...f, building_id: "", flat_id: "" }));
     setOwnershipDoc(null);
-    setShowAdditionForm(false);
+    setRequestNewFlat(false);
+    setCustomFlat({ building_name: "", flat_number: "", notes: "" });
 
     return () => {
       cancelled = true;
@@ -187,47 +183,29 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     setOwnershipDoc(null);
   };
 
-  const handleSubmitAddition = async () => {
-    if (!form.society_id) {
-      toast({ title: "Select a society first", variant: "destructive" });
-      return;
-    }
-    if (!additionForm.requested_name.trim()) {
-      toast({
-        title: additionForm.requested_type === "building" ? "Building name is required" : "Flat number is required",
-        variant: "destructive",
-      });
-      return;
-    }
+  const enableRequestNewFlat = () => {
+    setRequestNewFlat(true);
+    setForm((f) => ({ ...f, building_id: "", flat_id: "" }));
+    setOwnershipDoc(null);
+  };
 
-    setSubmittingAddition(true);
-    try {
-      await submitAdditionRequest({
-        society_id: form.society_id,
-        requested_type: additionForm.requested_type,
-        requested_name: additionForm.requested_name.trim(),
-        notes: additionForm.notes.trim() || undefined,
-      });
-      toast({
-        title: "Request sent to admin",
-        description: "We'll notify you once the building/flat is added.",
-      });
-      setAdditionForm({ requested_type: "building", requested_name: "", notes: "" });
-      setShowAdditionForm(false);
-    } catch (err: unknown) {
-      toast({
-        title: "Could not submit request",
-        description: err instanceof Error ? err.message : "Please try again",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmittingAddition(false);
-    }
+  const disableRequestNewFlat = () => {
+    setRequestNewFlat(false);
+    setCustomFlat({ building_name: "", flat_number: "", notes: "" });
   };
 
   const handleSubmit = async () => {
-    if (!form.full_name || !form.email || !form.password || !form.society_id || !form.building_id || !form.flat_id) {
+    if (!form.full_name || !form.email || !form.password || !form.society_id) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    if (requestNewFlat) {
+      if (!customFlat.building_name.trim() || !customFlat.flat_number.trim()) {
+        toast({ title: "Building name and flat number are required", variant: "destructive" });
+        return;
+      }
+    } else if (!form.building_id || !form.flat_id) {
+      toast({ title: "Please select a building and flat", variant: "destructive" });
       return;
     }
     if (form.password.length < 6) {
@@ -260,19 +238,37 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
         supporting_document_content_type = ownershipDoc.type || "application/octet-stream";
       }
 
-      // Local Express API: POST /api/register
-      await submitRegistration({
-        society_id: form.society_id,
-        building_id: form.building_id,
-        flat_id: form.flat_id,
-        full_name: form.full_name,
-        phone_number: fullPhoneNumber,
-        is_ownership_transfer: isOwnershipTransfer,
-        supporting_document_base64,
-        supporting_document_content_type,
-      });
+      if (requestNewFlat) {
+        await submitRegistration({
+          society_id: form.society_id,
+          full_name: form.full_name,
+          phone_number: fullPhoneNumber,
+          email: form.email,
+          resident_type: form.resident_type,
+          request_new_flat: true,
+          building_name: customFlat.building_name.trim(),
+          flat_number: customFlat.flat_number.trim(),
+          notes: customFlat.notes.trim() || undefined,
+        });
+        setSubmittedWaitingForFlat(true);
+        setSubmittedAsTransfer(false);
+      } else {
+        await submitRegistration({
+          society_id: form.society_id,
+          building_id: form.building_id,
+          flat_id: form.flat_id,
+          full_name: form.full_name,
+          phone_number: fullPhoneNumber,
+          email: form.email,
+          resident_type: form.resident_type,
+          is_ownership_transfer: isOwnershipTransfer,
+          supporting_document_base64,
+          supporting_document_content_type,
+        });
+        setSubmittedWaitingForFlat(false);
+        setSubmittedAsTransfer(isOwnershipTransfer);
+      }
 
-      setSubmittedAsTransfer(isOwnershipTransfer);
       await signOut();
       setSubmitted(true);
     } catch (err: unknown) {
@@ -286,6 +282,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const resetAndClose = () => {
     setSubmitted(false);
     setSubmittedAsTransfer(false);
+    setSubmittedWaitingForFlat(false);
     setForm({
       full_name: "",
       email: "",
@@ -305,8 +302,8 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     setPhoneNumber("");
     setCountryCode("+91");
     setOwnershipDoc(null);
-    setShowAdditionForm(false);
-    setAdditionForm({ requested_type: "building", requested_name: "", notes: "" });
+    setRequestNewFlat(false);
+    setCustomFlat({ building_name: "", flat_number: "", notes: "" });
     onOpenChange(false);
   };
 
@@ -315,11 +312,13 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     !form.full_name ||
     !form.email ||
     !form.password ||
-    !form.building_id ||
-    !form.flat_id ||
+    !form.society_id ||
     !capturedImage ||
     !emailVerified ||
     !phoneVerified ||
+    (requestNewFlat
+      ? !customFlat.building_name.trim() || !customFlat.flat_number.trim()
+      : !form.building_id || !form.flat_id) ||
     (isOwnershipTransfer && !ownershipDoc);
 
   return (
@@ -335,11 +334,16 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <CheckCircle2 className="h-8 w-8 text-primary" />
             </div>
             <h2 className="font-display text-lg font-bold">
-              {submittedAsTransfer ? "Ownership Transfer Claim Submitted!" : "Registration Submitted!"}
+              {submittedWaitingForFlat
+                ? "Registration Submitted — Flat Pending!"
+                : submittedAsTransfer
+                  ? "Ownership Transfer Claim Submitted!"
+                  : "Registration Submitted!"}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Your request is pending approval by the Society Admin.
-              You'll be able to sign in once approved.
+              {submittedWaitingForFlat
+                ? "Your flat request is awaiting Society Admin approval. Once the flat is created, your registration will move to user approval."
+                : "Your request is pending approval by the Society Admin. You'll be able to sign in once approved."}
             </p>
             <Button onClick={resetAndClose} variant="outline" className="w-full">Close</Button>
           </div>
@@ -438,136 +442,131 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                   </Select>
                 </div>
 
-                <div className={`rounded-lg p-3 text-xs text-muted-foreground flex gap-2 ${isOwner ? "bg-primary/5 border border-primary/20" : "bg-accent/50 border border-accent"}`}>
-                  <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <div className="rounded-lg p-3 text-xs flex gap-2 border bg-amber-50 text-amber-900 border-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800">
+                  <AlertCircle className="h-4 w-4 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" />
                   <span>
                     {isOwner
-                      ? "Choose building then flat. An occupied flat as Flat Owner starts an ownership transfer claim."
-                      : "Family members can register for any flat; society admin will review your request."}
+                      ? "All available flats are currently registered with an Owner. Kindly review the list and either request for a transfer of ownership by submitting relevant documentations or request for adding a missing flat number to the society admin."
+                      : "Family members may register for a flat once the primary owner has registered it. Please note that access will be granted upon approval by the flat owner or society admin."}
                   </span>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Select Building *</Label>
-                  {loadingBuildings ? (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Loading buildings...
+                {!requestNewFlat ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Select Building *</Label>
+                      {loadingBuildings ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Loading buildings...
+                        </div>
+                      ) : buildings.length === 0 ? (
+                        <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                          No buildings found for this society yet.
+                        </div>
+                      ) : (
+                        <Select value={form.building_id} onValueChange={handleBuildingChange}>
+                          <SelectTrigger><SelectValue placeholder="Choose your building" /></SelectTrigger>
+                          <SelectContent>
+                            {buildings.map((b) => (
+                              <SelectItem key={b.id} value={b.id}>
+                                {b.name}
+                                <span className="text-muted-foreground ml-2 text-xs">
+                                  ({b.flats.length} flat{b.flats.length === 1 ? "" : "s"})
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
-                  ) : buildings.length === 0 ? (
-                    <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                      No buildings found for this society yet.
-                    </div>
-                  ) : (
-                    <Select value={form.building_id} onValueChange={handleBuildingChange}>
-                      <SelectTrigger><SelectValue placeholder="Choose your building" /></SelectTrigger>
-                      <SelectContent>
-                        {buildings.map((b) => (
-                          <SelectItem key={b.id} value={b.id}>
-                            {b.name}
-                            <span className="text-muted-foreground ml-2 text-xs">
-                              ({b.flats.length} flat{b.flats.length === 1 ? "" : "s"})
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
 
-                {form.building_id && (
-                  <div className="space-y-2">
-                    <Label>Select Flat *</Label>
-                    {availableFlats.length === 0 ? (
-                      <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                        No flats found in this building.
+                    {form.building_id && (
+                      <div className="space-y-2">
+                        <Label>Select Flat *</Label>
+                        {availableFlats.length === 0 ? (
+                          <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+                            No flats found in this building.
+                          </div>
+                        ) : (
+                          <Select value={form.flat_id} onValueChange={(v) => update("flat_id", v)}>
+                            <SelectTrigger><SelectValue placeholder="Choose your flat" /></SelectTrigger>
+                            <SelectContent>
+                              {availableFlats.map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  <span className="flex items-center gap-2">
+                                    {f.flat_number}
+                                    {f.is_occupied && (
+                                      <Badge variant="secondary" className="text-[9px] ml-1">Occupied</Badge>
+                                    )}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
-                    ) : (
-                      <Select value={form.flat_id} onValueChange={(v) => update("flat_id", v)}>
-                        <SelectTrigger><SelectValue placeholder="Choose your flat" /></SelectTrigger>
-                        <SelectContent>
-                          {availableFlats.map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              <span className="flex items-center gap-2">
-                                {f.flat_number}
-                                {f.is_occupied && (
-                                  <Badge variant="secondary" className="text-[9px] ml-1">Occupied</Badge>
-                                )}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     )}
-                  </div>
-                )}
 
-                <div className="pt-1">
-                  <button
-                    type="button"
-                    className="text-sm text-primary font-medium hover:underline"
-                    onClick={() => setShowAdditionForm((v) => !v)}
-                  >
-                    Can&apos;t find your building/flat?
-                  </button>
-                </div>
-
-                {showAdditionForm && (
-                  <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/30">
-                    <p className="text-xs text-muted-foreground">
-                      Request Addition — society admin will review and add the missing building or flat.
-                    </p>
-                    <div className="space-y-2">
-                      <Label>What&apos;s missing? *</Label>
-                      <Select
-                        value={additionForm.requested_type}
-                        onValueChange={(v: "building" | "flat") =>
-                          setAdditionForm((f) => ({ ...f, requested_type: v, requested_name: "" }))
-                        }
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        className="text-sm text-primary font-medium hover:underline"
+                        onClick={enableRequestNewFlat}
                       >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="building">Building</SelectItem>
-                          <SelectItem value="flat">Flat</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        Add / Request New Flat
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/30">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-xs font-medium">Requesting a new flat</p>
+                      <Badge variant="outline" className="text-[10px] text-amber-800 border-amber-300 bg-amber-50">
+                        *(Subject to Admin Approval)*
+                      </Badge>
                     </div>
                     <div className="space-y-2">
-                      <Label>
-                        {additionForm.requested_type === "building" ? "Building name *" : "Flat number *"}
+                      <Label className="flex items-center gap-2 flex-wrap">
+                        Building name *
+                        {customFlat.building_name.trim() && (
+                          <span className="text-[10px] font-normal text-amber-800">*(Subject to Admin Approval)*</span>
+                        )}
                       </Label>
                       <Input
-                        placeholder={
-                          additionForm.requested_type === "building" ? "e.g. Tower B" : "e.g. B-1204"
-                        }
-                        value={additionForm.requested_name}
-                        onChange={(e) =>
-                          setAdditionForm((f) => ({ ...f, requested_name: e.target.value }))
-                        }
+                        placeholder="e.g. Tower B"
+                        value={customFlat.building_name}
+                        onChange={(e) => setCustomFlat((f) => ({ ...f, building_name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2 flex-wrap">
+                        Flat number *
+                        {customFlat.flat_number.trim() && (
+                          <span className="text-[10px] font-normal text-amber-800">*(Subject to Admin Approval)*</span>
+                        )}
+                      </Label>
+                      <Input
+                        placeholder="e.g. B-1204"
+                        value={customFlat.flat_number}
+                        onChange={(e) => setCustomFlat((f) => ({ ...f, flat_number: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label>Notes (optional)</Label>
                       <Textarea
                         placeholder="Any extra details for admin"
-                        value={additionForm.notes}
-                        onChange={(e) => setAdditionForm((f) => ({ ...f, notes: e.target.value }))}
+                        value={customFlat.notes}
+                        onChange={(e) => setCustomFlat((f) => ({ ...f, notes: e.target.value }))}
                         rows={2}
                       />
                     </div>
-                    <Button
+                    <button
                       type="button"
-                      variant="secondary"
-                      size="sm"
-                      disabled={submittingAddition}
-                      onClick={handleSubmitAddition}
-                      className="w-full"
+                      className="text-xs text-muted-foreground hover:underline"
+                      onClick={disableRequestNewFlat}
                     >
-                      {submittingAddition ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</>
-                      ) : (
-                        "Submit Request to Admin"
-                      )}
-                    </Button>
+                      Back to existing building/flat list
+                    </button>
                   </div>
                 )}
 

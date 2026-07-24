@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       // Forward local /api/* to the Express registration API during Vite dev
       "/api": {
-        target: process.env.VITE_API_PROXY_TARGET || "http://localhost:8787",
+        target: process.env.VITE_API_PROXY_TARGET || "http://127.0.0.1:5000",
         changeOrigin: true,
       },
     },

@@ -124,14 +124,22 @@ export async function fetchBuildingsForSociety(societyId: string): Promise<Build
 
 export type RegisterPayload = {
   society_id: string;
-  building_id: string;
-  flat_id: string;
   full_name: string;
   phone_number: string;
-  is_ownership_transfer: boolean;
+  email?: string;
+  resident_type?: string;
+  is_ownership_transfer?: boolean;
   supporting_document_url?: string | null;
   supporting_document_base64?: string | null;
   supporting_document_content_type?: string | null;
+  /** Existing flat path */
+  building_id?: string;
+  flat_id?: string;
+  /** Missing flat path — creates FlatRequest + WAITING_FOR_FLAT registration */
+  request_new_flat?: boolean;
+  building_name?: string;
+  flat_number?: string;
+  notes?: string;
 };
 
 /** POST /api/register */
@@ -158,12 +166,14 @@ export async function submitRegistration(payload: RegisterPayload): Promise<unkn
 
 export type AdditionRequestPayload = {
   society_id: string;
-  requested_type: "building" | "flat";
-  requested_name: string;
+  requested_type?: "building" | "flat";
+  requested_name?: string;
+  building_name?: string;
+  flat_number?: string;
   notes?: string;
 };
 
-/** POST /api/addition-requests */
+/** POST /api/addition-requests (standalone FlatRequest) */
 export async function submitAdditionRequest(payload: AdditionRequestPayload): Promise<void> {
   const url = `${API_BASE}/api/addition-requests`;
   console.log("[buildingsService] Submitting addition request — URL:", url);
@@ -182,4 +192,109 @@ export async function submitAdditionRequest(payload: AdditionRequestPayload): Pr
         : `API returned ${response.status}`;
     throw new Error(message);
   }
+}
+
+export type FlatRequestRow = {
+  id: string;
+  society_id: string;
+  requested_type: string;
+  requested_name: string;
+  building_name: string | null;
+  flat_number: string | null;
+  notes: string | null;
+  status: string;
+  created_at: string;
+};
+
+export type RegistrationRow = {
+  id: string;
+  society_id: string;
+  building_id: string | null;
+  flat_id: string | null;
+  flat_request_id: string | null;
+  full_name: string;
+  phone_number: string;
+  email: string | null;
+  resident_type: string | null;
+  status: string;
+  created_at: string;
+  flat_request_building_name?: string | null;
+  flat_request_flat_number?: string | null;
+  flat_request_status?: string | null;
+};
+
+export async function fetchPendingFlatRequests(societyId?: string): Promise<FlatRequestRow[]> {
+  const qs = new URLSearchParams({ status: "PENDING" });
+  if (societyId) qs.set("society_id", societyId);
+  const response = await fetch(`${API_BASE}/api/addition-requests?${qs}`, {
+    headers: { Accept: "application/json" },
+  });
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      typeof raw?.error === "string" ? raw.error : `API returned ${response.status}`,
+    );
+  }
+  return Array.isArray(raw?.requests) ? raw.requests : [];
+}
+
+export async function approveFlatRequest(id: string): Promise<unknown> {
+  const response = await fetch(`${API_BASE}/api/addition-requests/${encodeURIComponent(id)}/approve`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof raw?.error === "string" ? raw.error : `API returned ${response.status}`);
+  }
+  return raw;
+}
+
+export async function rejectFlatRequest(id: string): Promise<unknown> {
+  const response = await fetch(`${API_BASE}/api/addition-requests/${encodeURIComponent(id)}/reject`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof raw?.error === "string" ? raw.error : `API returned ${response.status}`);
+  }
+  return raw;
+}
+
+export async function fetchPendingRegistrations(societyId?: string): Promise<RegistrationRow[]> {
+  const qs = new URLSearchParams();
+  if (societyId) qs.set("society_id", societyId);
+  const response = await fetch(`${API_BASE}/api/register?${qs}`, {
+    headers: { Accept: "application/json" },
+  });
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof raw?.error === "string" ? raw.error : `API returned ${response.status}`);
+  }
+  return Array.isArray(raw?.registrations) ? raw.registrations : [];
+}
+
+export async function approveRegistration(id: string): Promise<unknown> {
+  const response = await fetch(`${API_BASE}/api/register/${encodeURIComponent(id)}/approve`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof raw?.error === "string" ? raw.error : `API returned ${response.status}`);
+  }
+  return raw;
+}
+
+export async function rejectRegistration(id: string): Promise<unknown> {
+  const response = await fetch(`${API_BASE}/api/register/${encodeURIComponent(id)}/reject`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof raw?.error === "string" ? raw.error : `API returned ${response.status}`);
+  }
+  return raw;
 }

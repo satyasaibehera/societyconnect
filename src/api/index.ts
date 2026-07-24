@@ -9,8 +9,8 @@ import societiesRouter from "./routes/societies";
  * Mount public registration API routes:
  * - GET  /api/societies
  * - GET  /api/buildings?society_id=...
- * - POST /api/register
- * - POST /api/addition-requests
+ * - POST /api/register  (+ GET list, POST :id/approve|reject)
+ * - POST /api/addition-requests  (+ GET list, POST :id/approve|reject)
  */
 export function createApiApp(): Express {
   const app = express();

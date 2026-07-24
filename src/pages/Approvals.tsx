@@ -4,13 +4,39 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen, Eye } from "lucide-react";
+import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen, Eye, Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ApprovalDetailDialog } from "@/components/approvals/ApprovalDetailDialog";
+import {
+  approveFlatRequest,
+  approveRegistration,
+  fetchPendingFlatRequests,
+  fetchPendingRegistrations,
+  rejectFlatRequest,
+  rejectRegistration,
+} from "@/services/buildingsService";
+import {
+  isUserApprovalBlocked,
+  REGISTRATION_STATUS_LABEL,
+} from "@/db/registrationStatuses";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-type ApprovalCategory = "visitors" | "residents" | "helpers" | "vehicles" | "role_requests" | "move_passes";
+type ApprovalCategory =
+  | "visitors"
+  | "residents"
+  | "helpers"
+  | "vehicles"
+  | "role_requests"
+  | "move_passes"
+  | "flat_requests"
+  | "user_registrations";
 
 interface PendingItem {
   id: string;
@@ -19,6 +45,10 @@ interface PendingItem {
   subtitle: string;
   detail: string;
   created_at: string;
+  /** When true, Approve User is disabled (WAITING_FOR_FLAT). */
+  blocked?: boolean;
+  flatLabel?: string;
+  statusLabel?: string;
 }
 
 const categoryConfig: Record<ApprovalCategory, { label: string; icon: typeof UserCheck; color: string }> = {
@@ -28,6 +58,8 @@ const categoryConfig: Record<ApprovalCategory, { label: string; icon: typeof Use
   vehicles: { label: "Vehicles", icon: Car, color: "text-success" },
   role_requests: { label: "Role Requests", icon: Shield, color: "text-destructive" },
   move_passes: { label: "Move Passes", icon: PackageOpen, color: "text-primary" },
+  flat_requests: { label: "Flat Requests", icon: Home, color: "text-amber-700" },
+  user_registrations: { label: "User Registrations", icon: Users, color: "text-primary" },
 };
 
 const Approvals = () => {
@@ -138,6 +170,54 @@ const Approvals = () => {
       })
     );
 
+    // Neon FlatRequests (addition_requests PENDING)
+    try {
+      const flatRequests = await fetchPendingFlatRequests();
+      flatRequests.forEach((fr) => {
+        const label =
+          fr.building_name && fr.flat_number
+            ? `${fr.building_name} / ${fr.flat_number}`
+            : fr.requested_name;
+        pending.push({
+          id: fr.id,
+          category: "flat_requests",
+          title: label,
+          subtitle: "Flat creation request",
+          detail: fr.notes || "Pending Society Admin approval",
+          created_at: fr.created_at,
+        });
+      });
+    } catch (err) {
+      console.warn("[Approvals] Failed to load flat requests:", err);
+    }
+
+    // Neon UserRegistrations — always show WAITING_FOR_FLAT rows (Approve User disabled)
+    try {
+      const regs = await fetchPendingRegistrations();
+      regs.forEach((r) => {
+        const blocked = isUserApprovalBlocked(r.status);
+        const flatLabel =
+          r.flat_request_building_name && r.flat_request_flat_number
+            ? `${r.flat_request_building_name} / ${r.flat_request_flat_number}`
+            : r.resident_type || "Resident";
+        pending.push({
+          id: r.id,
+          category: "user_registrations",
+          title: r.full_name,
+          subtitle: flatLabel,
+          detail: r.phone_number || r.email || "",
+          created_at: r.created_at,
+          blocked,
+          flatLabel,
+          statusLabel:
+            REGISTRATION_STATUS_LABEL[r.status] ||
+            (blocked ? "Flat Approval Pending" : "Ready for Review"),
+        });
+      });
+    } catch (err) {
+      console.warn("[Approvals] Failed to load registrations:", err);
+    }
+
     // Sort by newest first
     pending.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setItems(pending);
@@ -149,8 +229,52 @@ const Approvals = () => {
   }, []);
 
   const handleAction = async (item: PendingItem, action: "approved" | "rejected") => {
+    if (item.blocked && item.category === "user_registrations" && action === "approved") {
+      toast({
+        title: "Cannot approve yet",
+        description:
+          "Cannot approve user until the requested flat is created and approved by Society Admin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setActionLoading(item.id);
     try {
+      if (item.category === "flat_requests") {
+        if (action === "approved") {
+          const result = await approveFlatRequest(item.id) as {
+            promoted_registrations?: Array<{ id: string }>;
+          };
+          toast({
+            title: "Flat approved ✓",
+            description: "Flat created. Linked registrations are now Ready for Review.",
+          });
+          // Refresh so promoted registrations show Approve User enabled
+          await fetchPending();
+          return;
+        }
+        await rejectFlatRequest(item.id);
+        toast({ title: "Flat request rejected", description: item.title });
+        setItems((prev) => prev.filter((i) => i.id !== item.id && !(i.category === "user_registrations" && i.detail.includes(item.title))));
+        await fetchPending();
+        return;
+      }
+
+      if (item.category === "user_registrations") {
+        if (action === "approved") {
+          await approveRegistration(item.id);
+        } else {
+          await rejectRegistration(item.id);
+        }
+        toast({
+          title: action === "approved" ? "User approved ✓" : "User rejected",
+          description: `${item.title} has been ${action}.`,
+        });
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        return;
+      }
+
       // Move passes have their own multi-step logic
       if (item.category === "move_passes") {
         const { data: mp } = await supabase
@@ -243,48 +367,105 @@ const Approvals = () => {
                 <Icon className="h-5 w-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-medium truncate">{item.title}</p>
                   <Badge variant="secondary" className="text-[10px] shrink-0">{config.label}</Badge>
+                  {item.category === "user_registrations" && item.statusLabel && (
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] shrink-0 ${
+                        item.blocked
+                          ? "border-amber-300 bg-amber-50 text-amber-900"
+                          : "border-emerald-300 bg-emerald-50 text-emerald-900"
+                      }`}
+                    >
+                      {item.statusLabel}
+                    </Badge>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground truncate">
-                  {item.subtitle} · {item.detail}
+                <p className="text-xs text-muted-foreground truncate flex items-center gap-1.5 flex-wrap">
+                  <span>{item.subtitle}</span>
+                  {item.category === "user_registrations" && item.blocked && (
+                    <Badge
+                      variant="outline"
+                      className="text-[9px] border-amber-300 bg-amber-50 text-amber-900 font-normal"
+                    >
+                      Flat Approval Pending
+                    </Badge>
+                  )}
+                  {item.detail ? <span>· {item.detail}</span> : null}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   {new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString()}
                 </p>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setDetailItem({ id: item.id, category: item.category })}
-                  className="h-8 px-2"
-                  title="View details"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => handleAction(item, "approved")}
-                  disabled={actionLoading === item.id}
-                  className="gradient-primary text-primary-foreground h-8 px-3"
-                >
-                  {actionLoading === item.id ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <><Check className="h-3 w-3 mr-1" /> Approve</>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleAction(item, "rejected")}
-                  disabled={actionLoading === item.id}
-                  className="h-8 px-3 text-destructive hover:text-destructive"
-                >
-                  <X className="h-3 w-3 mr-1" /> Reject
-                </Button>
+              <div className="flex gap-2 shrink-0 items-center">
+                {item.category !== "flat_requests" && item.category !== "user_registrations" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setDetailItem({ id: item.id, category: item.category })}
+                    className="h-8 px-2"
+                    title="View details"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {item.category === "user_registrations" && item.blocked ? (
+                  <>
+                    <TooltipProvider delayDuration={200}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button
+                              size="sm"
+                              disabled={true}
+                              className="gradient-primary text-primary-foreground h-8 px-3 opacity-60"
+                            >
+                              <Check className="h-3 w-3 mr-1" /> Approve User
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs">
+                          Cannot approve user until the requested flat is created and approved by Society Admin.
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAction(item, "rejected")}
+                      disabled={actionLoading === item.id}
+                      className="h-8 px-3 text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3 mr-1" /> Reject
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAction(item, "approved")}
+                      disabled={actionLoading === item.id}
+                      className="gradient-primary text-primary-foreground h-8 px-3"
+                    >
+                      {actionLoading === item.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <><Check className="h-3 w-3 mr-1" /> {item.category === "user_registrations" ? "Approve User" : "Approve"}</>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAction(item, "rejected")}
+                      disabled={actionLoading === item.id}
+                      className="h-8 px-3 text-destructive hover:text-destructive"
+                    >
+                      <X className="h-3 w-3 mr-1" /> Reject
+                    </Button>
+                  </>
+                )}
               </div>
             </Card>
           );
@@ -297,7 +478,7 @@ const Approvals = () => {
     <DashboardLayout title="Approvals">
       <div className="space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
           {categories.map((cat) => {
             const config = categoryConfig[cat];
             const Icon = config.icon;

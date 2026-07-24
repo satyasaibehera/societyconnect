@@ -12,17 +12,23 @@ const router = Router();
 router.get("/", async (_req, res) => {
   try {
     const db = getDb();
+    // Select only columns present on live society DBs (code is optional / may be missing).
     const rows = await db
       .select({
         id: societies.id,
         name: societies.name,
-        code: societies.code,
+        city: societies.city,
       })
       .from(societies)
       .where(eq(societies.isActive, true))
       .orderBy(asc(societies.name));
 
-    res.json({ societies: rows });
+    res.json({
+      societies: rows.map((row) => ({
+        ...row,
+        code: null as string | null,
+      })),
+    });
   } catch (err) {
     console.error("[GET /api/societies]", err);
     res.status(500).json({
