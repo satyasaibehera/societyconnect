@@ -65,8 +65,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 4. No registration found at all — could be legacy user
-      setApprovalStatus("approved");
+      // 4. No approved role/resident — hold at awaiting approval (fail closed).
+      setApprovalStatus("pending");
     } catch (err) {
       // Fail closed: if we cannot verify approval, treat the user as pending
       // rather than silently granting access.

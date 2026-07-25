@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { signOut } from "@/services/authService";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { signOut, signUp } from "@/services/authService";
 import { fetchActiveSocietiesDetailed, type SocietyListItem } from "@/services/societiesService";
 import {
   fetchBuildingsForSociety,
@@ -15,12 +15,24 @@ import {
   type BuildingFlat,
   type BuildingWithFlats,
 } from "@/services/buildingsService";
+import { ensurePendingResidentForUser } from "@/services/residentRegistrationService";
 import { useToast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/camera/CameraCapture";
 import { PhoneInput, fullPhone } from "./PhoneInput";
-import { OtpVerifyField } from "./OtpVerifyField";
 
 type Society = SocietyListItem;
+
+const REQUEST_NEW_BUILDING = "__request_new_building__";
+const REQUEST_NEW_FLAT = "__request_new_flat__";
+
+const SubjectToApprovalNote = () => (
+  <Badge
+    variant="outline"
+    className="text-[10px] font-normal text-amber-800 border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800"
+  >
+    * Subject to approval
+  </Badge>
+);
 
 interface ResidentRegDialogProps {
   open: boolean;
@@ -40,18 +52,13 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const [showPassword, setShowPassword] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState(false);
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [ownershipDoc, setOwnershipDoc] = useState<File | null>(null);
-  const [requestNewFlat, setRequestNewFlat] = useState(false);
   const [submittedWaitingForFlat, setSubmittedWaitingForFlat] = useState(false);
-  const [customFlat, setCustomFlat] = useState({
-    building_name: "",
-    flat_number: "",
-    notes: "",
-  });
+  const [customBuildingName, setCustomBuildingName] = useState("");
+  const [customFlatNumber, setCustomFlatNumber] = useState("");
+  const [requestNotes, setRequestNotes] = useState("");
 
   const [form, setForm] = useState({
     full_name: "",
@@ -71,20 +78,29 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
   const phoneValid = /^\+\d{1,4}\d{7,12}$/.test(fullPhoneNumber);
 
   const isOwner = form.resident_type === "owner";
+  const requestingNewBuilding = form.building_id === REQUEST_NEW_BUILDING;
+  const requestingNewFlat = requestingNewBuilding || form.flat_id === REQUEST_NEW_FLAT;
+  const isRequestMode = requestingNewBuilding || requestingNewFlat;
 
   const selectedBuilding = useMemo(
-    () => buildings.find((b) => b.id === form.building_id) ?? null,
-    [buildings, form.building_id],
+    () =>
+      !requestingNewBuilding
+        ? buildings.find((b) => b.id === form.building_id) ?? null
+        : null,
+    [buildings, form.building_id, requestingNewBuilding],
   );
 
   const availableFlats: BuildingFlat[] = selectedBuilding?.flats ?? [];
 
   const selectedFlat = useMemo(
-    () => availableFlats.find((f) => f.id === form.flat_id) ?? null,
-    [availableFlats, form.flat_id],
+    () =>
+      !requestingNewFlat
+        ? availableFlats.find((f) => f.id === form.flat_id) ?? null
+        : null,
+    [availableFlats, form.flat_id, requestingNewFlat],
   );
 
-  const isOwnershipTransfer = Boolean(!requestNewFlat && isOwner && selectedFlat?.is_occupied);
+  const isOwnershipTransfer = Boolean(!isRequestMode && isOwner && selectedFlat?.is_occupied);
 
   useEffect(() => {
     if (!open) return;
@@ -122,7 +138,6 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Load buildings (+ nested flats) from local GET /api/buildings
   useEffect(() => {
     if (!form.society_id) {
       setBuildings([]);
@@ -154,8 +169,9 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     loadBuildings();
     setForm((f) => ({ ...f, building_id: "", flat_id: "" }));
     setOwnershipDoc(null);
-    setRequestNewFlat(false);
-    setCustomFlat({ building_name: "", flat_number: "", notes: "" });
+    setCustomBuildingName("");
+    setCustomFlatNumber("");
+    setRequestNotes("");
 
     return () => {
       cancelled = true;
@@ -179,19 +195,29 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     });
 
   const handleBuildingChange = (buildingId: string) => {
+    setOwnershipDoc(null);
+    if (buildingId === REQUEST_NEW_BUILDING) {
+      setForm((f) => ({ ...f, building_id: REQUEST_NEW_BUILDING, flat_id: REQUEST_NEW_FLAT }));
+      setCustomFlatNumber("");
+      return;
+    }
     setForm((f) => ({ ...f, building_id: buildingId, flat_id: "" }));
-    setOwnershipDoc(null);
+    setCustomBuildingName("");
   };
 
-  const enableRequestNewFlat = () => {
-    setRequestNewFlat(true);
-    setForm((f) => ({ ...f, building_id: "", flat_id: "" }));
+  const handleFlatChange = (flatId: string) => {
     setOwnershipDoc(null);
+    if (flatId === REQUEST_NEW_FLAT) {
+      setForm((f) => ({ ...f, flat_id: REQUEST_NEW_FLAT }));
+      return;
+    }
+    setForm((f) => ({ ...f, flat_id: flatId }));
+    setCustomFlatNumber("");
   };
 
-  const disableRequestNewFlat = () => {
-    setRequestNewFlat(false);
-    setCustomFlat({ building_name: "", flat_number: "", notes: "" });
+  const resolvedBuildingNameForRequest = (): string => {
+    if (requestingNewBuilding) return customBuildingName.trim();
+    return selectedBuilding?.name?.trim() || "";
   };
 
   const handleSubmit = async () => {
@@ -199,25 +225,38 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
-    if (requestNewFlat) {
-      if (!customFlat.building_name.trim() || !customFlat.flat_number.trim()) {
-        toast({ title: "Building name and flat number are required", variant: "destructive" });
+    if (!emailValid) {
+      toast({ title: "Enter a valid email address", variant: "destructive" });
+      return;
+    }
+    if (!phoneValid) {
+      toast({ title: "Enter a valid phone number", variant: "destructive" });
+      return;
+    }
+
+    if (isRequestMode) {
+      const buildingName = resolvedBuildingNameForRequest();
+      const flatNumber = customFlatNumber.trim();
+      if (!buildingName || !flatNumber) {
+        toast({
+          title: requestingNewBuilding
+            ? "Building name and flat number are required"
+            : "Flat number is required",
+          variant: "destructive",
+        });
         return;
       }
     } else if (!form.building_id || !form.flat_id) {
       toast({ title: "Please select a building and flat", variant: "destructive" });
       return;
     }
+
     if (form.password.length < 6) {
       toast({ title: "Password must be at least 6 characters", variant: "destructive" });
       return;
     }
     if (!capturedImage) {
       toast({ title: "Photo required", description: "Please capture a live photo.", variant: "destructive" });
-      return;
-    }
-    if (!emailVerified || !phoneVerified) {
-      toast({ title: "Verify email and phone", description: "Both OTPs must be verified before submitting.", variant: "destructive" });
       return;
     }
     if (isOwnershipTransfer && !ownershipDoc) {
@@ -233,44 +272,102 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     try {
       let supporting_document_base64: string | null = null;
       let supporting_document_content_type: string | null = null;
+      let supporting_document_url: string | null = null;
       if (ownershipDoc) {
         supporting_document_base64 = await blobToBase64(ownershipDoc);
         supporting_document_content_type = ownershipDoc.type || "application/octet-stream";
+        supporting_document_url = `data:${supporting_document_content_type};base64,${supporting_document_base64}`;
       }
 
-      if (requestNewFlat) {
-        await submitRegistration({
-          society_id: form.society_id,
-          full_name: form.full_name,
-          phone_number: fullPhoneNumber,
-          email: form.email,
-          resident_type: form.resident_type,
-          request_new_flat: true,
-          building_name: customFlat.building_name.trim(),
-          flat_number: customFlat.flat_number.trim(),
-          notes: customFlat.notes.trim() || undefined,
-        });
-        setSubmittedWaitingForFlat(true);
-        setSubmittedAsTransfer(false);
-      } else {
-        await submitRegistration({
-          society_id: form.society_id,
-          building_id: form.building_id,
-          flat_id: form.flat_id,
-          full_name: form.full_name,
-          phone_number: fullPhoneNumber,
-          email: form.email,
-          resident_type: form.resident_type,
-          is_ownership_transfer: isOwnershipTransfer,
-          supporting_document_base64,
-          supporting_document_content_type,
-        });
-        setSubmittedWaitingForFlat(false);
-        setSubmittedAsTransfer(isOwnershipTransfer);
+      const buildingName = isRequestMode ? resolvedBuildingNameForRequest() : selectedBuilding?.name || null;
+      const flatNumber = isRequestMode
+        ? customFlatNumber.trim()
+        : selectedFlat?.flat_number || null;
+      const unitId = isRequestMode ? null : form.flat_id;
+
+      const emailRedirectTo = `${window.location.origin}/auth/callback`;
+
+      const { data: signUpData, error: signUpError } = await signUp({
+        email: form.email.trim(),
+        password: form.password,
+        options: {
+          emailRedirectTo,
+          data: {
+            full_name: form.full_name.trim(),
+            phone: fullPhoneNumber,
+            registration: {
+              society_id: form.society_id,
+              unit_id: unitId,
+              building_id: requestingNewBuilding ? null : form.building_id || null,
+              resident_type: form.resident_type,
+              date_of_birth: form.date_of_birth || null,
+              phone: fullPhoneNumber,
+              full_name: form.full_name.trim(),
+              email: form.email.trim(),
+              request_new_flat: isRequestMode,
+              building_name: buildingName,
+              flat_number: flatNumber,
+              notes: requestNotes.trim() || null,
+              is_ownership_transfer: isOwnershipTransfer,
+              supporting_document_url,
+            },
+          },
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      const userId = signUpData?.user?.id;
+      if (userId && signUpData?.session) {
+        // Session present (email confirm disabled) — create pending resident now.
+        const { error: ensureError } = await ensurePendingResidentForUser(userId);
+        if (ensureError) {
+          console.warn("[ResidentRegDialog] ensurePendingResident:", ensureError.message);
+        }
       }
 
+      // Keep Neon flat-request / registration_requests in sync for admin workflows.
+      try {
+        if (isRequestMode) {
+          await submitRegistration({
+            society_id: form.society_id,
+            full_name: form.full_name,
+            phone_number: fullPhoneNumber,
+            email: form.email,
+            resident_type: form.resident_type,
+            request_new_flat: true,
+            building_name: buildingName || "",
+            flat_number: flatNumber || "",
+            notes: requestNotes.trim() || undefined,
+          });
+          setSubmittedWaitingForFlat(true);
+        } else {
+          await submitRegistration({
+            society_id: form.society_id,
+            building_id: form.building_id,
+            flat_id: form.flat_id,
+            full_name: form.full_name,
+            phone_number: fullPhoneNumber,
+            email: form.email,
+            resident_type: form.resident_type,
+            is_ownership_transfer: isOwnershipTransfer,
+            supporting_document_base64,
+            supporting_document_content_type,
+          });
+          setSubmittedWaitingForFlat(false);
+        }
+      } catch (neonErr) {
+        console.warn("[ResidentRegDialog] Neon register sync failed:", neonErr);
+      }
+
+      setSubmittedAsTransfer(isOwnershipTransfer);
       await signOut();
       setSubmitted(true);
+      toast({
+        title: "Registration Submitted!",
+        description:
+          "We have sent a confirmation link to your email address. Please check your inbox.",
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Registration failed";
       toast({ title: "Registration failed", description: message, variant: "destructive" });
@@ -297,59 +394,69 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
     setBuildings([]);
     setCapturedImage(null);
     setPhotoBlob(null);
-    setEmailVerified(false);
-    setPhoneVerified(false);
     setPhoneNumber("");
     setCountryCode("+91");
     setOwnershipDoc(null);
-    setRequestNewFlat(false);
-    setCustomFlat({ building_name: "", flat_number: "", notes: "" });
+    setCustomBuildingName("");
+    setCustomFlatNumber("");
+    setRequestNotes("");
     onOpenChange(false);
   };
+
+  const requestFieldsValid = requestingNewBuilding
+    ? Boolean(customBuildingName.trim() && customFlatNumber.trim())
+    : requestingNewFlat
+      ? Boolean(form.building_id && form.building_id !== REQUEST_NEW_BUILDING && customFlatNumber.trim())
+      : true;
+
+  const existingSelectionValid = !isRequestMode && Boolean(form.building_id && form.flat_id);
 
   const submitDisabled =
     submitting ||
     !form.full_name ||
     !form.email ||
+    !emailValid ||
     !form.password ||
     !form.society_id ||
+    !phoneValid ||
     !capturedImage ||
-    !emailVerified ||
-    !phoneVerified ||
-    (requestNewFlat
-      ? !customFlat.building_name.trim() || !customFlat.flat_number.trim()
-      : !form.building_id || !form.flat_id) ||
+    (isRequestMode ? !requestFieldsValid : !existingSelectionValid) ||
     (isOwnershipTransfer && !ownershipDoc);
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) resetAndClose(); }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-display">Register as Resident</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden p-0 gap-0 flex flex-col">
+        <div className="sticky top-0 z-10 shrink-0 bg-background border-b px-6 pt-6 pb-3 pr-12">
+          <DialogHeader>
+            <DialogTitle className="font-display">Register as Resident</DialogTitle>
+          </DialogHeader>
+          {!submitted && (
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider pt-3">
+              Account Details
+            </p>
+          )}
+        </div>
 
         {submitted ? (
-          <div className="space-y-4 text-center py-4">
-            <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8 text-primary" />
+          <div className="overflow-y-auto max-h-[70vh] px-6 py-4">
+            <div className="space-y-4 text-center py-4">
+              <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <CheckCircle2 className="h-8 w-8 text-primary" />
+              </div>
+              <h2 className="font-display text-lg font-bold">Registration Submitted!</h2>
+              <p className="text-sm text-muted-foreground">
+                We have sent a confirmation link to your email address. Please check your inbox.
+                {submittedWaitingForFlat
+                  ? " After verifying your email, your flat request will await society admin approval."
+                  : submittedAsTransfer
+                    ? " After verifying your email, your ownership transfer claim will await society admin approval."
+                    : " After verifying your email, your request will await society admin approval."}
+              </p>
+              <Button onClick={resetAndClose} variant="outline" className="w-full">Close</Button>
             </div>
-            <h2 className="font-display text-lg font-bold">
-              {submittedWaitingForFlat
-                ? "Registration Submitted — Flat Pending!"
-                : submittedAsTransfer
-                  ? "Ownership Transfer Claim Submitted!"
-                  : "Registration Submitted!"}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {submittedWaitingForFlat
-                ? "Your flat request is awaiting Society Admin approval. Once the flat is created, your registration will move to user approval."
-                : "Your request is pending approval by the Society Admin. You'll be able to sign in once approved."}
-            </p>
-            <Button onClick={resetAndClose} variant="outline" className="w-full">Close</Button>
           </div>
         ) : (
-          <div className="space-y-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Account Details</p>
+          <div className="overflow-y-auto max-h-[70vh] px-6 py-4 space-y-4">
             <div className="space-y-2">
               <Label>Full Name *</Label>
               <div className="relative">
@@ -361,11 +468,14 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <Label>Email *</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input type="email" placeholder="your@email.com" value={form.email}
-                  onChange={(e) => { update("email", e.target.value); setEmailVerified(false); }}
-                  className="pl-10" disabled={emailVerified} />
+                <Input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={form.email}
+                  onChange={(e) => update("email", e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              <OtpVerifyField kind="email" target={form.email} canSend={emailValid} verified={emailVerified} onVerified={() => setEmailVerified(true)} />
             </div>
             <div className="space-y-2">
               <Label>Password *</Label>
@@ -385,11 +495,9 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
               <PhoneInput
                 countryCode={countryCode}
                 number={phoneNumber}
-                onCountryChange={(c) => { setCountryCode(c); setPhoneVerified(false); }}
-                onNumberChange={(n) => { setPhoneNumber(n); setPhoneVerified(false); }}
-                disabled={phoneVerified}
+                onCountryChange={setCountryCode}
+                onNumberChange={setPhoneNumber}
               />
-              <OtpVerifyField kind="phone" target={fullPhoneNumber} canSend={phoneValid} verified={phoneVerified} onVerified={() => setPhoneVerified(true)} />
             </div>
             <div className="space-y-2">
               <Label>Date of Birth</Label>
@@ -428,7 +536,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                   <Label>I am registering as</Label>
                   <Select
                     value={form.resident_type}
-                    onValueChange={(v) => setForm({ ...form, resident_type: v, flat_id: "" })}
+                    onValueChange={(v) => setForm({ ...form, resident_type: v, flat_id: requestingNewBuilding ? REQUEST_NEW_FLAT : "" })}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -451,122 +559,105 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                   </span>
                 </div>
 
-                {!requestNewFlat ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label>Select Building *</Label>
-                      {loadingBuildings ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
-                          <Loader2 className="h-4 w-4 animate-spin" /> Loading buildings...
-                        </div>
-                      ) : buildings.length === 0 ? (
-                        <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                          No buildings found for this society yet.
-                        </div>
-                      ) : (
-                        <Select value={form.building_id} onValueChange={handleBuildingChange}>
-                          <SelectTrigger><SelectValue placeholder="Choose your building" /></SelectTrigger>
-                          <SelectContent>
-                            {buildings.map((b) => (
-                              <SelectItem key={b.id} value={b.id}>
-                                {b.name}
-                                <span className="text-muted-foreground ml-2 text-xs">
-                                  ({b.flats.length} flat{b.flats.length === 1 ? "" : "s"})
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                <div className="space-y-2">
+                  <Label>Select Building</Label>
+                  {loadingBuildings ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Loading buildings...
                     </div>
+                  ) : (
+                    <Select value={form.building_id || undefined} onValueChange={handleBuildingChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose your building" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {buildings.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.name}
+                            <span className="text-muted-foreground ml-2 text-xs">
+                              ({b.flats.length} flat{b.flats.length === 1 ? "" : "s"})
+                            </span>
+                          </SelectItem>
+                        ))}
+                        <SelectSeparator />
+                        <SelectItem value={REQUEST_NEW_BUILDING} className="text-primary font-medium">
+                          + Request new building
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
 
-                    {form.building_id && (
-                      <div className="space-y-2">
-                        <Label>Select Flat *</Label>
-                        {availableFlats.length === 0 ? (
-                          <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
-                            No flats found in this building.
-                          </div>
-                        ) : (
-                          <Select value={form.flat_id} onValueChange={(v) => update("flat_id", v)}>
-                            <SelectTrigger><SelectValue placeholder="Choose your flat" /></SelectTrigger>
-                            <SelectContent>
-                              {availableFlats.map((f) => (
-                                <SelectItem key={f.id} value={f.id}>
-                                  <span className="flex items-center gap-2">
-                                    {f.flat_number}
-                                    {f.is_occupied && (
-                                      <Badge variant="secondary" className="text-[9px] ml-1">Occupied</Badge>
-                                    )}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                {requestingNewBuilding && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 flex-wrap">
+                      New Building Name
+                      <SubjectToApprovalNote />
+                    </Label>
+                    <Input
+                      placeholder="e.g. Tower B"
+                      value={customBuildingName}
+                      onChange={(e) => setCustomBuildingName(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {(form.building_id || requestingNewBuilding) && (
+                  <div className="space-y-2">
+                    <Label>Select Flat</Label>
+                    {requestingNewBuilding ? (
+                      <div className="rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                        + Request new flat
                       </div>
+                    ) : (
+                      <Select value={form.flat_id || undefined} onValueChange={handleFlatChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose your flat" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableFlats.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              <span className="flex items-center gap-2">
+                                {f.flat_number}
+                                {f.is_occupied && (
+                                  <Badge variant="secondary" className="text-[9px] ml-1">Occupied</Badge>
+                                )}
+                              </span>
+                            </SelectItem>
+                          ))}
+                          <SelectSeparator />
+                          <SelectItem value={REQUEST_NEW_FLAT} className="text-primary font-medium">
+                            + Request new flat
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     )}
+                  </div>
+                )}
 
-                    <div className="pt-1">
-                      <button
-                        type="button"
-                        className="text-sm text-primary font-medium hover:underline"
-                        onClick={enableRequestNewFlat}
-                      >
-                        Add / Request New Flat
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="space-y-3 rounded-lg border border-dashed p-3 bg-muted/30">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <p className="text-xs font-medium">Requesting a new flat</p>
-                      <Badge variant="outline" className="text-[10px] text-amber-800 border-amber-300 bg-amber-50">
-                        *(Subject to Admin Approval)*
-                      </Badge>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2 flex-wrap">
-                        Building name *
-                        {customFlat.building_name.trim() && (
-                          <span className="text-[10px] font-normal text-amber-800">*(Subject to Admin Approval)*</span>
-                        )}
-                      </Label>
-                      <Input
-                        placeholder="e.g. Tower B"
-                        value={customFlat.building_name}
-                        onChange={(e) => setCustomFlat((f) => ({ ...f, building_name: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2 flex-wrap">
-                        Flat number *
-                        {customFlat.flat_number.trim() && (
-                          <span className="text-[10px] font-normal text-amber-800">*(Subject to Admin Approval)*</span>
-                        )}
-                      </Label>
-                      <Input
-                        placeholder="e.g. B-1204"
-                        value={customFlat.flat_number}
-                        onChange={(e) => setCustomFlat((f) => ({ ...f, flat_number: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Notes (optional)</Label>
-                      <Textarea
-                        placeholder="Any extra details for admin"
-                        value={customFlat.notes}
-                        onChange={(e) => setCustomFlat((f) => ({ ...f, notes: e.target.value }))}
-                        rows={2}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="text-xs text-muted-foreground hover:underline"
-                      onClick={disableRequestNewFlat}
-                    >
-                      Back to existing building/flat list
-                    </button>
+                {requestingNewFlat && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 flex-wrap">
+                      New Flat Number
+                      <SubjectToApprovalNote />
+                    </Label>
+                    <Input
+                      placeholder="e.g. B-1204"
+                      value={customFlatNumber}
+                      onChange={(e) => setCustomFlatNumber(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {isRequestMode && (
+                  <div className="space-y-2">
+                    <Label>Notes (optional)</Label>
+                    <Textarea
+                      placeholder="Any extra details for admin"
+                      value={requestNotes}
+                      onChange={(e) => setRequestNotes(e.target.value)}
+                      rows={2}
+                    />
                   </div>
                 )}
 
@@ -616,7 +707,7 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
                 ) : isOwnershipTransfer ? (
                   "Submit Ownership Transfer Claim"
                 ) : (
-                  "Submit Registration"
+                  "Submit Request to Admin"
                 )}
               </Button>
             </div>

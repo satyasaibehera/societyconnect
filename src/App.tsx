@@ -35,6 +35,7 @@ import Payments from "./pages/Payments";
 import MyPayments from "./pages/MyPayments";
 import Emergency from "./pages/Emergency";
 import ResetPassword from "./pages/ResetPassword";
+import AuthCallback from "./pages/AuthCallback";
 import AccessControl from "./pages/AccessControl";
 import NotFound from "./pages/NotFound";
 
@@ -50,6 +51,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/register-resident" element={<ProtectedRoute><RegisterResident /></ProtectedRoute>} />

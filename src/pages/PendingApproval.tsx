@@ -1,5 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Clock, LogOut } from "lucide-react";
+import { Clock, LogOut, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -12,9 +12,14 @@ const PendingApproval = () => {
         <div className="mx-auto h-16 w-16 rounded-full bg-accent flex items-center justify-center">
           <Clock className="h-8 w-8 text-accent-foreground" />
         </div>
-        <h1 className="font-display text-xl font-bold">Registration Pending</h1>
+        <div className="flex items-center justify-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+          <MailCheck className="h-3.5 w-3.5 shrink-0" />
+          Email verified
+        </div>
+        <h1 className="font-display text-xl font-bold">Awaiting Admin Approval</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Your registration is currently under review. You'll be able to access the platform once an administrator approves your request.
+          Your email is verified and your registration request is awaiting society admin review.
+          You will get full access once an administrator approves your application.
         </p>
         <p className="text-xs text-muted-foreground">
           Please check back later or contact your society administrator for status updates.
