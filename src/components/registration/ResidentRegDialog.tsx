@@ -1,5 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { Home, Users, AlertCircle, Loader2, CheckCircle2, Eye, EyeOff, Mail, Lock, User, Upload } from "lucide-react";
+import { Home, Users, AlertCircle, Loader2, CheckCircle2, Mail, Lock, User, Upload } from "lucide-react";
+import {
+  PasswordVisibilityIcon,
+  passwordInputTypeFromVisible,
+} from "@/components/ui/password-visibility-icon";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

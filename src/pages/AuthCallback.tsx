@@ -47,11 +47,18 @@ const AuthCallback = () => {
         }
 
         if (cancelled) return;
-        setMessage("Email verified. Setting up your registration…");
 
-        const { error: ensureError } = await ensurePendingResidentForUser(session.user.id);
-        if (ensureError) {
-          console.warn("[AuthCallback] ensurePendingResident:", ensureError.message);
+        const meta = session.user.user_metadata || {};
+        const onboardingType = (meta.onboarding as { type?: string } | undefined)?.type;
+
+        if (onboardingType === "society_admin") {
+          setMessage("Email verified. Your society onboarding request is pending platform review…");
+        } else {
+          setMessage("Email verified. Setting up your registration…");
+          const { error: ensureError } = await ensurePendingResidentForUser(session.user.id);
+          if (ensureError) {
+            console.warn("[AuthCallback] ensurePendingResident:", ensureError.message);
+          }
         }
 
         if (!cancelled) {

@@ -1,11 +1,14 @@
 /**
  * Society onboarding orchestration.
  *
- * Creates a society via the Netlify tenant router and dynamically provisions
- * the society’s Neon database using the schema manifest + provisioner.
- * Table lists / DDL live only in the manifest — never in this service.
+ * - Platform Admin bootstrap (email === VITE_SUPER_ADMIN_EMAIL only — no env password):
+ *   edge function creates a confirmed SUPER_ADMIN / PLATFORM_ADMIN with the form password.
+ * - Standard enrollment: client signUp (confirmation email) + edge function
+ *   saves society + admin role_request as PENDING_APPROVAL.
  */
 
+import { supabase } from "@/integrations/supabase/client";
+import { signOut, signUp } from "@/services/authService";
 import {
   buildTenantSchemaManifest,
   provisionTenantDatabase,
@@ -17,6 +20,8 @@ import {
 
 const ROUTER_URL =
   import.meta.env.VITE_ROUTER_API_URL || "https://universal-tenant-router.netlify.app";
+
+const SUPER_ADMIN_EMAIL = (import.meta.env.VITE_SUPER_ADMIN_EMAIL || "").trim().toLowerCase();
 
 export interface SocietyOnboardingAdmin {
   email: string;
@@ -31,22 +36,19 @@ export interface SocietyOnboardingPayload {
   city?: string;
   state?: string;
   admin: SocietyOnboardingAdmin;
-  /** When true (default), request DB provisioning with the current schema manifest. */
   provisionDatabase?: boolean;
-  /**
-   * Optional direct Neon connection for server-side / admin tooling.
-   * When provided, `provisionTenantDatabase` runs locally after society registration.
-   * Never ship production credentials into the browser bundle.
-   */
   connectionConfig?: TenantConnectionConfig;
-  /** Override generated society id (useful for retries). */
   societyId?: string;
   isActive?: boolean;
 }
 
+export type SocietyOnboardingMode = "platform_admin" | "standard";
+
 export interface SocietyOnboardingResult {
   success: boolean;
   societyId: string | null;
+  mode: SocietyOnboardingMode | null;
+  status: "APPROVED" | "PENDING_APPROVAL" | null;
   routerResponse: unknown;
   provision: ProvisionTenantResult | null;
   error?: string;
@@ -60,14 +62,182 @@ function createSocietyId(explicit?: string): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+export function isSuperAdminEnrollmentEmail(email: string): boolean {
+  return Boolean(SUPER_ADMIN_EMAIL) && email.trim().toLowerCase() === SUPER_ADMIN_EMAIL;
+}
+
 /**
- * Register a new society and provision its tenant database schema dynamically.
+ * Enroll a society admin — Platform Admin bootstrap (email match only) or standard pending onboarding.
+ * Bootstrap password is always the form password; never an env password.
  */
 export async function onboardSociety(
   payload: SocietyOnboardingPayload,
 ): Promise<SocietyOnboardingResult> {
-  const societyId = createSocietyId(payload.societyId);
+  const email = payload.admin.email.trim();
+  const isPlatformAdmin = isSuperAdminEnrollmentEmail(email);
+
+  try {
+    if (isPlatformAdmin) {
+      const formPassword = payload.admin.password;
+      const { data, error } = await supabase.functions.invoke("enroll-society", {
+        body: {
+          email,
+          password: formPassword,
+          full_name: payload.admin.full_name,
+          phone: payload.admin.phone || null,
+          society_name: payload.society_name,
+          address: payload.address ?? null,
+          city: payload.city ?? null,
+          state: payload.state ?? null,
+        },
+      });
+
+      if (error) {
+        return {
+          success: false,
+          societyId: null,
+          mode: "platform_admin",
+          status: null,
+          routerResponse: data,
+          provision: null,
+          error: error.message || "Platform Admin bootstrap failed",
+        };
+      }
+      if (data?.error) {
+        return {
+          success: false,
+          societyId: null,
+          mode: "platform_admin",
+          status: null,
+          routerResponse: data,
+          provision: null,
+          error: String(data.error),
+        };
+      }
+
+      await signOut();
+
+      return {
+        success: true,
+        societyId: data?.society_id ?? null,
+        mode: "platform_admin",
+        status: "APPROVED",
+        routerResponse: data,
+        provision: null,
+      };
+    }
+
+    // Standard path: native Supabase signUp → confirmation email
+    const emailRedirectTo = `${window.location.origin}/auth/callback`;
+    const { data: signUpData, error: signUpError } = await signUp({
+      email,
+      password: payload.admin.password,
+      options: {
+        emailRedirectTo,
+        data: {
+          full_name: payload.admin.full_name,
+          phone: payload.admin.phone || null,
+          onboarding: {
+            type: "society_admin",
+            society_name: payload.society_name,
+            address: payload.address ?? null,
+            city: payload.city ?? null,
+            state: payload.state ?? null,
+          },
+        },
+      },
+    });
+
+    if (signUpError) {
+      return {
+        success: false,
+        societyId: null,
+        mode: "standard",
+        status: null,
+        routerResponse: null,
+        provision: null,
+        error: signUpError.message,
+      };
+    }
+
+    const userId = signUpData?.user?.id;
+    if (!userId) {
+      return {
+        success: false,
+        societyId: null,
+        mode: "standard",
+        status: null,
+        routerResponse: signUpData,
+        provision: null,
+        error: "Signup did not return a user id",
+      };
+    }
+
+    const { data, error } = await supabase.functions.invoke("enroll-society", {
+      body: {
+        email,
+        password: payload.admin.password,
+        full_name: payload.admin.full_name,
+        phone: payload.admin.phone || null,
+        society_name: payload.society_name,
+        address: payload.address ?? null,
+        city: payload.city ?? null,
+        state: payload.state ?? null,
+        user_id: userId,
+      },
+    });
+
+    if (error || data?.error) {
+      return {
+        success: false,
+        societyId: null,
+        mode: "standard",
+        status: null,
+        routerResponse: data,
+        provision: null,
+        error: error?.message || String(data?.error || "Failed to save society enrollment"),
+      };
+    }
+
+    // Best-effort router / tenant provision (non-blocking for auth flow)
+    const societyId = (data?.society_id as string | undefined) || createSocietyId(payload.societyId);
+    if (payload.provisionDatabase !== false) {
+      try {
+        await provisionViaRouter(payload, societyId);
+      } catch (err) {
+        console.warn("[onboardSociety] Router provision skipped/failed:", err);
+      }
+    }
+
+    await signOut();
+
+    return {
+      success: true,
+      societyId,
+      mode: "standard",
+      status: "PENDING_APPROVAL",
+      routerResponse: data,
+      provision: null,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      societyId: null,
+      mode: isPlatformAdmin ? "platform_admin" : "standard",
+      status: null,
+      routerResponse: null,
+      provision: null,
+      error: err instanceof Error ? err.message : "Society registration failed",
+    };
+  }
+}
+
+async function provisionViaRouter(
+  payload: SocietyOnboardingPayload,
+  societyId: string,
+): Promise<void> {
   const shouldProvision = payload.provisionDatabase !== false;
+  if (!shouldProvision) return;
 
   const ctx: ManifestContext = {
     societyId,
@@ -80,94 +250,30 @@ export async function onboardSociety(
     },
   };
 
-  // Manifest is passed as configuration — engine stays free of hardcoded tables.
   const manifest = buildTenantSchemaManifest(ctx);
-  const migrations = shouldProvision
-    ? serializeManifestForRemote(manifest, ctx, { runSeeds: true })
-    : [];
+  const migrations = serializeManifestForRemote(manifest, ctx, { runSeeds: true });
 
-  let routerResponse: unknown = null;
+  await fetch(`${ROUTER_URL}/api/societies`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      id: societyId,
+      name: payload.society_name,
+      address: payload.address ?? null,
+      city: payload.city ?? null,
+      state: payload.state ?? null,
+      is_active: false,
+      admin: payload.admin,
+      provision: { migrations, runSeeds: true },
+    }),
+  }).catch(() => null);
 
-  try {
-    const response = await fetch(`${ROUTER_URL}/api/societies`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        id: societyId,
-        name: payload.society_name,
-        address: payload.address ?? null,
-        city: payload.city ?? null,
-        state: payload.state ?? null,
-        is_active: payload.isActive ?? false,
-        admin: payload.admin,
-        provision: shouldProvision
-          ? {
-              // Data-driven: remote executor only runs the provided statements.
-              migrations,
-              runSeeds: true,
-            }
-          : undefined,
-      }),
-    });
-
-    const contentType = response.headers.get("content-type") || "";
-    routerResponse = contentType.includes("application/json")
-      ? await response.json()
-      : await response.text();
-
-    if (!response.ok) {
-      const message =
-        typeof routerResponse === "object" &&
-        routerResponse &&
-        "error" in routerResponse &&
-        typeof (routerResponse as { error?: unknown }).error === "string"
-          ? (routerResponse as { error: string }).error
-          : `Society registration failed (${response.status})`;
-
-      return {
-        success: false,
-        societyId,
-        routerResponse,
-        provision: null,
-        error: message,
-      };
-    }
-  } catch (err) {
-    return {
-      success: false,
-      societyId,
-      routerResponse,
-      provision: null,
-      error: err instanceof Error ? err.message : "Failed to reach society registration API",
-    };
-  }
-
-  let provision: ProvisionTenantResult | null = null;
-
-  // Optional direct provisioning when a connection config is supplied (server-side).
-  if (shouldProvision && payload.connectionConfig) {
-    provision = await provisionTenantDatabase(payload.connectionConfig, manifest, {
+  if (payload.connectionConfig) {
+    await provisionTenantDatabase(payload.connectionConfig, manifest, {
       runSeeds: true,
       context: ctx,
     });
-
-    if (!provision.success) {
-      return {
-        success: false,
-        societyId,
-        routerResponse,
-        provision,
-        error: provision.error ?? "Tenant database provisioning failed",
-      };
-    }
   }
-
-  return {
-    success: true,
-    societyId,
-    routerResponse,
-    provision,
-  };
 }
 
 /**
@@ -218,7 +324,6 @@ export async function provisionSocietyTenant(input: {
       ? await response.json()
       : await response.text();
 
-    // Fallback for routers that only accept provision on collection create.
     if (response.status === 404) {
       const fallback = await fetch(`${ROUTER_URL}/api/societies`, {
         method: "POST",
@@ -242,6 +347,8 @@ export async function provisionSocietyTenant(input: {
         return {
           success: false,
           societyId: input.societyId,
+          mode: null,
+          status: null,
           routerResponse,
           provision: null,
           error: "Tenant provisioning request failed",
@@ -251,6 +358,8 @@ export async function provisionSocietyTenant(input: {
       return {
         success: false,
         societyId: input.societyId,
+        mode: null,
+        status: null,
         routerResponse,
         provision: null,
         error: "Tenant provisioning request failed",
@@ -260,6 +369,8 @@ export async function provisionSocietyTenant(input: {
     return {
       success: false,
       societyId: input.societyId,
+      mode: null,
+      status: null,
       routerResponse,
       provision: null,
       error: err instanceof Error ? err.message : "Failed to reach provisioning API",
@@ -276,6 +387,8 @@ export async function provisionSocietyTenant(input: {
       return {
         success: false,
         societyId: input.societyId,
+        mode: null,
+        status: null,
         routerResponse,
         provision,
         error: provision.error,
@@ -286,6 +399,8 @@ export async function provisionSocietyTenant(input: {
   return {
     success: true,
     societyId: input.societyId,
+    mode: null,
+    status: null,
     routerResponse,
     provision,
   };
