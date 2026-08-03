@@ -219,7 +219,7 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
         <div className="space-y-2">
           <Label>Address</Label>
           <Input
-            placeholder="123, MG Road"
+            placeholder="e.g. 123, Master Canteen"
             value={form.address}
             onChange={(e) => update("address", e.target.value)}
           />
@@ -227,11 +227,11 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>City</Label>
-            <Input placeholder="Bangalore" value={form.city} onChange={(e) => update("city", e.target.value)} />
+            <Input placeholder="e.g. Bhubaneswar" value={form.city} onChange={(e) => update("city", e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>State</Label>
-            <Input placeholder="Karnataka" value={form.state} onChange={(e) => update("state", e.target.value)} />
+            <Input placeholder="e.g. Odisha" value={form.state} onChange={(e) => update("state", e.target.value)} />
           </div>
         </div>
       </div>

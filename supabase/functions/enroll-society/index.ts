@@ -1,208 +1,214 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-nocheck
+/**
+ * ============================================================================
+ * Supabase Edge Function: enroll-society
+ * ============================================================================
+ * 
+ * Architecture & Responsibility:
+ *   1. Accepts multi-format frontend payload keys (camelCase or snake_case).
+ *   2. Validates mandatory registration fields (email, password, society name).
+ *   3. Connects to Supabase Auth Admin API to provision user credentials.
+ *   4. Direct-connects to Neon PostgreSQL DB via DATABASE_URL to insert:
+ *      a) User record in public.users (satisfies societies_created_by_fkey).
+ *      b) Society record in public.societies.
+ * 
+ * Secrets Required:
+ *   - SUPABASE_URL
+ *   - SUPABASE_SERVICE_ROLE_KEY
+ *   - DATABASE_URL (Neon DB Connection String)
+ * ============================================================================
+ */
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import postgres from 'https://deno.land/x/postgresjs@v3.4.4/mod.js'
+
+/**
+ * Standard Cross-Origin Resource Sharing (CORS) headers.
+ */
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
-type EnrollBody = {
-  email?: string;
-  password?: string;
-  full_name?: string;
-  phone?: string;
-  society_name?: string;
-  address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  /** Present for standard flow after client signUp */
-  user_id?: string;
-};
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+Deno.serve(async (req: Request) => {
+  // --------------------------------------------------------------------------
+  // STEP 1: Handle CORS Preflight (OPTIONS) Requests
+  // --------------------------------------------------------------------------
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const superAdminEmail = (
-      Deno.env.get("SUPER_ADMIN_EMAIL") ||
-      Deno.env.get("VITE_SUPER_ADMIN_EMAIL") ||
-      ""
-    )
-      .trim()
-      .toLowerCase();
-
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const body = (await req.json()) as EnrollBody;
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password || "");
-    const fullName = String(body.full_name || "").trim();
-    const phone = body.phone ? String(body.phone).trim() : null;
-    const societyName = String(body.society_name || "").trim();
-
-    if (!email || !fullName || !societyName) {
-      throw new Error("Missing required fields: email, full_name, society_name");
-    }
-
-    // Platform Admin bootstrap: email match only (never an env password).
-    // Account password is always the form-submitted password from the client.
-    const isPlatformAdmin = Boolean(superAdminEmail) && email === superAdminEmail;
-
-    if (isPlatformAdmin) {
-      if (!password || password.length < 6) {
-        throw new Error("Password must be at least 6 characters");
-      }
-
-      const confirmedAt = new Date().toISOString();
-
-      // Create or fetch confirmed Platform Admin using the form password
-      let userId: string | null = null;
-      const { data: created, error: createError } = await admin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: fullName, phone },
-      });
-
-      if (createError) {
-        // User may already exist — update confirmation + form password
-        const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-        const existing = list?.users?.find((u) => (u.email || "").toLowerCase() === email);
-        if (!existing) throw createError;
-        userId = existing.id;
-        const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
-          password,
-          email_confirm: true,
-          user_metadata: { full_name: fullName, phone },
-        });
-        if (updateError) throw updateError;
-      } else {
-        userId = created.user?.id ?? null;
-      }
-
-      if (!userId) throw new Error("Failed to create Platform Admin user");
-
-      // Pre-confirm so email_confirmed_at is set (immediate login + password resets).
-      const { data: confirmedUser, error: confirmError } = await admin.auth.admin.updateUserById(
-        userId,
-        { email_confirm: true },
-      );
-      if (confirmError) throw confirmError;
-      const emailConfirmedAt =
-        confirmedUser?.user?.email_confirmed_at || confirmedAt;
-
-      // Upsert profile
-      await admin.from("profiles").upsert(
-        { user_id: userId, full_name: fullName, phone },
-        { onConflict: "user_id" },
-      );
-
-      // Assign platform role (DB enum: super_admin ≡ PLATFORM_ADMIN / SUPER_ADMIN)
-      const { data: existingRole } = await admin
-        .from("user_roles")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("role", "super_admin")
-        .maybeSingle();
-
-      if (!existingRole) {
-        const { error: roleError } = await admin
-          .from("user_roles")
-          .insert({ user_id: userId, role: "super_admin" });
-        if (roleError) throw roleError;
-      }
-
-      // Active platform society for bootstrap context
-      const { data: society, error: socError } = await admin
-        .from("societies")
-        .insert({
-          name: societyName,
-          address: body.address || null,
-          city: body.city || null,
-          state: body.state || null,
-          created_by: userId,
-          is_active: true,
-        })
-        .select("id")
-        .single();
-      if (socError) throw socError;
-
+    // ------------------------------------------------------------------------
+    // STEP 2: Extract & Verify Environment Secrets
+    // ------------------------------------------------------------------------
+    const dbUrl = Deno.env.get('DATABASE_URL')
+    if (!dbUrl) {
+      console.error('[ERROR] DATABASE_URL secret is missing in Supabase Edge Function environment.')
       return new Response(
-        JSON.stringify({
-          success: true,
-          mode: "platform_admin",
-          status: "APPROVED",
-          role: "PLATFORM_ADMIN",
-          email_confirmed_at: emailConfirmedAt,
-          user_id: userId,
-          society_id: society.id,
+        JSON.stringify({ 
+          success: false, 
+          error: 'DATABASE_URL secret is missing in Supabase Edge Functions environment.' 
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
-    // ─── Standard society onboarding (PENDING_APPROVAL) ───────────────────
-    // Expect client to have already called signUp; user_id required.
-    const userId = String(body.user_id || "").trim();
-    if (!userId) {
-      throw new Error("user_id is required for standard society enrollment");
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('[ERROR] Supabase project secrets (URL/Service Role Key) are missing.')
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Supabase URL or Service Role Key secret is unconfigured.' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      )
     }
 
-    const { data: userData, error: getUserError } = await admin.auth.admin.getUserById(userId);
-    if (getUserError || !userData.user) throw new Error("User not found for enrollment");
-    if ((userData.user.email || "").toLowerCase() !== email) {
-      throw new Error("Email does not match the signup user");
+    // ------------------------------------------------------------------------
+    // STEP 3: Initialize Database & Auth Clients
+    // ------------------------------------------------------------------------
+    const sql = postgres(dbUrl)
+    const supabaseClient = createClient(supabaseUrl, serviceRoleKey)
+
+    // ------------------------------------------------------------------------
+    // STEP 4: Parse & Process Payload
+    // ------------------------------------------------------------------------
+    const payload = await req.json()
+    console.log('[INFO] Incoming enrollment payload received:', JSON.stringify(payload))
+
+    const email = payload.email
+    const password = payload.password
+    const societyName = payload.societyName || payload.society_name || payload.name
+    const fullName = payload.fullName || payload.full_name || payload.adminName || societyName
+    const address = payload.address || null
+    const city = payload.city || null
+    const state = payload.state || null
+
+    // ------------------------------------------------------------------------
+    // STEP 5: Input Payload Validation
+    // ------------------------------------------------------------------------
+    if (!email || !password || !societyName) {
+      console.warn('[WARN] Payload validation failed. Missing mandatory parameters.')
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Missing required fields: email, password, and societyName/society_name are mandatory.' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
     }
 
-    await admin.from("profiles").upsert(
-      { user_id: userId, full_name: fullName, phone },
-      { onConflict: "user_id" },
-    );
+    // ------------------------------------------------------------------------
+    // STEP 6: Create Society Admin Credentials in Supabase Auth
+    // ------------------------------------------------------------------------
+    console.log(`[INFO] Provisioning auth account for email: ${email}`)
+    const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+      user_metadata: {
+        display_name: fullName,
+        full_name: fullName,
+        role: 'SOCIETY_ADMIN',
+        society_name: societyName
+      }
+    })
 
-    const { data: society, error: socError } = await admin
-      .from("societies")
-      .insert({
-        name: societyName,
-        address: body.address || null,
-        city: body.city || null,
-        state: body.state || null,
-        created_by: userId,
-        is_active: false,
-      })
-      .select("id")
-      .single();
-    if (socError) throw socError;
+    if (authError) {
+      console.error('[ERROR] Supabase Auth creation failed:', authError.message)
+      throw new Error(`Auth Error: ${authError.message}`)
+    }
 
-    const { error: rrError } = await admin.from("role_requests").insert({
-      requester_id: userId,
-      requested_role: "admin",
-      society_id: society.id,
-      status: "pending",
-      reason: `Society onboarding request: ${societyName}`,
-    });
-    if (rrError) throw rrError;
+    const userId = authData.user.id
 
+    // ------------------------------------------------------------------------
+    // STEP 7: Provision User Record in Neon DB public.users Table
+    // Satisfies foreign key constraints for created_by in societies table
+    // ------------------------------------------------------------------------
+    console.log(`[INFO] Inserting user record into Neon DB users table for ID: ${userId}`)
+    
+    await sql`
+      INSERT INTO public.users (
+        id, 
+        email, 
+        full_name, 
+        role
+      )
+      VALUES (
+        ${userId}, 
+        ${email}, 
+        ${fullName}, 
+        'SOCIETY_ADMIN'
+      )
+      ON CONFLICT (id) DO UPDATE 
+      SET email = EXCLUDED.email, full_name = EXCLUDED.full_name
+    `
+
+    // ------------------------------------------------------------------------
+    // STEP 8: Insert Society Record in Neon DB public.societies Table
+    // ------------------------------------------------------------------------
+    console.log(`[INFO] Inserting society record "${societyName}" into Neon DB...`)
+    
+    const societyResult = await sql`
+      INSERT INTO public.societies (
+        name, 
+        address, 
+        city, 
+        state, 
+        created_by, 
+        is_active
+      )
+      VALUES (
+        ${societyName}, 
+        ${address}, 
+        ${city}, 
+        ${state}, 
+        ${userId}, 
+        true
+      )
+      RETURNING *
+    `
+
+    console.log('[INFO] Society successfully created in Neon DB:', societyResult[0])
+
+    // ------------------------------------------------------------------------
+    // STEP 9: Return Success Response
+    // ------------------------------------------------------------------------
     return new Response(
       JSON.stringify({
         success: true,
-        mode: "standard",
-        status: "PENDING_APPROVAL",
-        user_id: userId,
-        society_id: society.id,
+        message: 'Society enrolled successfully in Neon DB!',
+        society: societyResult[0],
+        user: {
+          id: userId,
+          email: authData.user.email
+        }
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Enrollment failed";
-    return new Response(JSON.stringify({ error: message }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 200 
+      }
+    )
+
+  } catch (error: any) {
+    // ------------------------------------------------------------------------
+    // STEP 10: Global Exception Handling
+    // ------------------------------------------------------------------------
+    console.error('[EXCEPTION] Enrollment Edge Function failed:', error.message)
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message || 'An unexpected error occurred during society enrollment.'
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 400 
+      }
+    )
   }
-});
+})
