@@ -36,7 +36,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ResidentFormDialog, ResidentFormData } from "@/components/residents/ResidentFormDialog";
@@ -81,8 +81,8 @@ const Residents = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchUnits = useCallback(async () => {
-    const { data: buildingsData } = await supabase.from("buildings").select("id, name");
-    const { data: unitsData } = await supabase.from("units").select("id, unit_number, building_id");
+    const { data: buildingsData } = await tenantDb.from("buildings").select("id, name");
+    const { data: unitsData } = await tenantDb.from("units").select("id, unit_number, building_id");
     if (!buildingsData || !unitsData) return;
 
     const buildingMap = Object.fromEntries(buildingsData.map((b) => [b.id, b.name]));
@@ -97,7 +97,7 @@ const Residents = () => {
 
   const fetchResidents = useCallback(async () => {
     setLoading(true);
-    let query = supabase.from("residents").select("*").order("created_at", { ascending: false });
+    let query = tenantDb.from("residents").select("*").order("created_at", { ascending: false });
 
     const { data, error } = await query;
     if (error) {
@@ -137,7 +137,7 @@ const Residents = () => {
       return;
     }
 
-    const { error } = await supabase.from("residents").insert({
+    const { error } = await tenantDb.from("residents").insert({
       full_name: form.full_name,
       phone: form.phone || null,
       email: form.email || null,
@@ -166,8 +166,7 @@ const Residents = () => {
       unit_id: form.unit_id || null,
     };
     if (form.photo_url) updateData.photo_url = form.photo_url;
-    const { error } = await supabase
-      .from("residents")
+    const { error } = await tenantDb.from("residents")
       .update(updateData as any)
       .eq("id", editData.id);
 
@@ -180,8 +179,7 @@ const Residents = () => {
   const handleStatusChange = async (id: string, newStatus: "approved" | "rejected") => {
     setActionLoading(id);
     try {
-      const { error } = await supabase
-        .from("residents")
+      const { error } = await tenantDb.from("residents")
         .update({ status: newStatus as any, approved_by: user?.id })
         .eq("id", id);
       if (error) throw error;

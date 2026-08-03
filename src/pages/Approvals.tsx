@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen, Eye, Home } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ApprovalDetailDialog } from "@/components/approvals/ApprovalDetailDialog";
@@ -75,8 +75,7 @@ const Approvals = () => {
     const pending: PendingItem[] = [];
 
     // Fetch pending visitors
-    const { data: visitors } = await supabase
-      .from("visitors")
+    const { data: visitors } = await tenantDb.from("visitors")
       .select("id, name, phone, visiting_unit_label, purpose, created_at")
       .eq("status", "pending");
     visitors?.forEach((v) =>
@@ -91,8 +90,7 @@ const Approvals = () => {
     );
 
     // Fetch pending residents
-    const { data: residents } = await supabase
-      .from("residents")
+    const { data: residents } = await tenantDb.from("residents")
       .select("id, full_name, phone, resident_type, created_at")
       .eq("status", "pending");
     residents?.forEach((r) =>
@@ -107,8 +105,7 @@ const Approvals = () => {
     );
 
     // Fetch pending helpers
-    const { data: helpers } = await supabase
-      .from("helpers")
+    const { data: helpers } = await tenantDb.from("helpers")
       .select("id, name, phone, service_type, created_at")
       .eq("status", "pending");
     helpers?.forEach((h) =>
@@ -123,8 +120,7 @@ const Approvals = () => {
     );
 
     // Fetch pending vehicles
-    const { data: vehicles } = await supabase
-      .from("vehicles")
+    const { data: vehicles } = await tenantDb.from("vehicles")
       .select("id, vehicle_number, vehicle_type, parking_slot, created_at")
       .eq("status", "pending");
     vehicles?.forEach((v) =>
@@ -139,8 +135,7 @@ const Approvals = () => {
     );
 
     // Fetch pending role requests
-    const { data: roleReqs } = await supabase
-      .from("role_requests")
+    const { data: roleReqs } = await tenantDb.from("role_requests")
       .select("id, requested_role, reason, created_at")
       .eq("status", "pending");
     roleReqs?.forEach((r) =>
@@ -155,8 +150,7 @@ const Approvals = () => {
     );
 
     // Fetch pending move passes (pending_owner and pending_admin)
-    const { data: movePasses } = await supabase
-      .from("move_passes")
+    const { data: movePasses } = await tenantDb.from("move_passes")
       .select("id, pass_type, status, scheduled_date, notes, created_at")
       .in("status", ["pending_owner", "pending_admin"]);
     (movePasses as any[])?.forEach((m) =>
@@ -277,8 +271,7 @@ const Approvals = () => {
 
       // Move passes have their own multi-step logic
       if (item.category === "move_passes") {
-        const { data: mp } = await supabase
-          .from("move_passes")
+        const { data: mp } = await tenantDb.from("move_passes")
           .select("status")
           .eq("id", item.id)
           .single();
@@ -291,7 +284,7 @@ const Approvals = () => {
             : action === "approved"
               ? { status: "approved", admin_approved_by: user?.id, admin_approved_at: new Date().toISOString() }
               : { status: "rejected", admin_rejection_reason: "Rejected by admin", admin_approved_by: user?.id, admin_approved_at: new Date().toISOString() };
-        const { error } = await supabase.from("move_passes").update(updates).eq("id", item.id);
+        const { error } = await tenantDb.from("move_passes").update(updates).eq("id", item.id);
         if (error) throw error;
         toast({ title: action === "approved" ? "Approved ✓" : "Rejected", description: `${item.title} updated.` });
         setItems((prev) => prev.filter((i) => i.id !== item.id));
@@ -307,8 +300,7 @@ const Approvals = () => {
         updateData.approved_by = user?.id;
       }
 
-      const { error } = await supabase
-        .from(table)
+      const { error } = await tenantDb.from(table)
         .update(updateData)
         .eq("id", item.id);
 
@@ -316,14 +308,13 @@ const Approvals = () => {
 
       // If approving a role request, also insert the role
       if (action === "approved" && item.category === "role_requests") {
-        const { data: req } = await supabase
-          .from("role_requests")
+        const { data: req } = await tenantDb.from("role_requests")
           .select("requester_id, requested_role")
           .eq("id", item.id)
           .single();
 
         if (req) {
-          await supabase.from("user_roles").insert({
+          await tenantDb.from("user_roles").insert({
             user_id: req.requester_id,
             role: req.requested_role as any,
           });

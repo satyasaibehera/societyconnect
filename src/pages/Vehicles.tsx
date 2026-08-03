@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Car, Plus, Search, MoreHorizontal, Pencil, Check, X, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { VehicleFormDialog, VehicleFormData } from "@/components/vehicles/VehicleFormDialog";
@@ -46,13 +46,13 @@ const Vehicles = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchResidents = useCallback(async () => {
-    const { data } = await supabase.from("residents").select("id, full_name").eq("status", "approved");
+    const { data } = await tenantDb.from("residents").select("id, full_name").eq("status", "approved");
     setResidents(data || []);
   }, []);
 
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("vehicles").select("*").order("created_at", { ascending: false });
+    const { data, error } = await tenantDb.from("vehicles").select("*").order("created_at", { ascending: false });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); setLoading(false); return; }
     const enriched: Vehicle[] = (data || []).map((v) => {
       const r = residents.find((x) => x.id === v.resident_id);
@@ -68,7 +68,7 @@ const Vehicles = () => {
   const handleAdd = async (form: VehicleFormData) => {
     const societyId = await getSocietyId();
     if (!societyId) { toast({ title: "No society found", variant: "destructive" }); return; }
-    const { error } = await supabase.from("vehicles").insert({
+    const { error } = await tenantDb.from("vehicles").insert({
       vehicle_number: form.vehicle_number, vehicle_type: form.vehicle_type || null,
       parking_slot: form.parking_slot || null, resident_id: form.resident_id || null,
       society_id: societyId, status: "pending" as any,
@@ -80,7 +80,7 @@ const Vehicles = () => {
 
   const handleEdit = async (form: VehicleFormData) => {
     if (!editData) return;
-    const { error } = await supabase.from("vehicles").update({
+    const { error } = await tenantDb.from("vehicles").update({
       vehicle_number: form.vehicle_number, vehicle_type: form.vehicle_type || null,
       parking_slot: form.parking_slot || null, resident_id: form.resident_id || null,
     }).eq("id", editData.id);
@@ -93,7 +93,7 @@ const Vehicles = () => {
   const handleStatusChange = async (id: string, newStatus: "approved" | "rejected") => {
     setActionLoading(id);
     try {
-      const { error } = await supabase.from("vehicles").update({ status: newStatus as any, approved_by: user?.id }).eq("id", id);
+      const { error } = await tenantDb.from("vehicles").update({ status: newStatus as any, approved_by: user?.id }).eq("id", id);
       if (error) throw error;
       toast({ title: newStatus === "approved" ? "Approved ✓" : "Rejected" });
       fetchVehicles();

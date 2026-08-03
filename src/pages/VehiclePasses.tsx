@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QRCodeSVG } from "qrcode.react";
 import { Car, Plus, Loader2, Search, Download, Clock, Shield, Home, Check, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUnitApprover } from "@/hooks/useUnitApprover";
@@ -79,8 +79,7 @@ const VehiclePasses = () => {
     if (approverSocietyId) {
       setSocietyId(approverSocietyId);
       // Fetch society's temp pass validity config
-      const { data: society } = await supabase
-        .from("societies")
+      const { data: society } = await tenantDb.from("societies")
         .select("temp_pass_validity_hours")
         .eq("id", approverSocietyId)
         .maybeSingle();
@@ -89,8 +88,7 @@ const VehiclePasses = () => {
     }
     if (!user) return;
     // Security staff fallback
-    const { data: staff } = await supabase
-      .from("security_staff")
+    const { data: staff } = await tenantDb.from("security_staff")
       .select("society_id")
       .eq("user_id", user.id)
       .limit(1)
@@ -100,8 +98,7 @@ const VehiclePasses = () => {
 
   const fetchPasses = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("vehicle_passes")
+    const { data } = await tenantDb.from("vehicle_passes")
       .select("*")
       .order("created_at", { ascending: false });
     setPasses((data as VehiclePass[]) || []);
@@ -109,17 +106,20 @@ const VehiclePasses = () => {
   }, []);
 
   const fetchUnits = useCallback(async () => {
-    const { data } = await supabase
-      .from("units")
-      .select("id, unit_number, building_id, buildings!units_building_id_fkey(name)")
+    const { data } = await tenantDb.from("units")
+      .select("id, unit_number, building_id")
       .order("unit_number");
-    if (data) {
-      setUnits(data.map((u) => ({
-        id: u.id,
-        unit_number: u.unit_number,
-        building_name: (u.buildings as any)?.name || "",
-      })));
-    }
+    if (!data) return;
+    const buildingIds = [...new Set(data.map((u) => u.building_id).filter(Boolean) as string[])];
+    const { data: buildingsData } = buildingIds.length
+      ? await tenantDb.from("buildings").select("id, name").in("id", buildingIds)
+      : { data: [] as { id: string; name: string }[] };
+    const buildingMap = new Map(buildingsData?.map((b) => [b.id, b.name]) ?? []);
+    setUnits(data.map((u) => ({
+      id: u.id,
+      unit_number: u.unit_number,
+      building_name: u.building_id ? buildingMap.get(u.building_id) || "" : "",
+    })));
   }, []);
 
   useEffect(() => { fetchContext(); }, [fetchContext]);
@@ -159,7 +159,7 @@ const VehiclePasses = () => {
     const isOwnerTempPass = passType === "temporary" && form.unit_id && form.unit_id === myUnitId;
     const status = isOwnerTempPass ? "approved" : "pending";
 
-    const { error } = await supabase.from("vehicle_passes").insert({
+    const { error } = await tenantDb.from("vehicle_passes").insert({
       vehicle_number: form.vehicle_number.toUpperCase(),
       vehicle_type: form.vehicle_type || null,
       pass_type: passType,
@@ -191,7 +191,7 @@ const VehiclePasses = () => {
   };
 
   const handleApproval = async (passId: string, approved: boolean) => {
-    const { error } = await supabase.from("vehicle_passes").update({
+    const { error } = await tenantDb.from("vehicle_passes").update({
       status: approved ? "approved" : "rejected",
       approved_by: user?.id,
     }).eq("id", passId);

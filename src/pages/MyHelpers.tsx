@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Wrench, Plus, Loader2, Phone, Pencil } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -37,8 +37,7 @@ const MyHelpers = () => {
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("residents")
+    const { data } = await tenantDb.from("residents")
       .select("unit_id, society_id")
       .eq("user_id", user.id)
       .eq("status", "approved")
@@ -53,8 +52,7 @@ const MyHelpers = () => {
   const fetchHelpers = useCallback(async () => {
     if (!unitId || !societyId) return;
     setLoading(true);
-    const { data: assignments } = await supabase
-      .from("helper_assignments")
+    const { data: assignments } = await tenantDb.from("helper_assignments")
       .select("helper_id")
       .eq("unit_id", unitId);
     const helperIds = assignments?.map((a) => a.helper_id) || [];
@@ -63,8 +61,7 @@ const MyHelpers = () => {
       setLoading(false);
       return;
     }
-    const { data } = await supabase
-      .from("helpers")
+    const { data } = await tenantDb.from("helpers")
       .select("id, name, phone, service_type, status")
       .in("id", helperIds);
     setHelpers(data || []);
@@ -99,7 +96,7 @@ const MyHelpers = () => {
     const serviceType = form.service_type === "other" ? (form.service_type_other || "other") : (form.service_type || null);
 
     if (editingHelper) {
-      const { error } = await supabase.from("helpers").update({
+      const { error } = await tenantDb.from("helpers").update({
         name: form.name,
         phone: form.phone || null,
         service_type: serviceType,
@@ -114,7 +111,7 @@ const MyHelpers = () => {
       }
     } else {
       if (!societyId) { setSaving(false); return; }
-      const { data: newHelper, error } = await supabase.from("helpers").insert({
+      const { data: newHelper, error } = await tenantDb.from("helpers").insert({
         name: form.name,
         phone: form.phone || null,
         service_type: serviceType,
@@ -130,7 +127,7 @@ const MyHelpers = () => {
       }
 
       if (newHelper && unitId) {
-        await supabase.from("helper_assignments").insert({
+        await tenantDb.from("helper_assignments").insert({
           helper_id: newHelper.id,
           unit_id: unitId,
         });

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar, Plus, Loader2, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,7 +34,7 @@ const Meetings = () => {
 
   const fetchMeetings = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from("meetings").select("*").order("meeting_date", { ascending: false });
+    const { data } = await tenantDb.from("meetings").select("*").order("meeting_date", { ascending: false });
     setMeetings(data || []);
     setLoading(false);
   }, []);
@@ -46,14 +46,14 @@ const Meetings = () => {
     setSaving(true);
     const societyId = await getSocietyId();
     if (!societyId) { toast({ title: "No society found", variant: "destructive" }); setSaving(false); return; }
-    const { error } = await supabase.from("meetings").insert({ title, agenda: agenda || null, meeting_date: meetingDate || null, society_id: societyId, created_by: user?.id });
+    const { error } = await tenantDb.from("meetings").insert({ title, agenda: agenda || null, meeting_date: meetingDate || null, society_id: societyId, created_by: user?.id });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Meeting scheduled" }); setTitle(""); setAgenda(""); setMeetingDate(""); setDialogOpen(false); fetchMeetings(); }
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("meetings").delete().eq("id", id);
+    const { error } = await tenantDb.from("meetings").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Meeting deleted" }); fetchMeetings(); }
   };

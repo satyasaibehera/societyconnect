@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ClipboardList, Plus, Loader2, Trash2, FileText, Users, CheckSquare, Calendar } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -60,8 +60,7 @@ const Notices = () => {
   const fetchNoticeTypes = useCallback(async () => {
     const sid = await getSocietyId();
     if (!sid) return;
-    const { data } = await supabase
-      .from("notice_types")
+    const { data } = await tenantDb.from("notice_types")
       .select("*")
       .eq("society_id", sid)
       .eq("is_active", true)
@@ -73,8 +72,7 @@ const Notices = () => {
 
   const fetchNotices = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("notices")
+    const { data } = await tenantDb.from("notices")
       .select("*")
       .order("created_at", { ascending: false });
     setNotices((data as Notice[]) || []);
@@ -118,14 +116,14 @@ const Notices = () => {
       payload.action_items = actionItems || null;
     }
 
-    const { error } = await supabase.from("notices").insert(payload as any);
+    const { error } = await tenantDb.from("notices").insert(payload as any);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: `${getTypeConfig(selectedType)?.label || "Post"} published` }); resetForm(); setDialogOpen(false); fetchNotices(); }
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("notices").delete().eq("id", id);
+    const { error } = await tenantDb.from("notices").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Deleted" }); fetchNotices(); }
   };

@@ -21,7 +21,7 @@ import {
 import {
   Award, UserPlus, MoreHorizontal, Pencil, Trash2, Loader2, ShieldCheck, Search,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useToast } from "@/hooks/use-toast";
 import { getSocietyId } from "@/lib/society";
 
@@ -65,8 +65,7 @@ const OfficeBearers = () => {
 
   const fetchBearers = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("office_bearers")
+    const { data, error } = await tenantDb.from("office_bearers")
       .select("*")
       .order("created_at", { ascending: true });
     if (error) {
@@ -79,8 +78,7 @@ const OfficeBearers = () => {
     const userIds = (data || []).map((b: any) => b.user_id);
     let profileMap = new Map<string, string>();
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
+      const { data: profiles } = await tenantDb.from("profiles")
         .select("user_id, full_name")
         .in("user_id", userIds);
       profiles?.forEach((p) => profileMap.set(p.user_id, p.full_name || ""));
@@ -96,8 +94,7 @@ const OfficeBearers = () => {
   }, [toast]);
 
   const fetchResidents = useCallback(async () => {
-    const { data } = await supabase
-      .from("residents")
+    const { data } = await tenantDb.from("residents")
       .select("id, user_id, full_name")
       .eq("status", "approved")
       .not("user_id", "is", null);
@@ -141,8 +138,7 @@ const OfficeBearers = () => {
     setSaving(true);
     try {
       if (editId) {
-        const { error } = await supabase
-          .from("office_bearers")
+        const { error } = await tenantDb.from("office_bearers")
           .update({
             designation: formDesignation as any,
             phone: formPhone || null,
@@ -163,8 +159,7 @@ const OfficeBearers = () => {
           setSaving(false);
           return;
         }
-        const { error } = await supabase
-          .from("office_bearers")
+        const { error } = await tenantDb.from("office_bearers")
           .insert({
             user_id: formUserId,
             society_id: societyId,
@@ -186,8 +181,7 @@ const OfficeBearers = () => {
   };
 
   const handleToggleApprover = async (id: string, current: boolean) => {
-    const { error } = await supabase
-      .from("office_bearers")
+    const { error } = await tenantDb.from("office_bearers")
       .update({ is_approver: !current })
       .eq("id", id);
     if (error) {
@@ -199,7 +193,7 @@ const OfficeBearers = () => {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    const { error } = await supabase.from("office_bearers").delete().eq("id", id);
+    const { error } = await tenantDb.from("office_bearers").delete().eq("id", id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {

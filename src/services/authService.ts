@@ -5,11 +5,11 @@ import type {
   AuthTokenResponsePassword,
 } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import { sanitizeAuthError } from "@/lib/authErrors";
+import { sanitizeAuthError, isDuplicateRegistrationError } from "@/lib/authErrors";
+import { APP_CONFIG } from "@/config/appConfig";
 import { appRegistrationMetadata } from "@/services/appAccessService";
 
-const ROUTER_URL =
-  import.meta.env.VITE_ROUTER_API_URL || "https://universal-tenant-router.netlify.app";
+const ROUTER_URL = APP_CONFIG.routerBaseUrl;
 const AUTH_PROVIDER = (import.meta.env.VITE_AUTH_PROVIDER || "supabase") as "custom" | "supabase";
 
 export type SignInCredentials = {

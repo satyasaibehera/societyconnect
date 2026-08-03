@@ -13,7 +13,7 @@ import {
 import {
   Shield, UserPlus, Search, MoreHorizontal, Pencil, Trash2, Loader2,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useToast } from "@/hooks/use-toast";
 import { SecurityStaffFormDialog, SecurityStaffFormData } from "@/components/security/SecurityStaffFormDialog";
 
@@ -34,7 +34,7 @@ const Security = () => {
 
   const fetchStaff = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("security_staff").select("*").order("created_at", { ascending: false });
+    const { data, error } = await tenantDb.from("security_staff").select("*").order("created_at", { ascending: false });
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
     setStaff(data || []);
     setLoading(false);
@@ -47,7 +47,7 @@ const Security = () => {
   const handleAdd = async (form: SecurityStaffFormData) => {
     const societyId = await getSocietyId();
     if (!societyId) { toast({ title: "No society found", variant: "destructive" }); return; }
-    const { error } = await supabase.from("security_staff").insert({ name: form.name, phone: form.phone || null, society_id: societyId });
+    const { error } = await tenantDb.from("security_staff").insert({ name: form.name, phone: form.phone || null, society_id: societyId });
     if (error) throw error;
     toast({ title: "Staff added", description: `${form.name} has been added.` });
     fetchStaff();
@@ -55,7 +55,7 @@ const Security = () => {
 
   const handleEdit = async (form: SecurityStaffFormData) => {
     if (!editData) return;
-    const { error } = await supabase.from("security_staff").update({ name: form.name, phone: form.phone || null }).eq("id", editData.id);
+    const { error } = await tenantDb.from("security_staff").update({ name: form.name, phone: form.phone || null }).eq("id", editData.id);
     if (error) throw error;
     toast({ title: "Staff updated" });
     setEditData(null);
@@ -63,7 +63,7 @@ const Security = () => {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    const { error } = await supabase.from("security_staff").delete().eq("id", id);
+    const { error } = await tenantDb.from("security_staff").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Removed", description: `${name} has been removed.` }); fetchStaff(); }
   };

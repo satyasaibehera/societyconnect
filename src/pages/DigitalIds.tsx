@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { QrCode, Search, Download, Users, Shield, Loader2, Briefcase, Home, Eye, Award } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useToast } from "@/hooks/use-toast";
 
 interface Person {
@@ -48,30 +48,32 @@ const DigitalIds = () => {
     const persons: Person[] = [];
 
     // Residents (owners, tenants, family → mapped to resident/tenant)
-    const { data: residents } = await supabase
-      .from("residents")
-      .select("id, full_name, phone, resident_type, unit_id, has_vacated, units!residents_unit_id_fkey(unit_number)")
+    const { data: residents } = await tenantDb.from("residents")
+      .select("id, full_name, phone, resident_type, unit_id, has_vacated")
       .eq("status", "approved");
+    const unitIds = [...new Set(residents?.map((r) => r.unit_id).filter(Boolean) as string[])];
+    const { data: unitsData } = unitIds.length
+      ? await tenantDb.from("units").select("id, unit_number").in("id", unitIds)
+      : { data: [] as { id: string; unit_number: string }[] };
+    const unitMap = new Map(unitsData?.map((u) => [u.id, u.unit_number]) ?? []);
     residents?.forEach((r) => {
       // Skip vacated tenants — they should not get digital IDs
       if (r.resident_type === "tenant" && r.has_vacated) return;
       let category: ColorKey = "resident";
       if (r.resident_type === "tenant") category = "tenant";
-      const unitLabel = (r.units as any)?.unit_number ?? null;
+      const unitLabel = r.unit_id ? unitMap.get(r.unit_id) ?? null : null;
       persons.push({ id: r.id, name: r.full_name, phone: r.phone, category, unitLabel });
     });
 
     // Security staff
-    const { data: staff } = await supabase
-      .from("security_staff")
+    const { data: staff } = await tenantDb.from("security_staff")
       .select("id, name, phone");
     staff?.forEach((s) =>
       persons.push({ id: s.id, name: s.name, phone: s.phone, category: "security" })
     );
 
     // Helpers
-    const { data: helpers } = await supabase
-      .from("helpers")
+    const { data: helpers } = await tenantDb.from("helpers")
       .select("id, name, phone")
       .eq("status", "approved");
     helpers?.forEach((h) =>
@@ -79,8 +81,7 @@ const DigitalIds = () => {
     );
 
     // Visitors (approved)
-    const { data: visitors } = await supabase
-      .from("visitors")
+    const { data: visitors } = await tenantDb.from("visitors")
       .select("id, name, phone, visiting_unit_label")
       .eq("status", "approved");
     visitors?.forEach((v) =>
@@ -88,13 +89,11 @@ const DigitalIds = () => {
     );
 
     // Office bearers (from office_bearers table + profiles for names)
-    const { data: officeBearers } = await supabase
-      .from("office_bearers")
+    const { data: officeBearers } = await tenantDb.from("office_bearers")
       .select("id, user_id, designation, phone");
     if (officeBearers && officeBearers.length > 0) {
       const obUserIds = officeBearers.map((ob) => ob.user_id);
-      const { data: obProfiles } = await supabase
-        .from("profiles")
+      const { data: obProfiles } = await tenantDb.from("profiles")
         .select("user_id, full_name")
         .in("user_id", obUserIds);
       const profileMap = new Map(obProfiles?.map((p) => [p.user_id, p.full_name]) ?? []);

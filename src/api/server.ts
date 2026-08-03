@@ -14,6 +14,6 @@ const app = createApiApp();
 app.listen(port, host, () => {
   console.log(`[api] Societies Connect API listening on http://${host}:${port}`);
   console.log(
-    "[api] Routes: GET /api/societies, GET /api/buildings, POST /api/register, POST /api/addition-requests",
+    "[api] Routes: GET /api/societies, GET /api/buildings, POST /api/register, GET|POST|PATCH|DELETE /api/data/:table",
   );
 });

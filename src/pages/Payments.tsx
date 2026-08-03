@@ -31,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Pencil, IndianRupee, Trash2, QrCode, CreditCard, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSocietyId } from "@/lib/society";
 import { toast } from "@/hooks/use-toast";
@@ -103,13 +103,11 @@ export default function Payments() {
     if (!societyId) return;
 
     const [catRes, recRes] = await Promise.all([
-      supabase
-        .from("payment_categories")
+      tenantDb.from("payment_categories")
         .select("*")
         .eq("society_id", societyId)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("payment_records")
+      tenantDb.from("payment_records")
         .select("*")
         .eq("society_id", societyId)
         .eq("payment_type", "society")
@@ -186,9 +184,9 @@ export default function Payments() {
 
     let error;
     if (editingId) {
-      ({ error } = await supabase.from("payment_categories").update(payload).eq("id", editingId));
+      ({ error } = await tenantDb.from("payment_categories").update(payload).eq("id", editingId));
     } else {
-      ({ error } = await supabase.from("payment_categories").insert(payload));
+      ({ error } = await tenantDb.from("payment_categories").insert(payload));
     }
 
     if (error) {
@@ -202,7 +200,7 @@ export default function Payments() {
   };
 
   const toggleActive = async (cat: PaymentCategory) => {
-    await supabase.from("payment_categories").update({ is_active: !cat.is_active }).eq("id", cat.id);
+    await tenantDb.from("payment_categories").update({ is_active: !cat.is_active }).eq("id", cat.id);
     fetchData();
   };
 
@@ -214,7 +212,7 @@ export default function Payments() {
       ...(!approve && reason ? { rejection_reason: reason } : {}),
     };
 
-    const { error } = await supabase.from("payment_records").update(update).eq("id", recordId);
+    const { error } = await tenantDb.from("payment_records").update(update).eq("id", recordId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {

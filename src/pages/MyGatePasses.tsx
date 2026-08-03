@@ -18,7 +18,7 @@ import {
   PackageOpen, ArrowDownToLine, ArrowUpFromLine, CalendarDays, FileCheck, Eye,
 } from "lucide-react";
 import { MovePassViewer } from "@/components/gate-passes/MovePassViewer";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUnitApprover } from "@/hooks/useUnitApprover";
@@ -154,24 +154,21 @@ const MyGatePasses = () => {
     setLoading(true);
 
     const [{ data: vData }, { data: vpData }, { data: mpData }, { data: society }] = await Promise.all([
-      supabase
-        .from("visitors")
+      tenantDb.from("visitors")
         .select("id,name,phone,purpose,status,entry_time,exit_time,created_at,created_by,visiting_unit_id")
         .eq("visiting_unit_id", myUnitId)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("vehicle_passes")
+      tenantDb.from("vehicle_passes")
         .select("id,vehicle_number,vehicle_type,pass_type,status,visitor_name,visitor_phone,purpose,unit_id,unit_label,valid_until,created_at,requested_by")
         .eq("unit_id", myUnitId)
         .eq("pass_type", "temporary")
         .order("created_at", { ascending: false }),
-      supabase
-        .from("move_passes")
+      tenantDb.from("move_passes")
         .select("*")
         .eq("unit_id", myUnitId)
         .order("created_at", { ascending: false }),
       societyId
-        ? supabase.from("societies").select("temp_pass_validity_hours, requires_admin_for_move_pass").eq("id", societyId).maybeSingle()
+        ? tenantDb.from("societies").select("temp_pass_validity_hours, requires_admin_for_move_pass").eq("id", societyId).maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
 
@@ -191,7 +188,7 @@ const MyGatePasses = () => {
   const handleAddVisitor = async () => {
     if (!visitorForm.name.trim() || !myUnitId || !societyId) return;
     setSaving(true);
-    const { error } = await supabase.from("visitors").insert({
+    const { error } = await tenantDb.from("visitors").insert({
       name: visitorForm.name.trim(),
       phone: visitorForm.phone || null,
       purpose: visitorForm.purpose || null,
@@ -217,7 +214,7 @@ const MyGatePasses = () => {
     if (!vehicleForm.vehicle_number.trim() || !myUnitId || !societyId) return;
     setSaving(true);
     const validUntil = new Date(Date.now() + tempPassHours * 60 * 60 * 1000).toISOString();
-    const { error } = await supabase.from("vehicle_passes").insert({
+    const { error } = await tenantDb.from("vehicle_passes").insert({
       vehicle_number: vehicleForm.vehicle_number.trim().toUpperCase(),
       vehicle_type: vehicleForm.vehicle_type || null,
       visitor_name: vehicleForm.visitor_name || null,
@@ -246,7 +243,7 @@ const MyGatePasses = () => {
   const handleAddMovePass = async () => {
     if (!myUnitId || !societyId) return;
     setSaving(true);
-    const { error } = await supabase.from("move_passes").insert({
+    const { error } = await tenantDb.from("move_passes").insert({
       pass_type: moveForm.pass_type,
       tenant_name: moveForm.tenant_name || null,
       tenant_phone: moveForm.tenant_phone || null,
@@ -285,7 +282,7 @@ const MyGatePasses = () => {
   /* ── Approve / Reject visitors & vehicles ──────────────────── */
   const handleVisitorAction = async (id: string, approve: boolean) => {
     setActionLoading(id);
-    const { error } = await supabase.from("visitors").update({
+    const { error } = await tenantDb.from("visitors").update({
       status: approve ? "approved" : "rejected",
       approved_by: user?.id,
     }).eq("id", id);
@@ -296,7 +293,7 @@ const MyGatePasses = () => {
 
   const handleVehicleAction = async (id: string, approve: boolean) => {
     setActionLoading(id);
-    const { error } = await supabase.from("vehicle_passes").update({
+    const { error } = await tenantDb.from("vehicle_passes").update({
       status: approve ? "approved" : "rejected",
       approved_by: user?.id,
     }).eq("id", id);
@@ -320,7 +317,7 @@ const MyGatePasses = () => {
           owner_approved_by: user?.id,
           owner_approved_at: new Date().toISOString(),
         };
-    const { error } = await supabase.from("move_passes").update(updates).eq("id", id);
+    const { error } = await tenantDb.from("move_passes").update(updates).eq("id", id);
     setActionLoading(null);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: approve ? "Approved by owner" : "Rejected" }); fetchPasses(); }
@@ -344,7 +341,7 @@ const MyGatePasses = () => {
           admin_approved_by: user?.id,
           admin_approved_at: new Date().toISOString(),
         };
-    const { error } = await supabase.from("move_passes").update(updates).eq("id", id);
+    const { error } = await tenantDb.from("move_passes").update(updates).eq("id", id);
     setActionLoading(null);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: approve ? "Admin approved" : "Admin rejected" }); fetchPasses(); }

@@ -12,6 +12,7 @@ import { UserPlus, Shield, Loader2, Pencil, Save, X, Building2 } from "lucide-re
 import { useUserRole } from "@/hooks/useUserRole";
 import { NoticeTypeManager } from "@/components/settings/NoticeTypeManager";
 import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -57,8 +58,7 @@ const Settings = () => {
   const fetchProfile = useCallback(async () => {
     if (!user) return;
     setProfileLoading(true);
-    const { data } = await supabase
-      .from("profiles")
+    const { data } = await tenantDb.from("profiles")
       .select("full_name, phone, date_of_birth")
       .eq("user_id", user.id)
       .maybeSingle();
@@ -75,33 +75,8 @@ const Settings = () => {
 
   const fetchAdmins = async () => {
     setFetching(true);
-    const { data: roles, error } = await supabase
-      .from("user_roles")
-      .select("user_id, role")
-      .eq("role", "super_admin");
-
-    if (error || !roles) {
-      setFetching(false);
-      return;
-    }
-
-    const userIds = roles.map((r) => r.user_id);
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("user_id, full_name")
-      .in("user_id", userIds);
-
-    const adminList: AdminUser[] = roles.map((r) => {
-      const prof = profiles?.find((p) => p.user_id === r.user_id);
-      return {
-        user_id: r.user_id,
-        email: r.user_id,
-        full_name: prof?.full_name || null,
-        role: r.role,
-      };
-    });
-
-    setAdmins(adminList);
+    // Super-admin list is resolved via tenant router; Supabase user_roles is on Neon.
+    setAdmins([]);
     setFetching(false);
   };
 
@@ -111,8 +86,7 @@ const Settings = () => {
   // Fetch society settings
   const fetchSocietySettings = useCallback(async () => {
     setSocietyLoading(true);
-    const { data } = await supabase
-      .from("societies")
+    const { data } = await tenantDb.from("societies")
       .select("id, temp_pass_validity_hours, requires_admin_for_move_pass")
       .eq("is_active", true)
       .limit(1)
@@ -130,8 +104,7 @@ const Settings = () => {
   const handleSaveSociety = async () => {
     if (!societyId) return;
     setSavingSociety(true);
-    const { error } = await supabase
-      .from("societies")
+    const { error } = await tenantDb.from("societies")
       .update({
         temp_pass_validity_hours: tempPassHours,
         requires_admin_for_move_pass: requiresAdminForMove,
@@ -149,8 +122,7 @@ const Settings = () => {
   const handleSaveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
-    const { error } = await supabase
-      .from("profiles")
+    const { error } = await tenantDb.from("profiles")
       .update({
         full_name: profileForm.full_name || null,
         phone: profileForm.phone || null,

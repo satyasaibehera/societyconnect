@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { UserCheck, Plus, Loader2, Phone, Clock, Pencil, Check, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUnitApprover } from "@/hooks/useUnitApprover";
@@ -43,8 +43,7 @@ const MyVisitors = () => {
   const fetchVisitors = useCallback(async () => {
     if (!myUnitId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from("visitors")
+    const { data } = await tenantDb.from("visitors")
       .select("id, name, phone, purpose, status, entry_time, exit_time, created_at")
       .eq("visiting_unit_id", myUnitId)
       .order("created_at", { ascending: false });
@@ -71,7 +70,7 @@ const MyVisitors = () => {
     setSaving(true);
 
     if (editingVisitor) {
-      const { error } = await supabase.from("visitors").update({
+      const { error } = await tenantDb.from("visitors").update({
         name: form.name,
         phone: form.phone || null,
         purpose: form.purpose || null,
@@ -86,7 +85,7 @@ const MyVisitors = () => {
       }
     } else {
       if (!myUnitId || !societyId) { setSaving(false); return; }
-      const { error } = await supabase.from("visitors").insert({
+      const { error } = await tenantDb.from("visitors").insert({
         name: form.name,
         phone: form.phone || null,
         purpose: form.purpose || null,
@@ -110,7 +109,7 @@ const MyVisitors = () => {
 
   const handleVisitorApproval = async (visitorId: string, approved: boolean) => {
     setActionLoading(visitorId);
-    const { error } = await supabase.from("visitors").update({
+    const { error } = await tenantDb.from("visitors").update({
       status: approved ? "approved" : "rejected",
       approved_by: user?.id,
     }).eq("id", visitorId);

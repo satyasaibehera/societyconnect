@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -19,9 +19,8 @@ export function useUnitApprover() {
     if (!user) { setLoading(false); return; }
 
     // Get own resident info
-    const { data: resident } = await supabase
-      .from("residents")
-      .select("unit_id, society_id, resident_type, units!residents_unit_id_fkey(unit_number)")
+    const { data: resident } = await tenantDb.from("residents")
+      .select("unit_id, society_id, resident_type")
       .eq("user_id", user.id)
       .eq("status", "approved")
       .limit(1)
@@ -30,13 +29,18 @@ export function useUnitApprover() {
     if (resident) {
       setMyUnitId(resident.unit_id);
       setSocietyId(resident.society_id);
-      setUnitLabel((resident.units as any)?.unit_number ?? null);
       setIsOwner(resident.resident_type === "owner");
+      if (resident.unit_id) {
+        const { data: unit } = await tenantDb.from("units")
+          .select("unit_number")
+          .eq("id", resident.unit_id)
+          .maybeSingle();
+        setUnitLabel(unit?.unit_number ?? null);
+      }
     }
 
     // Get active delegations where I am the delegate
-    const { data: delegations } = await supabase
-      .from("approval_delegates")
+    const { data: delegations } = await tenantDb.from("approval_delegates")
       .select("unit_id")
       .eq("delegate_id", user.id)
       .eq("is_active", true)

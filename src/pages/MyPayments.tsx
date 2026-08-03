@@ -45,7 +45,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSocietyId } from "@/lib/society";
 import { toast } from "@/hooks/use-toast";
@@ -161,8 +161,7 @@ export default function MyPayments() {
     const societyId = await getSocietyId();
     if (!societyId) return;
 
-    const { data: resData } = await supabase
-      .from("residents")
+    const { data: resData } = await tenantDb.from("residents")
       .select("resident_type, unit_id, full_name")
       .eq("user_id", user.id)
       .eq("status", "approved")
@@ -172,14 +171,12 @@ export default function MyPayments() {
     setResidentInfo(resData as ResidentInfo | null);
 
     const [catRes, recRes] = await Promise.all([
-      supabase
-        .from("payment_categories")
+      tenantDb.from("payment_categories")
         .select("*")
         .eq("society_id", societyId)
         .eq("is_active", true)
         .order("name"),
-      supabase
-        .from("payment_records")
+      tenantDb.from("payment_records")
         .select("*")
         .eq("payer_user_id", user.id)
         .order("declared_at", { ascending: false })
@@ -191,15 +188,13 @@ export default function MyPayments() {
 
     // Fetch unit/building info
     if (resData?.unit_id) {
-      const { data: unitData } = await supabase
-        .from("units")
+      const { data: unitData } = await tenantDb.from("units")
         .select("unit_number, building_id")
         .eq("id", resData.unit_id)
         .maybeSingle();
       if (unitData) {
         setUnitLabel(unitData.unit_number);
-        const { data: bData } = await supabase
-          .from("buildings")
+        const { data: bData } = await tenantDb.from("buildings")
           .select("name")
           .eq("id", unitData.building_id)
           .maybeSingle();
@@ -208,8 +203,7 @@ export default function MyPayments() {
     }
 
     if (resData?.unit_id && resData.resident_type === "tenant") {
-      const { data } = await supabase
-        .from("owner_payment_config")
+      const { data } = await tenantDb.from("owner_payment_config")
         .select("*")
         .eq("unit_id", resData.unit_id)
         .eq("is_active", true)
@@ -218,8 +212,7 @@ export default function MyPayments() {
       setOwnerConfig((data as OwnerConfig) || null);
 
       // Fetch receipts for tenant
-      const { data: receipts } = await supabase
-        .from("rent_receipts")
+      const { data: receipts } = await tenantDb.from("rent_receipts")
         .select("*")
         .eq("tenant_user_id", user.id)
         .order("issued_at", { ascending: false });
@@ -227,8 +220,7 @@ export default function MyPayments() {
     }
 
     if (resData?.unit_id && resData.resident_type === "owner") {
-      const { data } = await supabase
-        .from("owner_payment_config")
+      const { data } = await tenantDb.from("owner_payment_config")
         .select("*")
         .eq("owner_user_id", user.id)
         .eq("unit_id", resData.unit_id)
@@ -238,8 +230,7 @@ export default function MyPayments() {
 
       // Fetch rent payment records for owner's unit (via owner_config_id)
       if (data) {
-        const { data: rentRecs } = await supabase
-          .from("payment_records")
+        const { data: rentRecs } = await tenantDb.from("payment_records")
           .select("*")
           .eq("payment_type", "rent")
           .eq("owner_config_id", (data as OwnerConfig).id)
@@ -250,8 +241,7 @@ export default function MyPayments() {
         // Get tenant names
         if (rentRecs && rentRecs.length > 0) {
           const payerIds = [...new Set(rentRecs.map((r: PaymentRecord) => r.payer_user_id))];
-          const { data: profiles } = await supabase
-            .from("profiles")
+          const { data: profiles } = await tenantDb.from("profiles")
             .select("user_id, full_name")
             .in("user_id", payerIds);
           const nameMap: Record<string, string> = {};
@@ -262,8 +252,7 @@ export default function MyPayments() {
         }
 
         // Fetch receipts issued by owner
-        const { data: receipts } = await supabase
-          .from("rent_receipts")
+        const { data: receipts } = await tenantDb.from("rent_receipts")
           .select("*")
           .eq("owner_user_id", user.id)
           .order("issued_at", { ascending: false });
@@ -310,7 +299,7 @@ export default function MyPayments() {
     const societyId = await getSocietyId();
     if (!societyId) { setPaying(false); return; }
 
-    const { error } = await supabase.from("payment_records").insert({
+    const { error } = await tenantDb.from("payment_records").insert({
       society_id: societyId,
       payer_user_id: user.id,
       payment_type: payRent ? "rent" : "society",
@@ -347,9 +336,9 @@ export default function MyPayments() {
     };
     let error;
     if (ownerConfig) {
-      ({ error } = await supabase.from("owner_payment_config").update(payload).eq("id", ownerConfig.id));
+      ({ error } = await tenantDb.from("owner_payment_config").update(payload).eq("id", ownerConfig.id));
     } else {
-      ({ error } = await supabase.from("owner_payment_config").insert(payload));
+      ({ error } = await tenantDb.from("owner_payment_config").insert(payload));
     }
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -379,7 +368,7 @@ export default function MyPayments() {
       ...(approve ? {} : { rejection_reason: "Payment not confirmed by owner" }),
     };
 
-    const { error } = await supabase.from("payment_records").update(update).eq("id", recordId);
+    const { error } = await tenantDb.from("payment_records").update(update).eq("id", recordId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
@@ -396,7 +385,7 @@ export default function MyPayments() {
     const ownerName = residentInfo.full_name || "Owner";
     const receiptNumber = `RR-${Date.now().toString(36).toUpperCase()}`;
 
-    const { error } = await supabase.from("rent_receipts").insert({
+    const { error } = await tenantDb.from("rent_receipts").insert({
       payment_record_id: issueReceiptRecord.id,
       owner_user_id: user.id,
       tenant_user_id: issueReceiptRecord.payer_user_id,

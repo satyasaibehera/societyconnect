@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Mail, Lock, User, Loader2, CheckCircle2 } from "lucide-react";
 import {
   PasswordVisibilityIcon,
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { onboardSociety } from "@/services/societyOnboardingService";
+import { AUTH_MESSAGES } from "@/lib/authErrors";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInput, fullPhone } from "./PhoneInput";
 
@@ -19,6 +21,7 @@ type SubmittedMode = "platform_admin" | "standard" | null;
 
 export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -77,6 +80,11 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
       });
 
       if (!result.success) {
+        if (result.duplicateAccount) {
+          toast({ description: AUTH_MESSAGES.duplicateRegistration });
+          navigate("/login");
+          return;
+        }
         throw new Error(result.error || "Society registration failed");
       }
 

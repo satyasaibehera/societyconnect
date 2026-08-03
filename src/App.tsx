@@ -4,7 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthRouteGuard } from "@/components/AuthRouteGuard";
+import { ProtectedRoute, SessionRoute } from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
@@ -38,6 +39,8 @@ import ResetPassword from "./pages/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
 import AccessControl from "./pages/AccessControl";
 import NotFound from "./pages/NotFound";
+import PendingApproval from "./pages/PendingApproval";
+import PlatformAdmin from "./pages/PlatformAdmin";
 
 const queryClient = new QueryClient();
 
@@ -48,12 +51,29 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
+          <AuthRouteGuard>
+            <Routes>
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route
+                path="/awaiting-approval"
+                element={
+                  <SessionRoute>
+                    <PendingApproval />
+                  </SessionRoute>
+                }
+              />
+              <Route
+                path="/platform-admin"
+                element={
+                  <SessionRoute>
+                    <PlatformAdmin />
+                  </SessionRoute>
+                }
+              />
+              <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/register-resident" element={<ProtectedRoute><RegisterResident /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/approvals" element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
@@ -82,7 +102,8 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="/access-control" element={<ProtectedRoute><AccessControl /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </AuthRouteGuard>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

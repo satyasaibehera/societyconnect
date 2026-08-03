@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FileText, Plus, Loader2, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useToast } from "@/hooks/use-toast";
 
 interface Resolution {
@@ -31,7 +31,7 @@ const Resolutions = () => {
 
   const fetchResolutions = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from("resolutions").select("*").order("decision_date", { ascending: false });
+    const { data } = await tenantDb.from("resolutions").select("*").order("decision_date", { ascending: false });
     setResolutions(data || []);
     setLoading(false);
   }, []);
@@ -43,14 +43,14 @@ const Resolutions = () => {
     setSaving(true);
     const societyId = await getSocietyId();
     if (!societyId) { toast({ title: "No society found", variant: "destructive" }); setSaving(false); return; }
-    const { error } = await supabase.from("resolutions").insert({ title, description: description || null, decision_date: decisionDate || null, society_id: societyId });
+    const { error } = await tenantDb.from("resolutions").insert({ title, description: description || null, decision_date: decisionDate || null, society_id: societyId });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Resolution recorded" }); setTitle(""); setDescription(""); setDecisionDate(""); setDialogOpen(false); fetchResolutions(); }
     setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("resolutions").delete().eq("id", id);
+    const { error } = await tenantDb.from("resolutions").delete().eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Resolution deleted" }); fetchResolutions(); }
   };

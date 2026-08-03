@@ -3,14 +3,15 @@ import express, { type Express } from "express";
 import additionRequestsRouter from "./routes/additionRequests";
 import buildingsRouter from "./routes/buildings";
 import registerRouter from "./routes/register";
+import residentsRouter from "./routes/residents";
 import societiesRouter from "./routes/societies";
+import tenantDataRouter from "./routes/tenantData";
+import { requireAuthUnlessPublic, requireTenantDb } from "./middleware/requireAuth";
 
 /**
- * Mount public registration API routes:
- * - GET  /api/societies
- * - GET  /api/buildings?society_id=...
- * - POST /api/register  (+ GET list, POST :id/approve|reject)
- * - POST /api/addition-requests  (+ GET list, POST :id/approve|reject)
+ * Society Connect application API:
+ * - Public registration catalog: societies, buildings, register, addition-requests
+ * - Authenticated tenant CRUD: /api/data/:table (Neon tenant schema via X-Tenant-Db)
  */
 export function createApiApp(): Express {
   const app = express();
@@ -22,10 +23,14 @@ export function createApiApp(): Express {
     res.json({ status: "ok" });
   });
 
+  app.use(requireAuthUnlessPublic);
+
   app.use("/api/societies", societiesRouter);
   app.use("/api/buildings", buildingsRouter);
   app.use("/api/register", registerRouter);
+  app.use("/api/residents", requireTenantDb, residentsRouter);
   app.use("/api/addition-requests", additionRequestsRouter);
+  app.use("/api/data", requireTenantDb, tenantDataRouter);
 
   return app;
 }

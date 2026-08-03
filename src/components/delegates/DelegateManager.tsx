@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Plus, Loader2, Trash2, Clock, UserCheck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -45,8 +45,7 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
   const [form, setForm] = useState({ delegate_id: "", duration_days: "7", reason: "" });
 
   const fetchDelegates = useCallback(async () => {
-    const { data } = await supabase
-      .from("approval_delegates")
+    const { data } = await tenantDb.from("approval_delegates")
       .select("id, delegate_id, valid_from, valid_until, reason, is_active")
       .eq("unit_id", unitId)
       .order("created_at", { ascending: false });
@@ -54,8 +53,7 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
     if (data) {
       // Fetch delegate names
       const delegateIds = data.map((d: any) => d.delegate_id);
-      const { data: profiles } = await supabase
-        .from("profiles")
+      const { data: profiles } = await tenantDb.from("profiles")
         .select("user_id, full_name")
         .in("user_id", delegateIds);
 
@@ -72,8 +70,7 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
   const fetchResidents = useCallback(async () => {
     if (!user) return;
     // Fetch all approved residents in the unit (excluding current user by user_id if set)
-    const { data } = await supabase
-      .from("residents")
+    const { data } = await tenantDb.from("residents")
       .select("id, user_id, full_name, resident_type")
       .eq("unit_id", unitId)
       .eq("status", "approved");
@@ -92,7 +89,7 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
     const days = parseInt(form.duration_days) || 7;
     const validUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 
-    const { error } = await supabase.from("approval_delegates").insert({
+    const { error } = await tenantDb.from("approval_delegates").insert({
       unit_id: unitId,
       owner_id: user.id,
       delegate_id: form.delegate_id,
@@ -113,8 +110,7 @@ export function DelegateManager({ unitId }: DelegateManagerProps) {
   };
 
   const handleRevoke = async (id: string) => {
-    const { error } = await supabase
-      .from("approval_delegates")
+    const { error } = await tenantDb.from("approval_delegates")
       .update({ is_active: false } as any)
       .eq("id", id);
 

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ClipboardList, Plus, Loader2, Pencil, Trash2, GripVertical } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useToast } from "@/hooks/use-toast";
 
 interface NoticeTypeRow {
@@ -47,8 +47,7 @@ export const NoticeTypeManager = () => {
     setLoading(true);
     const sid = await getSocietyId();
     if (!sid) { setLoading(false); return; }
-    const { data } = await supabase
-      .from("notice_types")
+    const { data } = await tenantDb.from("notice_types")
       .select("*")
       .eq("society_id", sid)
       .order("sort_order");
@@ -77,15 +76,13 @@ export const NoticeTypeManager = () => {
     if (!sid) { setSaving(false); return; }
 
     if (editing) {
-      const { error } = await supabase
-        .from("notice_types")
+      const { error } = await tenantDb.from("notice_types")
         .update({ label: form.label, color: form.color, has_structured_fields: form.has_structured_fields } as any)
         .eq("id", editing.id);
       if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
       else toast({ title: "Updated" });
     } else {
-      const { error } = await supabase
-        .from("notice_types")
+      const { error } = await tenantDb.from("notice_types")
         .insert({
           society_id: sid,
           name: form.name.toLowerCase().replace(/\s+/g, "_"),
@@ -103,8 +100,7 @@ export const NoticeTypeManager = () => {
   };
 
   const toggleActive = async (t: NoticeTypeRow) => {
-    const { error } = await supabase
-      .from("notice_types")
+    const { error } = await tenantDb.from("notice_types")
       .update({ is_active: !t.is_active } as any)
       .eq("id", t.id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -112,7 +108,7 @@ export const NoticeTypeManager = () => {
   };
 
   const handleDelete = async (t: NoticeTypeRow) => {
-    const { error } = await supabase.from("notice_types").delete().eq("id", t.id);
+    const { error } = await tenantDb.from("notice_types").delete().eq("id", t.id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Deleted" }); fetchTypes(); }
   };

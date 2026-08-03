@@ -10,6 +10,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { signOut, signUp } from "@/services/authService";
 import { APP_CONFIG } from "@/config/appConfig";
+import { isDuplicateRegistrationError } from "@/lib/authErrors";
 import {
   buildTenantSchemaManifest,
   provisionTenantDatabase,
@@ -19,8 +20,7 @@ import {
   type TenantConnectionConfig,
 } from "@/services/db";
 
-const ROUTER_URL =
-  import.meta.env.VITE_ROUTER_API_URL || "https://universal-tenant-router.netlify.app";
+const ROUTER_URL = APP_CONFIG.routerBaseUrl;
 
 export interface SocietyOnboardingAdmin {
   email: string;
@@ -51,6 +51,7 @@ export interface SocietyOnboardingResult {
   routerResponse: unknown;
   provision: ProvisionTenantResult | null;
   error?: string;
+  duplicateAccount?: boolean;
 }
 
 function createSocietyId(explicit?: string): string {
@@ -92,6 +93,7 @@ export async function onboardSociety(
       });
 
       if (error) {
+        const duplicateAccount = isDuplicateRegistrationError(error);
         return {
           success: false,
           societyId: null,
@@ -99,10 +101,12 @@ export async function onboardSociety(
           status: null,
           routerResponse: data,
           provision: null,
-          error: error.message || "Platform Admin bootstrap failed",
+          error: duplicateAccount ? undefined : error.message || "Platform Admin bootstrap failed",
+          duplicateAccount,
         };
       }
       if (data?.error) {
+        const duplicateAccount = isDuplicateRegistrationError(String(data.error));
         return {
           success: false,
           societyId: null,
@@ -110,7 +114,8 @@ export async function onboardSociety(
           status: null,
           routerResponse: data,
           provision: null,
-          error: String(data.error),
+          error: duplicateAccount ? undefined : String(data.error),
+          duplicateAccount,
         };
       }
 
@@ -148,6 +153,7 @@ export async function onboardSociety(
     });
 
     if (signUpError) {
+      const duplicateAccount = isDuplicateRegistrationError(signUpError);
       return {
         success: false,
         societyId: null,
@@ -155,7 +161,8 @@ export async function onboardSociety(
         status: null,
         routerResponse: null,
         provision: null,
-        error: signUpError.message,
+        error: duplicateAccount ? undefined : signUpError.message,
+        duplicateAccount,
       };
     }
 

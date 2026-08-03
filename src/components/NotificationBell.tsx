@@ -17,6 +17,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { APP_SCHEMA } from "@/config/appConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
@@ -185,8 +186,7 @@ export function NotificationBell() {
 
   const fetchNotifications = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("notifications")
+    const { data } = await tenantDb.from("notifications")
       .select("*")
       .eq("recipient_id", user.id)
       .order("created_at", { ascending: false })
@@ -215,16 +215,14 @@ export function NotificationBell() {
 
   const markAllRead = async () => {
     if (!user || unreadCount === 0) return;
-    await supabase
-      .from("notifications")
+    await tenantDb.from("notifications")
       .update({ is_read: true })
       .eq("recipient_id", user.id)
       .eq("is_read", false);
   };
 
   const markRead = async (id: string) => {
-    await supabase
-      .from("notifications")
+    await tenantDb.from("notifications")
       .update({ is_read: true })
       .eq("id", id);
   };

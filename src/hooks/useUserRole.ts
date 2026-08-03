@@ -1,37 +1,40 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { mapRouterRole, residentSubRoles, type AppRole } from "@/lib/roleMapping";
 
-export type AppRole = "super_admin" | "admin" | "office_bearer" | "resident" | "security";
+export type { AppRole };
 
 export function useUserRole() {
-  const { user } = useAuth();
-  const [roles, setRoles] = useState<AppRole[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { tenantRole, roleLoading, loading } = useAuth();
 
-  useEffect(() => {
-    if (!user) {
-      setRoles([]);
-      setLoading(false);
-      return;
-    }
-
-    const fetchRoles = async () => {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-
-      setRoles((data || []).map((r) => r.role));
-      setLoading(false);
-    };
-
-    fetchRoles();
-  }, [user]);
+  const roles = useMemo(() => {
+    if (!tenantRole?.role) return [] as AppRole[];
+    return mapRouterRole(tenantRole.role);
+  }, [tenantRole?.role]);
 
   const hasRole = (...check: AppRole[]) => check.some((r) => roles.includes(r));
   const isManagement = hasRole("super_admin", "admin");
   const isSecurity = hasRole("security");
 
-  return { roles, loading, hasRole, isManagement, isSecurity };
+  return {
+    roles,
+    loading: loading || roleLoading,
+    hasRole,
+    isManagement,
+    isSecurity,
+    tenantRole,
+  };
+}
+
+/** Effective roles for access-control matrix (includes resident sub-types). */
+export function useEffectiveRoles(): { roles: string[]; loading: boolean } {
+  const { tenantRole, roleLoading, loading } = useAuth();
+
+  const roles = useMemo(() => {
+    const effective = mapRouterRole(tenantRole?.role);
+    const subRoles = residentSubRoles(tenantRole?.role);
+    return [...new Set([...effective, ...subRoles])];
+  }, [tenantRole?.role]);
+
+  return { roles, loading: loading || roleLoading };
 }

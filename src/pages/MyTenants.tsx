@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Users, Plus, Loader2, Phone, Calendar, Pencil, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -43,8 +43,7 @@ const MyTenants = () => {
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("residents")
+    const { data } = await tenantDb.from("residents")
       .select("unit_id, society_id")
       .eq("user_id", user.id)
       .eq("status", "approved")
@@ -59,8 +58,7 @@ const MyTenants = () => {
   const fetchTenants = useCallback(async () => {
     if (!unitId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from("residents")
+    const { data } = await tenantDb.from("residents")
       .select("id, full_name, phone, date_of_birth, status, tenancy_start_date, tenancy_end_date, has_vacated, photo_url")
       .eq("unit_id", unitId)
       .eq("resident_type", "tenant");
@@ -95,7 +93,7 @@ const MyTenants = () => {
 
     if (editingTenant) {
       // Update existing tenant
-      const { error } = await supabase.from("residents").update({
+      const { error } = await tenantDb.from("residents").update({
         full_name: form.full_name,
         phone: form.phone || null,
         date_of_birth: form.date_of_birth || null,
@@ -113,7 +111,7 @@ const MyTenants = () => {
     } else {
       // Insert new tenant
       if (!unitId || !societyId) { setSaving(false); return; }
-      const { error } = await supabase.from("residents").insert({
+      const { error } = await tenantDb.from("residents").insert({
         full_name: form.full_name,
         phone: form.phone || null,
         date_of_birth: form.date_of_birth || null,
@@ -144,7 +142,7 @@ const MyTenants = () => {
   };
 
   const handleVacate = async (tenantId: string, currentlyVacated: boolean) => {
-    const { error } = await supabase.from("residents").update({ has_vacated: !currentlyVacated }).eq("id", tenantId);
+    const { error } = await tenantDb.from("residents").update({ has_vacated: !currentlyVacated }).eq("id", tenantId);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {

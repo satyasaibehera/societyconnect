@@ -8,8 +8,28 @@ export const AUTH_MESSAGES = {
   resetPasswordSent:
     "If an account exists for that email, a password reset link has been sent.",
   appAccessDenied: "You do not have access to this application.",
+  duplicateRegistration:
+    "An account with this email may already exist. Please try logging in.",
   generic: "Something went wrong. Please try again.",
 } as const;
+
+const DUPLICATE_REGISTRATION_PATTERNS = [
+  /already been registered/i,
+  /already registered/i,
+  /user already registered/i,
+  /email address is already/i,
+  /duplicate/i,
+];
+
+/** Detect duplicate-account errors from auth providers or enrollment APIs. */
+export function isDuplicateRegistrationError(
+  error: unknown,
+  httpStatus?: number,
+): boolean {
+  if (httpStatus === 422) return true;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return DUPLICATE_REGISTRATION_PATTERNS.some((pattern) => pattern.test(message));
+}
 
 type AuthContext = "signIn" | "signUp" | "otpSend" | "otpVerify";
 

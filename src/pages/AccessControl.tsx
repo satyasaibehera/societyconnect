@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Save, RotateCcw, ShieldCheck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
@@ -82,8 +82,7 @@ const AccessControl = () => {
 
   const fetchPermissions = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("access_controls")
+    const { data, error } = await tenantDb.from("access_controls")
       .select("module_key, role_key, is_enabled");
 
     if (error || !data) {
@@ -145,8 +144,7 @@ const AccessControl = () => {
       }
     }
 
-    const { error } = await supabase
-      .from("access_controls")
+    const { error } = await tenantDb.from("access_controls")
       .upsert(rows as any, { onConflict: "module_key,role_key" });
 
     setSaving(false);

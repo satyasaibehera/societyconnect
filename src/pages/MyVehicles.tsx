@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Car, Plus, Loader2, Pencil, Trash2, AlertCircle, Ticket, Check, X, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useUnitApprover } from "@/hooks/useUnitApprover";
@@ -60,8 +60,7 @@ const MyVehicles = () => {
 
   const fetchMyResident = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("residents")
+    const { data } = await tenantDb.from("residents")
       .select("id, society_id")
       .eq("user_id", user.id)
       .eq("status", "approved")
@@ -75,8 +74,7 @@ const MyVehicles = () => {
   const fetchVehicles = useCallback(async () => {
     if (!residentId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from("vehicles")
+    const { data } = await tenantDb.from("vehicles")
       .select("id, vehicle_number, vehicle_type, parking_slot, status, ownership_type")
       .eq("resident_id", residentId);
     setVehicles(data || []);
@@ -85,8 +83,7 @@ const MyVehicles = () => {
 
   const fetchTempPasses = useCallback(async () => {
     if (!myUnitId) return;
-    const { data } = await supabase
-      .from("vehicle_passes")
+    const { data } = await tenantDb.from("vehicle_passes")
       .select("id, vehicle_number, vehicle_type, visitor_name, visitor_phone, purpose, status, valid_from, valid_until, created_at")
       .eq("unit_id", myUnitId)
       .eq("pass_type", "temporary")
@@ -124,7 +121,7 @@ const MyVehicles = () => {
     const vehicleType = form.vehicle_type === "other" ? (form.vehicle_type_other || "other") : (form.vehicle_type || null);
 
     if (editingVehicle) {
-      const { error } = await supabase.from("vehicles").update({
+      const { error } = await tenantDb.from("vehicles").update({
         vehicle_number: form.vehicle_number.toUpperCase(),
         vehicle_type: vehicleType,
         parking_slot: form.parking_slot || null,
@@ -140,7 +137,7 @@ const MyVehicles = () => {
       }
     } else {
       if (!residentId || !societyId) { setSaving(false); return; }
-      const { error } = await supabase.from("vehicles").insert({
+      const { error } = await tenantDb.from("vehicles").insert({
         vehicle_number: form.vehicle_number.toUpperCase(),
         vehicle_type: vehicleType,
         parking_slot: form.parking_slot || null,
@@ -164,7 +161,7 @@ const MyVehicles = () => {
   const handleDelete = async () => {
     if (!deletingVehicle) return;
     setSaving(true);
-    const { error } = await supabase.from("vehicles").delete().eq("id", deletingVehicle.id);
+    const { error } = await tenantDb.from("vehicles").delete().eq("id", deletingVehicle.id);
     setSaving(false);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -178,7 +175,7 @@ const MyVehicles = () => {
 
   const handlePassApproval = async (passId: string, approved: boolean) => {
     setActionLoading(passId);
-    const { error } = await supabase.from("vehicle_passes").update({
+    const { error } = await tenantDb.from("vehicle_passes").update({
       status: approved ? "approved" : "rejected",
       approved_by: user?.id,
     }).eq("id", passId);

@@ -17,7 +17,7 @@ import {
 import {
   UserCheck, UserPlus, Search, MoreHorizontal, Pencil, Check, X, Loader2, LogIn, LogOut,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { VisitorFormDialog, VisitorFormData } from "@/components/visitors/VisitorFormDialog";
@@ -60,8 +60,8 @@ const Visitors = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchUnits = useCallback(async () => {
-    const { data: buildings } = await supabase.from("buildings").select("id, name");
-    const { data: unitsData } = await supabase.from("units").select("id, unit_number, building_id");
+    const { data: buildings } = await tenantDb.from("buildings").select("id, name");
+    const { data: unitsData } = await tenantDb.from("units").select("id, unit_number, building_id");
     if (!buildings || !unitsData) return;
     const bMap = Object.fromEntries(buildings.map((b) => [b.id, b.name]));
     setUnits(unitsData.map((u) => ({ id: u.id, unit_number: u.unit_number, building_name: bMap[u.building_id] || "Unknown" })));
@@ -69,7 +69,7 @@ const Visitors = () => {
 
   const fetchVisitors = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("visitors").select("*").order("created_at", { ascending: false });
+    const { data, error } = await tenantDb.from("visitors").select("*").order("created_at", { ascending: false });
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       setLoading(false);
@@ -87,7 +87,7 @@ const Visitors = () => {
   const handleAdd = async (form: VisitorFormData) => {
     const societyId = await getSocietyId();
     if (!societyId) { toast({ title: "No society found", variant: "destructive" }); return; }
-    const { error } = await supabase.from("visitors").insert({
+    const { error } = await tenantDb.from("visitors").insert({
       name: form.name, phone: form.phone || null, purpose: form.purpose || null,
       visiting_unit_id: form.visiting_unit_id || null, visiting_unit_label: form.visiting_unit_label || null,
       society_id: societyId, created_by: user?.id, status: "pending" as any,
@@ -99,7 +99,7 @@ const Visitors = () => {
 
   const handleEdit = async (form: VisitorFormData) => {
     if (!editData) return;
-    const { error } = await supabase.from("visitors").update({
+    const { error } = await tenantDb.from("visitors").update({
       name: form.name, phone: form.phone || null, purpose: form.purpose || null,
       visiting_unit_id: form.visiting_unit_id || null, visiting_unit_label: form.visiting_unit_label || null,
     }).eq("id", editData.id);
@@ -112,7 +112,7 @@ const Visitors = () => {
   const handleStatusChange = async (id: string, newStatus: "approved" | "rejected") => {
     setActionLoading(id);
     try {
-      const { error } = await supabase.from("visitors").update({ status: newStatus as any, approved_by: user?.id }).eq("id", id);
+      const { error } = await tenantDb.from("visitors").update({ status: newStatus as any, approved_by: user?.id }).eq("id", id);
       if (error) throw error;
       toast({ title: newStatus === "approved" ? "Approved ✓" : "Rejected" });
       fetchVisitors();
@@ -123,7 +123,7 @@ const Visitors = () => {
 
   const handleEntry = async (id: string) => {
     setActionLoading(id);
-    const { error } = await supabase.from("visitors").update({ entry_time: new Date().toISOString() }).eq("id", id);
+    const { error } = await tenantDb.from("visitors").update({ entry_time: new Date().toISOString() }).eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Entry recorded" }); fetchVisitors(); }
     setActionLoading(null);
@@ -131,7 +131,7 @@ const Visitors = () => {
 
   const handleExit = async (id: string) => {
     setActionLoading(id);
-    const { error } = await supabase.from("visitors").update({ exit_time: new Date().toISOString() }).eq("id", id);
+    const { error } = await tenantDb.from("visitors").update({ exit_time: new Date().toISOString() }).eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Exit recorded" }); fetchVisitors(); }
     setActionLoading(null);

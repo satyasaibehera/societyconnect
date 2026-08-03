@@ -1,17 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Building2, Lock, ArrowRight, Eye, EyeOff, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { signIn, signOut } from "@/services/authService";
+import { signIn } from "@/services/authService";
 import { AUTH_MESSAGES } from "@/lib/authErrors";
 import { APP_CONFIG } from "@/config/appConfig";
-import { verifyAppAccess } from "@/services/appAccessService";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
 import { RegistrationChoice } from "@/components/registration/RegistrationChoice";
 import { SocietyAdminRegForm } from "@/components/registration/SocietyAdminRegForm";
 import { ResidentRegDialog } from "@/components/registration/ResidentRegDialog";
@@ -19,9 +16,8 @@ import { ResidentRegDialog } from "@/components/registration/ResidentRegDialog";
 type View = "login" | "register_choice" | "register_society";
 
 const Login = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const { session, loading } = useAuth();
+  const { session, loading, roleLoading } = useAuth();
 
   const [view, setView] = useState<View>("login");
   const [showResidentDialog, setShowResidentDialog] = useState(false);
@@ -30,8 +26,16 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (!loading && session) {
-    return <Navigate to="/dashboard" replace />;
+  if (loading || (session && roleLoading)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (session) {
+    return null;
   }
 
   const handleLogin = async () => {
@@ -41,24 +45,9 @@ const Login = () => {
     }
     setSubmitting(true);
     try {
-      const { data, error } = await signIn({ email, password });
+      const { error } = await signIn({ email, password });
       if (error) throw error;
-
-      const user = data?.user ?? data?.session?.user;
-      if (user) {
-        const access = verifyAppAccess(user);
-        if (!access.allowed) {
-          await signOut();
-          toast({
-            title: "Access denied",
-            description: AUTH_MESSAGES.appAccessDenied,
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      navigate("/dashboard");
+      // AuthContext resolves tenant role; AuthRouteGuard handles navigation.
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : AUTH_MESSAGES.signInFailed;
       toast({ title: "Sign in failed", description: message, variant: "destructive" });
@@ -189,7 +178,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Resident Registration Dialog */}
       <ResidentRegDialog open={showResidentDialog} onOpenChange={setShowResidentDialog} />
     </div>
   );

@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/camera/CameraCapture";
@@ -55,8 +56,7 @@ const RegisterResident = () => {
 
     const init = async () => {
       // Check if user already has a resident record
-      const { data: existing } = await supabase
-        .from("residents")
+      const { data: existing } = await tenantDb.from("residents")
         .select("id")
         .eq("user_id", user.id)
         .limit(1);
@@ -67,10 +67,8 @@ const RegisterResident = () => {
         return;
       }
 
-      // Fetch all units with their building names
-      const { data: allUnits } = await supabase
-        .from("units")
-        .select("id, unit_number, building_id, buildings!units_building_id_fkey(name, society_id)");
+      const { data: allUnits } = await tenantDb.from("units")
+        .select("id, unit_number, building_id");
 
       if (!allUnits || allUnits.length === 0) {
         setUnits([]);
@@ -78,9 +76,13 @@ const RegisterResident = () => {
         return;
       }
 
-      // Check which units have approved owners
-      const { data: ownedUnits } = await supabase
-        .from("residents")
+      const buildingIds = [...new Set(allUnits.map((u) => u.building_id).filter(Boolean) as string[])];
+      const { data: buildingsData } = buildingIds.length
+        ? await tenantDb.from("buildings").select("id, name").in("id", buildingIds)
+        : { data: [] as { id: string; name: string }[] };
+      const buildingMap = new Map(buildingsData?.map((b) => [b.id, b.name]) ?? []);
+
+      const { data: ownedUnits } = await tenantDb.from("residents")
         .select("unit_id")
         .eq("resident_type", "owner")
         .eq("status", "approved");
@@ -90,7 +92,7 @@ const RegisterResident = () => {
       const unitOptions: UnitOption[] = allUnits.map((u) => ({
         id: u.id,
         unit_number: u.unit_number,
-        building_name: (u.buildings as any)?.name || "",
+        building_name: u.building_id ? buildingMap.get(u.building_id) || "" : "",
         has_owner: ownedUnitIds.has(u.id),
       }));
 
@@ -102,8 +104,7 @@ const RegisterResident = () => {
       setUnits(unitOptions);
 
       // Pre-fill name from profile
-      const { data: profile } = await supabase
-        .from("profiles")
+      const { data: profile } = await tenantDb.from("profiles")
         .select("full_name, phone")
         .eq("user_id", user.id)
         .maybeSingle();
@@ -157,20 +158,26 @@ const RegisterResident = () => {
       return;
     }
 
-    const { data: unitRow } = await supabase
-      .from("units")
-      .select("building_id, buildings!units_building_id_fkey(society_id)")
+    const { data: unitRow } = await tenantDb.from("units")
+      .select("building_id")
       .eq("id", form.unit_id)
       .single();
 
-    const societyId = (unitRow?.buildings as any)?.society_id;
+    let societyId: string | null = null;
+    if (unitRow?.building_id) {
+      const { data: buildingRow } = await tenantDb.from("buildings")
+        .select("society_id")
+        .eq("id", unitRow.building_id)
+        .maybeSingle();
+      societyId = buildingRow?.society_id ?? null;
+    }
     if (!societyId) {
       toast({ title: "Could not determine society", variant: "destructive" });
       setSubmitting(false);
       return;
     }
 
-    const { error } = await supabase.from("residents").insert({
+    const { error } = await tenantDb.from("residents").insert({
       full_name: form.full_name,
       phone: form.phone || null,
       date_of_birth: form.date_of_birth || null,

@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { APP_SCHEMA } from "@/config/appConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -95,8 +96,7 @@ export default function Emergency() {
   const fetchAlerts = async () => {
     const societyId = await getSocietyId();
     if (!societyId) return;
-    const { data } = await supabase
-      .from("emergency_alerts")
+    const { data } = await tenantDb.from("emergency_alerts")
       .select("*")
       .eq("society_id", societyId)
       .order("created_at", { ascending: false })
@@ -130,7 +130,7 @@ export default function Emergency() {
       return;
     }
 
-    const { error } = await supabase.from("emergency_alerts").insert({
+    const { error } = await tenantDb.from("emergency_alerts").insert({
       society_id: societyId,
       raised_by: user.id,
       alert_type: confirmType.type,
@@ -149,8 +149,7 @@ export default function Emergency() {
 
   const handleResolve = async (alertId: string) => {
     if (!user) return;
-    const { error } = await supabase
-      .from("emergency_alerts")
+    const { error } = await tenantDb.from("emergency_alerts")
       .update({ status: "resolved", resolved_by: user.id, resolved_at: new Date().toISOString() })
       .eq("id", alertId);
 

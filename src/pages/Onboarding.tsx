@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { provisionSocietyTenant } from "@/services/societyOnboardingService";
@@ -142,8 +142,7 @@ const Onboarding = () => {
     setSaving(true);
     try {
       // 1. Create the society
-      const { data: society, error: societyError } = await supabase
-        .from("societies")
+      const { data: society, error: societyError } = await tenantDb.from("societies")
         .insert({
           name: societyName,
           address,
@@ -180,8 +179,7 @@ const Onboarding = () => {
 
       // 2. Create buildings and collect their IDs
       for (const building of buildings) {
-        const { data: buildingData, error: buildingError } = await supabase
-          .from("buildings")
+        const { data: buildingData, error: buildingError } = await tenantDb.from("buildings")
           .insert({
             society_id: society.id,
             name: building.name,
@@ -208,7 +206,7 @@ const Onboarding = () => {
         // Insert in batches of 100 to avoid payload limits
         for (let i = 0; i < unitRows.length; i += 100) {
           const batch = unitRows.slice(i, i + 100);
-          const { error: unitError } = await supabase.from("units").insert(batch);
+          const { error: unitError } = await tenantDb.from("units").insert(batch);
           if (unitError) throw unitError;
         }
       }

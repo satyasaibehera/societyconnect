@@ -16,7 +16,7 @@ import {
   Wrench,
   Shield,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 
 const stats = [
   { label: "Total Residents", value: "—", change: "", trend: "up" as const, icon: Users },
@@ -39,11 +39,11 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchCounts = async () => {
       const [visitors, residents, helpers, vehicles, roleReqs] = await Promise.all([
-        supabase.from("visitors").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("residents").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("helpers").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("vehicles").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("role_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        tenantDb.from("visitors").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        tenantDb.from("residents").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        tenantDb.from("helpers").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        tenantDb.from("vehicles").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        tenantDb.from("role_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       ]);
 
       setPendingCounts({
@@ -56,10 +56,10 @@ const Dashboard = () => {
 
       // Fetch live stats
       const [totalResidents, totalVisitors, totalVehicles, openComplaints] = await Promise.all([
-        supabase.from("residents").select("id", { count: "exact", head: true }).eq("status", "approved"),
-        supabase.from("visitors").select("id", { count: "exact", head: true }).eq("status", "approved"),
-        supabase.from("vehicles").select("id", { count: "exact", head: true }).eq("status", "approved"),
-        supabase.from("complaints").select("id", { count: "exact", head: true }).eq("status", "open"),
+        tenantDb.from("residents").select("id", { count: "exact", head: true }).eq("status", "approved"),
+        tenantDb.from("visitors").select("id", { count: "exact", head: true }).eq("status", "approved"),
+        tenantDb.from("vehicles").select("id", { count: "exact", head: true }).eq("status", "approved"),
+        tenantDb.from("complaints").select("id", { count: "exact", head: true }).eq("status", "open"),
       ]);
 
       setLiveStats([

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Home, Users, AlertCircle, Loader2, CheckCircle2, Mail, Lock, User, Upload } from "lucide-react";
 import {
   PasswordVisibilityIcon,
@@ -20,6 +21,7 @@ import {
   type BuildingWithFlats,
 } from "@/services/buildingsService";
 import { ensurePendingResidentForUser } from "@/services/residentRegistrationService";
+import { AUTH_MESSAGES, isDuplicateRegistrationError } from "@/lib/authErrors";
 import { useToast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/camera/CameraCapture";
 import { PhoneInput, fullPhone } from "./PhoneInput";
@@ -45,6 +47,7 @@ interface ResidentRegDialogProps {
 
 export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [societies, setSocieties] = useState<Society[]>([]);
   const [buildings, setBuildings] = useState<BuildingWithFlats[]>([]);
   const [loadingSocieties, setLoadingSocieties] = useState(true);
@@ -373,6 +376,12 @@ export function ResidentRegDialog({ open, onOpenChange }: ResidentRegDialogProps
           "We have sent a confirmation link to your email address. Please check your inbox.",
       });
     } catch (err: unknown) {
+      if (isDuplicateRegistrationError(err)) {
+        toast({ description: AUTH_MESSAGES.duplicateRegistration });
+        onOpenChange(false);
+        navigate("/login");
+        return;
+      }
       const message = err instanceof Error ? err.message : "Registration failed";
       toast({ title: "Registration failed", description: message, variant: "destructive" });
     } finally {

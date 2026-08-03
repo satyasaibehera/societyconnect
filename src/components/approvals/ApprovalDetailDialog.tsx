@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, User, Phone, Mail, Home, Calendar, Car, Shield, Wrench, PackageOpen } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 
 interface ApprovalDetailDialogProps {
   open: boolean;
@@ -32,22 +32,22 @@ export function ApprovalDetailDialog({ open, onOpenChange, itemId, category }: A
       let query: any;
       switch (category) {
         case "visitors":
-          query = supabase.from("visitors").select("*").eq("id", itemId).single();
+          query = tenantDb.from("visitors").select("*").eq("id", itemId).single();
           break;
         case "residents":
-          query = supabase.from("residents").select("*, units(unit_number, buildings(name)), societies(name)").eq("id", itemId).single();
+          query = tenantDb.from("residents").select("*").eq("id", itemId).single();
           break;
         case "helpers":
-          query = supabase.from("helpers").select("*, societies(name)").eq("id", itemId).single();
+          query = tenantDb.from("helpers").select("*").eq("id", itemId).single();
           break;
         case "vehicles":
-          query = supabase.from("vehicles").select("*, residents(full_name, unit_id, units(unit_number, buildings(name))), societies(name)").eq("id", itemId).single();
+          query = tenantDb.from("vehicles").select("*").eq("id", itemId).single();
           break;
         case "role_requests":
-          query = supabase.from("role_requests").select("*, societies(name)").eq("id", itemId).single();
+          query = tenantDb.from("role_requests").select("*").eq("id", itemId).single();
           break;
         case "move_passes":
-          query = supabase.from("move_passes").select("*, units(unit_number, buildings(name)), societies(name)").eq("id", itemId).single();
+          query = tenantDb.from("move_passes").select("*").eq("id", itemId).single();
           break;
         default:
           setLoading(false);
@@ -57,8 +57,7 @@ export function ApprovalDetailDialog({ open, onOpenChange, itemId, category }: A
 
       // For role_requests, also fetch the requester profile
       if (category === "role_requests" && data?.requester_id) {
-        const { data: profile } = await supabase
-          .from("profiles")
+        const { data: profile } = await tenantDb.from("profiles")
           .select("full_name, phone")
           .eq("user_id", data.requester_id)
           .single();

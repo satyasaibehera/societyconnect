@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Users, Plus, Loader2, UserPlus, Phone, Calendar, ArrowRightLeft, Crown, AlertCircle, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
+import { apiFetch } from "@/services/apiClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/camera/CameraCapture";
@@ -67,8 +69,7 @@ const MyFamily = () => {
 
   const fetchMyUnit = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("residents")
+    const { data } = await tenantDb.from("residents")
       .select("id, unit_id, society_id, resident_type")
       .eq("user_id", user.id)
       .eq("status", "approved")
@@ -85,8 +86,7 @@ const MyFamily = () => {
   const fetchMembers = useCallback(async () => {
     if (!unitId) return;
     setLoading(true);
-    const { data } = await supabase
-      .from("residents")
+    const { data } = await tenantDb.from("residents")
       .select("id, full_name, phone, resident_type, relationship, date_of_birth, age, gender, status, photo_url")
       .eq("unit_id", unitId)
       .neq("resident_type", "tenant");
@@ -173,7 +173,7 @@ const MyFamily = () => {
         gender: form.gender || null,
       };
       if (photoUrl) updateData.photo_url = photoUrl;
-      const { error } = await supabase.from("residents").update(updateData as any).eq("id", editingMember.id);
+      const { error } = await tenantDb.from("residents").update(updateData as any).eq("id", editingMember.id);
       setSaving(false);
       if (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -184,7 +184,7 @@ const MyFamily = () => {
       }
     } else {
       if (!unitId || !societyId) { setSaving(false); return; }
-      const { error } = await supabase.from("residents").insert({
+      const { error } = await tenantDb.from("residents").insert({
         full_name: form.full_name,
         phone: form.phone || null,
         relationship: form.relationship === "other" ? (form.relationship_other || "other") : (form.relationship || null),
@@ -213,14 +213,17 @@ const MyFamily = () => {
   const handleTransfer = async () => {
     if (!transferTargetId || !myResidentId || !user) return;
     setSaving(true);
-    const { error } = await supabase.rpc("transfer_ownership", {
-      _current_owner_id: myResidentId,
-      _new_owner_id: transferTargetId,
-      _invoker_user_id: user.id,
+    const result = await apiFetch("/api/residents/transfer-ownership", {
+      method: "POST",
+      body: JSON.stringify({
+        current_owner_id: myResidentId,
+        new_owner_id: transferTargetId,
+        invoker_user_id: user.id,
+      }),
     });
     setSaving(false);
-    if (error) {
-      toast({ title: "Transfer failed", description: error.message, variant: "destructive" });
+    if (result.error) {
+      toast({ title: "Transfer failed", description: result.error.message, variant: "destructive" });
     } else {
       toast({ title: "Ownership transferred!", description: "You are now a regular resident." });
       setTransferDialogOpen(false);

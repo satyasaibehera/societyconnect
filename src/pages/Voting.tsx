@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Vote, Plus, Loader2, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -37,8 +37,19 @@ const Voting = () => {
 
   const fetchPolls = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from("polls").select("*, votes(vote_option)").order("created_at", { ascending: false });
-    setPolls(data || []);
+    const { data: pollsData } = await tenantDb.from("polls").select("*").order("created_at", { ascending: false });
+    if (!pollsData?.length) {
+      setPolls([]);
+      setLoading(false);
+      return;
+    }
+    const pollIds = pollsData.map((p) => p.id);
+    const { data: votesData } = await tenantDb.from("votes").select("poll_id, vote_option").in("poll_id", pollIds);
+    const votesByPoll = (votesData || []).reduce<Record<string, { vote_option: string }[]>>((acc, v) => {
+      (acc[v.poll_id] ??= []).push({ vote_option: v.vote_option });
+      return acc;
+    }, {});
+    setPolls(pollsData.map((p) => ({ ...p, votes: votesByPoll[p.id] || [] })));
     setLoading(false);
   }, []);
 
@@ -51,7 +62,7 @@ const Voting = () => {
     if (!societyId) { toast({ title: "No society found", variant: "destructive" }); setSaving(false); return; }
     const now = new Date();
     const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 1 week
-    const { error } = await supabase.from("polls").insert({ title, description: description || null, society_id: societyId, created_by: user?.id, start_time: now.toISOString(), end_time: endTime.toISOString() });
+    const { error } = await tenantDb.from("polls").insert({ title, description: description || null, society_id: societyId, created_by: user?.id, start_time: now.toISOString(), end_time: endTime.toISOString() });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Poll created" }); setTitle(""); setDescription(""); setDialogOpen(false); fetchPolls(); }
     setSaving(false);
@@ -59,7 +70,7 @@ const Voting = () => {
 
   const handleVote = async (pollId: string, option: "yes" | "no") => {
     setVoting(pollId);
-    const { error } = await supabase.from("votes").insert({ poll_id: pollId, vote_option: option });
+    const { error } = await tenantDb.from("votes").insert({ poll_id: pollId, vote_option: option });
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else { toast({ title: "Vote recorded!" }); fetchPolls(); }
     setVoting(null);

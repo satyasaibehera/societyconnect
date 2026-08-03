@@ -17,7 +17,7 @@ import {
 import {
   Wrench, UserPlus, Search, MoreHorizontal, Pencil, Check, X, Loader2,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { HelperFormDialog, HelperFormData } from "@/components/helpers/HelperFormDialog";
@@ -58,8 +58,8 @@ const Helpers = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchUnits = useCallback(async () => {
-    const { data: buildings } = await supabase.from("buildings").select("id, name");
-    const { data: unitsData } = await supabase.from("units").select("id, unit_number, building_id");
+    const { data: buildings } = await tenantDb.from("buildings").select("id, name");
+    const { data: unitsData } = await tenantDb.from("units").select("id, unit_number, building_id");
     if (!buildings || !unitsData) return;
     const bMap = Object.fromEntries(buildings.map((b) => [b.id, b.name]));
     setUnits(unitsData.map((u) => ({ id: u.id, unit_number: u.unit_number, building_name: bMap[u.building_id] || "Unknown" })));
@@ -67,7 +67,7 @@ const Helpers = () => {
 
   const fetchHelpers = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("helpers").select("*").order("created_at", { ascending: false });
+    const { data, error } = await tenantDb.from("helpers").select("*").order("created_at", { ascending: false });
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       setLoading(false);
@@ -77,7 +77,7 @@ const Helpers = () => {
     // Fetch all assignments
     const helperIds = (data || []).map((h) => h.id);
     const { data: assignments } = helperIds.length > 0
-      ? await supabase.from("helper_assignments").select("helper_id, unit_id").in("helper_id", helperIds)
+      ? await tenantDb.from("helper_assignments").select("helper_id, unit_id").in("helper_id", helperIds)
       : { data: [] };
 
     const enriched: Helper[] = (data || []).map((h) => {
@@ -106,7 +106,7 @@ const Helpers = () => {
     const societyId = await getSocietyId();
     if (!societyId) { toast({ title: "No society found", description: "Please complete onboarding first.", variant: "destructive" }); return; }
 
-    const { data, error } = await supabase.from("helpers").insert({
+    const { data, error } = await tenantDb.from("helpers").insert({
       name: form.name,
       phone: form.phone || null,
       service_type: form.service_type || null,
@@ -119,7 +119,7 @@ const Helpers = () => {
 
     // Insert assignments
     if (form.unit_ids.length > 0 && data) {
-      await supabase.from("helper_assignments").insert(
+      await tenantDb.from("helper_assignments").insert(
         form.unit_ids.map((uid) => ({ helper_id: data.id, unit_id: uid }))
       );
     }
@@ -131,7 +131,7 @@ const Helpers = () => {
   const handleEdit = async (form: HelperFormData) => {
     if (!editData) return;
 
-    const { error } = await supabase.from("helpers").update({
+    const { error } = await tenantDb.from("helpers").update({
       name: form.name,
       phone: form.phone || null,
       service_type: form.service_type || null,
@@ -140,9 +140,9 @@ const Helpers = () => {
     if (error) throw error;
 
     // Sync assignments: delete old, insert new
-    await supabase.from("helper_assignments").delete().eq("helper_id", editData.id);
+    await tenantDb.from("helper_assignments").delete().eq("helper_id", editData.id);
     if (form.unit_ids.length > 0) {
-      await supabase.from("helper_assignments").insert(
+      await tenantDb.from("helper_assignments").insert(
         form.unit_ids.map((uid) => ({ helper_id: editData.id, unit_id: uid }))
       );
     }
@@ -155,7 +155,7 @@ const Helpers = () => {
   const handleStatusChange = async (id: string, newStatus: "approved" | "rejected") => {
     setActionLoading(id);
     try {
-      const { error } = await supabase.from("helpers").update({ status: newStatus as any, approved_by: user?.id }).eq("id", id);
+      const { error } = await tenantDb.from("helpers").update({ status: newStatus as any, approved_by: user?.id }).eq("id", id);
       if (error) throw error;
       toast({ title: newStatus === "approved" ? "Approved ✓" : "Rejected" });
       fetchHelpers();
