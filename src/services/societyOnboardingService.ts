@@ -9,6 +9,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { signOut, signUp } from "@/services/authService";
+import { APP_CONFIG } from "@/config/appConfig";
 import {
   buildTenantSchemaManifest,
   provisionTenantDatabase,
@@ -20,8 +21,6 @@ import {
 
 const ROUTER_URL =
   import.meta.env.VITE_ROUTER_API_URL || "https://universal-tenant-router.netlify.app";
-
-const SUPER_ADMIN_EMAIL = (import.meta.env.VITE_SUPER_ADMIN_EMAIL || "").trim().toLowerCase();
 
 export interface SocietyOnboardingAdmin {
   email: string;
@@ -63,7 +62,7 @@ function createSocietyId(explicit?: string): string {
 }
 
 export function isSuperAdminEnrollmentEmail(email: string): boolean {
-  return Boolean(SUPER_ADMIN_EMAIL) && email.trim().toLowerCase() === SUPER_ADMIN_EMAIL;
+  return email.trim().toLowerCase() === APP_CONFIG.superAdminEmail;
 }
 
 /**

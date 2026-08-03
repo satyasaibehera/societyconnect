@@ -31,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { APP_SCHEMA } from "@/config/appConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { getSocietyId } from "@/lib/society";
@@ -111,7 +112,7 @@ export default function Emergency() {
       .channel("emergency-alerts-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "society_connect", table: "emergency_alerts" },
+        { event: "*", schema: APP_SCHEMA, table: "emergency_alerts" },
         () => fetchAlerts()
       )
       .subscribe();

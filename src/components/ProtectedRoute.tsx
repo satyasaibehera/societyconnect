@@ -2,20 +2,35 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { verifyAppAccess } from "@/services/appAccessService";
 import PendingApproval from "@/pages/PendingApproval";
+import AppAccessDenied from "@/pages/AppAccessDenied";
 
 type ApprovalStatus = "loading" | "approved" | "pending" | "none";
+type AppAccessStatus = "loading" | "allowed" | "denied";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   const [approvalStatus, setApprovalStatus] = useState<ApprovalStatus>("loading");
+  const [appAccessStatus, setAppAccessStatus] = useState<AppAccessStatus>("loading");
+  const [appAccessReason, setAppAccessReason] = useState<string | undefined>();
 
   useEffect(() => {
     if (loading) return;
     if (!session?.user) {
+      setAppAccessStatus("allowed");
       setApprovalStatus("none");
       return;
     }
+
+    const access = verifyAppAccess(session.user);
+    if (!access.allowed) {
+      setAppAccessStatus("denied");
+      setAppAccessReason(access.reason);
+      return;
+    }
+
+    setAppAccessStatus("allowed");
     checkApproval(session.user.id);
   }, [session, loading]);
 
@@ -75,7 +90,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   };
 
-  if (loading || (session && approvalStatus === "loading")) {
+  if (loading || (session && appAccessStatus === "loading") || (session && approvalStatus === "loading")) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -85,6 +100,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!session) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (appAccessStatus === "denied") {
+    return <AppAccessDenied reason={appAccessReason} />;
   }
 
   if (approvalStatus === "pending") {

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { verifyAppAccess } from "@/services/appAccessService";
+import { signOut } from "@/services/authService";
 import { ensurePendingResidentForUser } from "@/services/residentRegistrationService";
 
 /**
@@ -42,6 +44,14 @@ const AuthCallback = () => {
 
         if (!session?.user) {
           setMessage("Could not confirm your session. Please open the link again or sign in.");
+          setTimeout(() => navigate("/login", { replace: true }), 2500);
+          return;
+        }
+
+        const access = verifyAppAccess(session.user);
+        if (!access.allowed) {
+          await signOut();
+          setMessage("This account is not authorized for this application.");
           setTimeout(() => navigate("/login", { replace: true }), 2500);
           return;
         }

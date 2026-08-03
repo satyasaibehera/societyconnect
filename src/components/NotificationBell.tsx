@@ -17,6 +17,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { APP_SCHEMA } from "@/config/appConfig";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
@@ -200,7 +201,7 @@ export function NotificationBell() {
       .channel("user-notifications")
       .on(
         "postgres_changes",
-        { event: "*", schema: "society_connect", table: "notifications" },
+        { event: "*", schema: APP_SCHEMA, table: "notifications" },
         () => fetchNotifications()
       )
       .subscribe();

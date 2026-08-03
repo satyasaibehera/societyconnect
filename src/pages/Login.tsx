@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { signIn } from "@/services/authService";
+import { signIn, signOut } from "@/services/authService";
+import { AUTH_MESSAGES } from "@/lib/authErrors";
+import { APP_CONFIG } from "@/config/appConfig";
+import { verifyAppAccess } from "@/services/appAccessService";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -38,12 +41,27 @@ const Login = () => {
     }
     setSubmitting(true);
     try {
-      const { error } = await signIn({ email, password });
+      const { data, error } = await signIn({ email, password });
       if (error) throw error;
+
+      const user = data?.user ?? data?.session?.user;
+      if (user) {
+        const access = verifyAppAccess(user);
+        if (!access.allowed) {
+          await signOut();
+          toast({
+            title: "Access denied",
+            description: AUTH_MESSAGES.appAccessDenied,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       navigate("/dashboard");
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Sign in failed";
-      toast({ title: "Error", description: message, variant: "destructive" });
+      const message = error instanceof Error ? error.message : AUTH_MESSAGES.signInFailed;
+      toast({ title: "Sign in failed", description: message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -100,12 +118,17 @@ const Login = () => {
             <div className="text-center">
               <button
                 onClick={async () => {
-                  if (!email) { toast({ title: "Enter your email first", variant: "destructive" }); return; }
-                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  if (!email) {
+                    toast({ title: "Enter your email first", variant: "destructive" });
+                    return;
+                  }
+                  await supabase.auth.resetPasswordForEmail(email, {
                     redirectTo: `${window.location.origin}/reset-password`,
                   });
-                  if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-                  else toast({ title: "Reset link sent", description: "Check your email for the password reset link." });
+                  toast({
+                    title: "Check your email",
+                    description: AUTH_MESSAGES.resetPasswordSent,
+                  });
                 }}
                 className="text-sm text-primary font-medium hover:underline"
               >
@@ -134,7 +157,7 @@ const Login = () => {
             <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
               <Building2 className="h-5 w-5" />
             </div>
-            <span className="font-display text-xl font-bold">SocietyConnect</span>
+            <span className="font-display text-xl font-bold">{APP_CONFIG.appName}</span>
           </div>
           <div className="max-w-md">
             <h2 className="font-display text-4xl font-bold leading-tight mb-4">
@@ -160,7 +183,7 @@ const Login = () => {
             <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center">
               <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="font-display text-xl font-bold">SocietyConnect</span>
+            <span className="font-display text-xl font-bold">{APP_CONFIG.appName}</span>
           </div>
           {renderRightPanel()}
         </div>

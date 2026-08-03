@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { APP_CONFIG } from "@/config/appConfig";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAccessControl } from "@/hooks/useAccessControl";
 import {
@@ -134,7 +135,7 @@ export function AppSidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="font-display text-sm font-bold text-sidebar-primary-foreground">
-                SocietyConnect
+                {APP_CONFIG.appName}
               </span>
               <span className="text-[10px] text-sidebar-foreground/50">
                 Society Management

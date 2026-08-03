@@ -5,6 +5,8 @@ import type {
   AuthTokenResponsePassword,
 } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeAuthError } from "@/lib/authErrors";
+import { appRegistrationMetadata } from "@/services/appAccessService";
 
 const ROUTER_URL =
   import.meta.env.VITE_ROUTER_API_URL || "https://universal-tenant-router.netlify.app";
@@ -105,7 +107,10 @@ async function customSignIn({ email, password }: SignInCredentials): Promise<Aut
 
   const payload = await parseRouterResponse(response);
   if (!response.ok) {
-    return { data: { user: null, session: null }, error: routerError(payload, "Login failed") };
+    return {
+      data: { user: null, session: null },
+      error: sanitizeAuthError(routerError(payload, "Login failed"), "signIn"),
+    };
   }
 
   return hydrateSupabaseSession(payload);
@@ -125,7 +130,10 @@ async function customSignUp({ email, password, options }: SignUpCredentials): Pr
 
   const payload = await parseRouterResponse(response);
   if (!response.ok) {
-    return { data: { user: null, session: null }, error: routerError(payload, "Registration failed") };
+    return {
+      data: { user: null, session: null },
+      error: sanitizeAuthError(routerError(payload, "Registration failed"), "signUp"),
+    };
   }
 
   return hydrateSupabaseSession(payload);
@@ -146,7 +154,10 @@ async function customSendOtp(target: string, options?: SendOtpOptions): Promise<
 
   const payload = await parseRouterResponse(response);
   if (!response.ok) {
-    return { data: null, error: routerError(payload, "Failed to send OTP") };
+    return {
+      data: null,
+      error: sanitizeAuthError(routerError(payload, "Failed to send OTP"), "otpSend"),
+    };
   }
 
   return { data: payload, error: null };
@@ -171,7 +182,10 @@ async function customVerifyOtp(
 
   const payload = await parseRouterResponse(response);
   if (!response.ok) {
-    return { data: { user: null, session: null }, error: routerError(payload, "OTP verification failed") };
+    return {
+      data: { user: null, session: null },
+      error: sanitizeAuthError(routerError(payload, "OTP verification failed"), "otpVerify"),
+    };
   }
 
   return hydrateSupabaseSession(payload);
@@ -212,21 +226,19 @@ async function customSignOut(): Promise<{ error: AuthError | Error | null }> {
 
 async function supabaseSignIn({ email, password }: SignInCredentials): Promise<AuthResult> {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  return { data, error };
+  return { data, error: sanitizeAuthError(error, "signIn") };
 }
 
 async function supabaseSignUp({ email, password, options }: SignUpCredentials): Promise<AuthResult> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: options
-      ? {
-          data: options.data,
-          emailRedirectTo: options.emailRedirectTo,
-        }
-      : undefined,
+    options: {
+      emailRedirectTo: options?.emailRedirectTo,
+      data: appRegistrationMetadata(options?.data),
+    },
   });
-  return { data, error };
+  return { data, error: sanitizeAuthError(error, "signUp") };
 }
 
 async function supabaseSendOtp(target: string, options?: SendOtpOptions): Promise<OtpResult> {
@@ -236,16 +248,16 @@ async function supabaseSendOtp(target: string, options?: SendOtpOptions): Promis
   if (kind === "phone") {
     const { data, error } = await supabase.auth.signInWithOtp({
       phone: target,
-      options: { shouldCreateUser },
+      options: { shouldCreateUser, data: appRegistrationMetadata() },
     });
-    return { data, error };
+    return { data, error: sanitizeAuthError(error, "otpSend") };
   }
 
   const { data, error } = await supabase.auth.signInWithOtp({
     email: target,
-    options: { shouldCreateUser },
+    options: { shouldCreateUser, data: appRegistrationMetadata() },
   });
-  return { data, error };
+  return { data, error: sanitizeAuthError(error, "otpSend") };
 }
 
 async function supabaseVerifyOtp(
@@ -261,7 +273,7 @@ async function supabaseVerifyOtp(
       token: code,
       type: "sms",
     });
-    return { data, error };
+    return { data, error: sanitizeAuthError(error, "otpVerify") };
   }
 
   const { data, error } = await supabase.auth.verifyOtp({
@@ -269,7 +281,7 @@ async function supabaseVerifyOtp(
     token: code,
     type: "email",
   });
-  return { data, error };
+  return { data, error: sanitizeAuthError(error, "otpVerify") };
 }
 
 async function supabaseSignOut(): Promise<{ error: AuthError | Error | null }> {
@@ -279,6 +291,16 @@ async function supabaseSignOut(): Promise<{ error: AuthError | Error | null }> {
 
 // ─── Public API ─────────────────────────────────────────────────────────────
 
+function withAppMetadata(credentials: SignUpCredentials): SignUpCredentials {
+  return {
+    ...credentials,
+    options: {
+      ...credentials.options,
+      data: appRegistrationMetadata(credentials.options?.data),
+    },
+  };
+}
+
 export async function signIn(credentials: SignInCredentials): Promise<AuthResult> {
   if (AUTH_PROVIDER === "custom") {
     return customSignIn(credentials);
@@ -287,10 +309,11 @@ export async function signIn(credentials: SignInCredentials): Promise<AuthResult
 }
 
 export async function signUp(credentials: SignUpCredentials): Promise<AuthResult> {
+  const enriched = withAppMetadata(credentials);
   if (AUTH_PROVIDER === "custom") {
-    return customSignUp(credentials);
+    return customSignUp(enriched);
   }
-  return supabaseSignUp(credentials);
+  return supabaseSignUp(enriched);
 }
 
 /**
