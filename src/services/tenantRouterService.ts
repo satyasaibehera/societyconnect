@@ -1,6 +1,12 @@
 import { APP_CONFIG } from "@/config/appConfig";
 
 export const TENANT_MAPPING_NOT_FOUND = "TENANT_MAPPING_NOT_FOUND";
+export const INVALID_AUTH_TOKEN = "INVALID_AUTH_TOKEN";
+
+export const LOGIN_BANNER_INVALID_CREDENTIALS =
+  "Invalid email or password. Please try again.";
+export const LOGIN_BANNER_TENANT_MAPPING =
+  "Login successful, but application-specific authorization failed. Your account has not been assigned to a society yet.";
 
 export type TenantUserRole = {
   role: string;
@@ -12,6 +18,7 @@ export type TenantRouterErrorData = {
   error?: string;
   message?: string;
   code?: string;
+  authProvider?: string;
   [key: string]: unknown;
 };
 
@@ -21,13 +28,7 @@ export class TenantRouterError extends Error {
   readonly errorData: TenantRouterErrorData;
 
   constructor(status: number, errorData: TenantRouterErrorData) {
-    const code =
-      typeof errorData.code === "string"
-        ? errorData.code
-        : typeof errorData.error === "string" &&
-            errorData.error === TENANT_MAPPING_NOT_FOUND
-          ? TENANT_MAPPING_NOT_FOUND
-          : undefined;
+    const code = resolveErrorCodeFromData(errorData);
     const message =
       (typeof errorData.message === "string" && errorData.message) ||
       (typeof errorData.error === "string" && errorData.error) ||
@@ -66,22 +67,37 @@ function toErrorData(payload: unknown): TenantRouterErrorData {
     error: typeof parsed.error === "string" ? parsed.error : undefined,
     message: typeof parsed.message === "string" ? parsed.message : undefined,
     code: typeof parsed.code === "string" ? parsed.code : undefined,
+    authProvider: typeof parsed.authProvider === "string" ? parsed.authProvider : undefined,
   };
 }
 
-function resolveErrorCode(errorData: TenantRouterErrorData): string | undefined {
+function resolveErrorCodeFromData(errorData: TenantRouterErrorData): string | undefined {
   if (errorData.code === TENANT_MAPPING_NOT_FOUND) return TENANT_MAPPING_NOT_FOUND;
   if (errorData.error === TENANT_MAPPING_NOT_FOUND) return TENANT_MAPPING_NOT_FOUND;
+  if (errorData.code === INVALID_AUTH_TOKEN) return INVALID_AUTH_TOKEN;
+  if (errorData.error === INVALID_AUTH_TOKEN) return INVALID_AUTH_TOKEN;
   return errorData.code ?? (typeof errorData.error === "string" ? errorData.error : undefined);
+}
+
+function resolveErrorCode(errorData: TenantRouterErrorData): string | undefined {
+  return resolveErrorCodeFromData(errorData);
+}
+
+function authProviderLabel(errorData: TenantRouterErrorData): string {
+  return typeof errorData.authProvider === "string" && errorData.authProvider.trim()
+    ? errorData.authProvider
+    : "Identity Provider";
 }
 
 function throwForErrorResponse(status: number, errorData: TenantRouterErrorData): never {
   const code = resolveErrorCode(errorData);
 
   if (status === 403 && code === TENANT_MAPPING_NOT_FOUND) {
-    console.warn(
-      "[TenantRouterService] Authenticated, but missing NeonDB mapping:",
-      errorData,
+    console.info(
+      `[AuthContext] ✅ Primary Authentication Successful via ${authProviderLabel(errorData)}!`,
+    );
+    console.error(
+      "[TenantRouterService] ❌ Application-Specific Authorization Failed: User lacks a tenant role mapping in NeonDB.",
     );
     throw new TenantRouterError(status, {
       ...errorData,
@@ -90,11 +106,10 @@ function throwForErrorResponse(status: number, errorData: TenantRouterErrorData)
   }
 
   if (status === 401) {
-    console.error(
-      "[TenantRouterService] Unauthorized (401):",
-      errorData.message || errorData.error || errorData,
-    );
-    throw new TenantRouterError(status, errorData);
+    throw new TenantRouterError(status, {
+      ...errorData,
+      code: code === INVALID_AUTH_TOKEN ? INVALID_AUTH_TOKEN : code ?? INVALID_AUTH_TOKEN,
+    });
   }
 
   if (status === 500) {

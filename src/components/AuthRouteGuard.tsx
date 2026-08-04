@@ -1,6 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { TENANT_MAPPING_NOT_FOUND } from "@/services/tenantRouterService";
 import {
   isApprovedStatus,
   isPendingApprovalStatus,
@@ -28,7 +27,7 @@ export function AuthRouteGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (authErrorCode === TENANT_MAPPING_NOT_FOUND || authErrorCode === "ROLE_RESOLUTION_FAILED") {
+  if (authErrorCode === "ROLE_RESOLUTION_FAILED") {
     return null;
   }
 

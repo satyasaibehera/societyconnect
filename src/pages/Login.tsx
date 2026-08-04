@@ -3,12 +3,16 @@ import { Building2, Lock, ArrowRight, Eye, EyeOff, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { signIn } from "@/services/authService";
 import { AUTH_MESSAGES } from "@/lib/authErrors";
 import { APP_CONFIG } from "@/config/appConfig";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import {
+  LOGIN_BANNER_INVALID_CREDENTIALS,
+  useAuth,
+} from "@/contexts/AuthContext";
 import { RegistrationChoice } from "@/components/registration/RegistrationChoice";
 import { SocietyAdminRegForm } from "@/components/registration/SocietyAdminRegForm";
 import { ResidentRegDialog } from "@/components/registration/ResidentRegDialog";
@@ -17,7 +21,15 @@ type View = "login" | "register_choice" | "register_society";
 
 const Login = () => {
   const { toast } = useToast();
-  const { loading, roleLoading, isAuthenticated, tenantRole } = useAuth();
+  const {
+    loading,
+    roleLoading,
+    isAuthenticated,
+    tenantRole,
+    loginBannerError,
+    clearLoginBannerError,
+    setLoginBannerError,
+  } = useAuth();
 
   const [view, setView] = useState<View>("login");
   const [showResidentDialog, setShowResidentDialog] = useState(false);
@@ -44,11 +56,13 @@ const Login = () => {
       return;
     }
     setSubmitting(true);
+    clearLoginBannerError();
     try {
       const { error } = await signIn({ email, password });
       if (error) throw error;
       // AuthContext resolves tenant role; AuthRouteGuard handles navigation.
     } catch (error: unknown) {
+      setLoginBannerError(LOGIN_BANNER_INVALID_CREDENTIALS);
       const message = error instanceof Error ? error.message : AUTH_MESSAGES.signInFailed;
       toast({ title: "Sign in failed", description: message, variant: "destructive" });
     } finally {
@@ -75,6 +89,12 @@ const Login = () => {
               <h1 className="font-display text-2xl font-bold">Welcome back</h1>
               <p className="text-muted-foreground mt-1">Sign in to your account</p>
             </div>
+
+            {loginBannerError && (
+              <Alert variant="destructive">
+                <AlertDescription>{loginBannerError}</AlertDescription>
+              </Alert>
+            )}
 
             <div className="space-y-4">
               <div className="space-y-2">

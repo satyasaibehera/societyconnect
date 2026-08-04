@@ -8,13 +8,16 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { AlertTriangle, Building2, LogOut } from "lucide-react";
+import { AlertTriangle, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { APP_CONFIG } from "@/config/appConfig";
 import { supabase } from "@/integrations/supabase/client";
 import { clearStaleAuthTokens, signOut as authSignOut } from "@/services/authService";
 import { setTenantDbName } from "@/services/tenantContext";
 import {
+  INVALID_AUTH_TOKEN,
+  LOGIN_BANNER_INVALID_CREDENTIALS,
+  LOGIN_BANNER_TENANT_MAPPING,
   resolveUserRole,
   TENANT_MAPPING_NOT_FOUND,
   TenantRouterError,
@@ -25,9 +28,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 export type { TenantUserRole };
-
-export const TENANT_MAPPING_DEFAULT_MESSAGE =
-  "Your account exists, but you have not been assigned to a society yet. Please contact your administrator.";
+export {
+  LOGIN_BANNER_INVALID_CREDENTIALS,
+  LOGIN_BANNER_TENANT_MAPPING,
+} from "@/services/tenantRouterService";
 
 interface AuthContextType {
   session: Session | null;
@@ -35,13 +39,15 @@ interface AuthContextType {
   loading: boolean;
   roleLoading: boolean;
   tenantRole: TenantUserRole | null;
-  /** Server-provided error message from role resolution, when applicable. */
   authError: string | null;
-  /** Machine-readable error code from the tenant router (e.g. TENANT_MAPPING_NOT_FOUND). */
   authErrorCode: string | null;
+  /** User-facing banner message for the login page. */
+  loginBannerError: string | null;
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
   refreshTenantRole: () => Promise<void>;
+  clearLoginBannerError: () => void;
+  setLoginBannerError: (message: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -52,15 +58,19 @@ const AuthContext = createContext<AuthContextType>({
   tenantRole: null,
   authError: null,
   authErrorCode: null,
+  loginBannerError: null,
   isAuthenticated: false,
   signOut: async () => {},
   refreshTenantRole: async () => {},
+  clearLoginBannerError: () => {},
+  setLoginBannerError: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 function isInvalidAccessTokenError(err: TenantRouterError): boolean {
   if (err.status === 401) return true;
+  if (err.code === INVALID_AUTH_TOKEN) return true;
   const haystack = [
     err.message,
     typeof err.errorData.error === "string" ? err.errorData.error : "",
@@ -69,31 +79,6 @@ function isInvalidAccessTokenError(err: TenantRouterError): boolean {
     .join(" ")
     .toLowerCase();
   return haystack.includes("invalid access token");
-}
-
-function TenantMappingErrorBanner({
-  message,
-  onSignOut,
-}: {
-  message: string;
-  onSignOut: () => void;
-}) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="max-w-lg w-full p-6 space-y-5">
-        <Alert variant="destructive" className="border-amber-500/50 bg-amber-500/5 text-foreground">
-          <Building2 className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-900 dark:text-amber-100">
-            Society assignment required
-          </AlertTitle>
-          <AlertDescription className="text-muted-foreground">{message}</AlertDescription>
-        </Alert>
-        <Button variant="outline" onClick={onSignOut} className="w-full">
-          <LogOut className="mr-2 h-4 w-4" /> Sign Out
-        </Button>
-      </Card>
-    </div>
-  );
 }
 
 function AuthResolutionErrorBanner({
@@ -126,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tenantRole, setTenantRole] = useState<TenantUserRole | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authErrorCode, setAuthErrorCode] = useState<string | null>(null);
+  const [loginBannerError, setLoginBannerError] = useState<string | null>(null);
   const accessDeniedHandled = useRef(false);
 
   const clearTenantRole = useCallback(() => {
@@ -136,6 +122,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetAuthErrors = useCallback(() => {
     setAuthError(null);
     setAuthErrorCode(null);
+  }, []);
+
+  const clearLoginBannerError = useCallback(() => {
+    setLoginBannerError(null);
   }, []);
 
   const finishLoading = useCallback(() => {
@@ -168,16 +158,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await resolveUserRole(activeSession.access_token);
         setTenantRole(data);
         setTenantDbName(data.tenantDbName || APP_CONFIG.appId);
+        clearLoginBannerError();
       } catch (err) {
         if (err instanceof TenantRouterError && err.code === TENANT_MAPPING_NOT_FOUND) {
-          setAuthError(err.message || TENANT_MAPPING_DEFAULT_MESSAGE);
-          setAuthErrorCode(TENANT_MAPPING_NOT_FOUND);
+          setLoginBannerError(LOGIN_BANNER_TENANT_MAPPING);
           clearTenantRole();
+          await authSignOut();
+          setSession(null);
+          resetAuthErrors();
           return;
         }
 
         if (err instanceof TenantRouterError && isInvalidAccessTokenError(err)) {
-          console.warn("[AuthContext] Invalid or expired access token; clearing session.");
+          console.error("[AuthContext] ❌ Primary Authentication Failed.");
+          setLoginBannerError(LOGIN_BANNER_INVALID_CREDENTIALS);
           await handleInvalidSession();
           return;
         }
@@ -209,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         finishLoading();
       }
     },
-    [clearTenantRole, finishLoading, handleInvalidSession, resetAuthErrors],
+    [clearLoginBannerError, clearTenantRole, finishLoading, handleInvalidSession, resetAuthErrors],
   );
 
   const refreshTenantRole = useCallback(async () => {
@@ -247,7 +241,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const isAuthenticated = session !== null;
-  const showTenantMappingBanner = authErrorCode === TENANT_MAPPING_NOT_FOUND;
   const showResolutionErrorBanner =
     authErrorCode === "ROLE_RESOLUTION_FAILED" && Boolean(authError);
 
@@ -259,21 +252,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tenantRole,
     authError,
     authErrorCode,
+    loginBannerError,
     isAuthenticated,
     signOut,
     refreshTenantRole,
+    clearLoginBannerError,
+    setLoginBannerError,
   };
-
-  if (showTenantMappingBanner) {
-    return (
-      <AuthContext.Provider value={{ ...contextValue, roleLoading: false, loading: false }}>
-        <TenantMappingErrorBanner
-          message={authError || TENANT_MAPPING_DEFAULT_MESSAGE}
-          onSignOut={() => void signOut()}
-        />
-      </AuthContext.Provider>
-    );
-  }
 
   if (showResolutionErrorBanner) {
     return (
