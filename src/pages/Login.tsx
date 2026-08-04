@@ -17,7 +17,7 @@ type View = "login" | "register_choice" | "register_society";
 
 const Login = () => {
   const { toast } = useToast();
-  const { session, loading, roleLoading } = useAuth();
+  const { loading, roleLoading, isAuthenticated, tenantRole } = useAuth();
 
   const [view, setView] = useState<View>("login");
   const [showResidentDialog, setShowResidentDialog] = useState(false);
@@ -26,7 +26,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (loading || (session && roleLoading)) {
+  if (loading || (isAuthenticated && roleLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -34,7 +34,7 @@ const Login = () => {
     );
   }
 
-  if (session) {
+  if (isAuthenticated && tenantRole) {
     return null;
   }
 

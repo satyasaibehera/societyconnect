@@ -11,7 +11,7 @@ import {
  * Role/status routing is enforced globally by AuthRouteGuard.
  */
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading, roleLoading, tenantRole } = useAuth();
+  const { loading, roleLoading, tenantRole, isAuthenticated, authErrorCode } = useAuth();
 
   if (loading || roleLoading) {
     return (
@@ -21,16 +21,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!session) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
+  if (authErrorCode) {
+    return null;
+  }
+
   if (!tenantRole) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    );
+    return <Navigate to="/login" replace />;
   }
 
   if (isSuperAdminRole(tenantRole.role)) {
@@ -52,7 +52,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
  * Requires a session but allows any resolved role (pending, super admin, approved).
  */
 export function SessionRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading, roleLoading } = useAuth();
+  const { loading, roleLoading, isAuthenticated, authErrorCode } = useAuth();
 
   if (loading || roleLoading) {
     return (
@@ -62,7 +62,11 @@ export function SessionRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!session) {
+  if (authErrorCode) {
+    return null;
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 

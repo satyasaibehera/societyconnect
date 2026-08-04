@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { TENANT_MAPPING_NOT_FOUND } from "@/services/tenantRouterService";
 import {
   isApprovedStatus,
   isPendingApprovalStatus,
@@ -15,11 +16,11 @@ const PUBLIC_PATHS = new Set(["/login", "/auth/callback", "/reset-password"]);
  * - Approved roles → main application (dashboard)
  */
 export function AuthRouteGuard({ children }: { children: React.ReactNode }) {
-  const { session, loading, roleLoading, tenantRole } = useAuth();
+  const { session, loading, roleLoading, tenantRole, authErrorCode, isAuthenticated } = useAuth();
   const location = useLocation();
   const pathname = location.pathname;
 
-  if (loading || (session && roleLoading)) {
+  if (loading || (isAuthenticated && roleLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -27,7 +28,11 @@ export function AuthRouteGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!session) {
+  if (authErrorCode === TENANT_MAPPING_NOT_FOUND || authErrorCode === "ROLE_RESOLUTION_FAILED") {
+    return null;
+  }
+
+  if (!isAuthenticated) {
     if (PUBLIC_PATHS.has(pathname)) {
       return <>{children}</>;
     }
@@ -35,7 +40,10 @@ export function AuthRouteGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!tenantRole) {
-    return <>{children}</>;
+    if (PUBLIC_PATHS.has(pathname)) {
+      return <>{children}</>;
+    }
+    return <Navigate to="/login" replace state={{ from: pathname }} />;
   }
 
   const { role, status } = tenantRole;

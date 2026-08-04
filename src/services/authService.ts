@@ -345,6 +345,29 @@ export async function signOut(): Promise<{ error: AuthError | Error | null }> {
   return supabaseSignOut();
 }
 
+/** Remove persisted Supabase auth tokens when the session is invalid or expired. */
+export async function clearStaleAuthTokens(): Promise<void> {
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // Local storage cleanup below is the fallback.
+  }
+
+  const purgeAuthStorage = (storage: Storage) => {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key && key.startsWith("sb-") && key.includes("-auth-token")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => storage.removeItem(key));
+  };
+
+  purgeAuthStorage(localStorage);
+  purgeAuthStorage(sessionStorage);
+}
+
 export const authService = {
   signIn,
   signUp,
