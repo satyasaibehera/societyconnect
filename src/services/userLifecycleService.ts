@@ -1,8 +1,9 @@
 /**
- * User lifecycle sync — Supabase Auth (credentials) ↔ Neon DB `public.users`.
+ * User lifecycle sync — Supabase Auth (credentials) ↔ Neon DB.
  *
- * Auth-only in Supabase: email, password, ban state.
- * Neon-only: full_name, phone_number, role, status (keyed by auth UUID as `id`).
+ * Dual-table model:
+ *   public.users    — id, email, password_hash (SUPABASE_MANAGED_AUTH)
+ *   public.profiles — user_id, full_name, phone_number, role, status
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -14,11 +15,17 @@ export const USER_STATUS = {
   SUSPENDED: "suspended",
 } as const;
 
+export const SUPABASE_MANAGED_AUTH = "SUPABASE_MANAGED_AUTH";
+
 export type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS];
 
-export type NeonUserUpsert = {
+export type NeonUserCredentialUpsert = {
   id: string;
   email?: string | null;
+};
+
+export type NeonProfileUpsert = {
+  userId: string;
   fullName?: string | null;
   phoneNumber?: string | null;
   role?: string | null;
@@ -45,17 +52,30 @@ function getSupabaseAdmin(): SupabaseClient {
   });
 }
 
-/** Idempotent full upsert into Neon `public.users` keyed by auth UUID. */
-export async function upsertNeonUser(input: NeonUserUpsert): Promise<void> {
+/** Root credential upsert — public.users */
+export async function upsertNeonUserCredential(input: NeonUserCredentialUpsert): Promise<void> {
+  const pool = getPool();
+  await pool.query(
+    `
+      INSERT INTO public.users (id, email, password_hash)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email
+    `,
+    [input.id, input.email ?? null, SUPABASE_MANAGED_AUTH],
+  );
+}
+
+/** Profile metadata upsert — public.profiles */
+export async function upsertNeonUserProfile(input: NeonProfileUpsert): Promise<void> {
   const pool = getPool();
   const status = input.status ?? USER_STATUS.PENDING;
 
   await pool.query(
     `
-      INSERT INTO public.users (id, email, full_name, phone_number, role, status, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        email = EXCLUDED.email,
+      INSERT INTO public.profiles (user_id, full_name, phone_number, role, status)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (user_id) DO UPDATE SET
         full_name = EXCLUDED.full_name,
         phone_number = EXCLUDED.phone_number,
         role = EXCLUDED.role,
@@ -63,8 +83,7 @@ export async function upsertNeonUser(input: NeonUserUpsert): Promise<void> {
         updated_at = NOW()
     `,
     [
-      input.id,
-      input.email ?? null,
+      input.userId,
       input.fullName ?? null,
       input.phoneNumber ?? null,
       input.role ?? null,
@@ -73,22 +92,7 @@ export async function upsertNeonUser(input: NeonUserUpsert): Promise<void> {
   );
 }
 
-/** Idempotent status-only upsert (approval / suspension) without clobbering other columns. */
-async function upsertNeonUserStatus(userId: string, status: UserStatus): Promise<void> {
-  const pool = getPool();
-  await pool.query(
-    `
-      INSERT INTO public.users (id, status, updated_at)
-      VALUES ($1, $2, NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        status = EXCLUDED.status,
-        updated_at = NOW()
-    `,
-    [userId, status],
-  );
-}
-
-/** Contact metadata — Neon DB only (never Supabase user_metadata). */
+/** Contact metadata — Neon profiles only (never Supabase user_metadata). */
 export async function updateNeonUserContact(
   userId: string,
   fields: NeonContactUpdate,
@@ -96,20 +100,34 @@ export async function updateNeonUserContact(
   const pool = getPool();
   await pool.query(
     `
-      UPDATE public.users
+      UPDATE public.profiles
       SET
         full_name = COALESCE($2, full_name),
         phone_number = COALESCE($3, phone_number),
         updated_at = NOW()
-      WHERE id = $1
+      WHERE user_id = $1
     `,
     [userId, fields.fullName ?? null, fields.phoneNumber ?? null],
   );
 }
 
-/** Approval / activation: upsert Neon status active + unban Supabase Auth user. */
+async function upsertNeonProfileStatus(userId: string, status: UserStatus): Promise<void> {
+  const pool = getPool();
+  await pool.query(
+    `
+      INSERT INTO public.profiles (user_id, status)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id) DO UPDATE SET
+        status = EXCLUDED.status,
+        updated_at = NOW()
+    `,
+    [userId, status],
+  );
+}
+
+/** Approval / activation: profiles status active + unban Supabase Auth user. */
 export async function syncUserApproved(userId: string): Promise<void> {
-  await upsertNeonUserStatus(userId, USER_STATUS.ACTIVE);
+  await upsertNeonProfileStatus(userId, USER_STATUS.ACTIVE);
 
   const admin = getSupabaseAdmin();
   const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
@@ -119,9 +137,9 @@ export async function syncUserApproved(userId: string): Promise<void> {
   }
 }
 
-/** Revocation / disable: upsert Neon status suspended + ban Supabase Auth user. */
+/** Revocation / disable: profiles status suspended + ban Supabase Auth user. */
 export async function syncUserSuspended(userId: string): Promise<void> {
-  await upsertNeonUserStatus(userId, USER_STATUS.SUSPENDED);
+  await upsertNeonProfileStatus(userId, USER_STATUS.SUSPENDED);
 
   const admin = getSupabaseAdmin();
   const { error } = await admin.auth.admin.updateUserById(userId, {
@@ -133,10 +151,11 @@ export async function syncUserSuspended(userId: string): Promise<void> {
   }
 }
 
-/** Removal: delete Neon app rows then remove Supabase Auth user. */
+/** Removal: delete Neon profiles + users, then Supabase Auth user. */
 export async function syncUserRemoved(userId: string): Promise<void> {
   const pool = getPool();
   await pool.query(`DELETE FROM public.user_roles WHERE user_id = $1`, [userId]);
+  await pool.query(`DELETE FROM public.profiles WHERE user_id = $1`, [userId]);
   await pool.query(`DELETE FROM public.users WHERE id = $1`, [userId]);
 
   const admin = getSupabaseAdmin();
@@ -157,20 +176,20 @@ export async function rollbackAuthUser(userId: string): Promise<void> {
   }
 }
 
-/** @deprecated Use upsertNeonUser */
-export async function upsertNeonUserProfile(input: {
-  userId: string;
-  fullName?: string | null;
-  phone?: string | null;
-  status?: UserStatus;
+/** @deprecated Use upsertNeonUserCredential + upsertNeonUserProfile */
+export async function upsertNeonUser(input: {
+  id: string;
   email?: string | null;
+  fullName?: string | null;
+  phoneNumber?: string | null;
   role?: string | null;
+  status?: UserStatus;
 }): Promise<void> {
-  return upsertNeonUser({
-    id: input.userId,
-    email: input.email,
+  await upsertNeonUserCredential({ id: input.id, email: input.email });
+  await upsertNeonUserProfile({
+    userId: input.id,
     fullName: input.fullName,
-    phoneNumber: input.phone,
+    phoneNumber: input.phoneNumber,
     role: input.role,
     status: input.status,
   });

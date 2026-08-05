@@ -4,18 +4,18 @@
  * Supabase Edge Function: enroll-society
  * ============================================================================
  *
- *   1. Accepts multi-format frontend payload keys (camelCase or snake_case).
- *   2. Validates mandatory registration fields (email, password, society name).
- *   3. Provisions Supabase Auth credentials ONLY (or reuses an existing user_id).
- *   4. Writes application data to Neon PostgreSQL via DATABASE_URL:
- *      a) public.users (keyed by auth UUID; contact + lifecycle status)
- *      b) public.societies (created_by references auth.users UUID)
+ * Auth: Supabase Auth ONLY (admin.createUser / deleteUser).
+ * Data: Neon PostgreSQL ONLY via NEON_DATABASE_URL (or DATABASE_URL @ neon.tech).
  *
- * Supabase Auth is never used for application profile/contact storage.
+ * Dual-table upsert on Neon:
+ *   1. public.users   — id, email, password_hash (SUPABASE_MANAGED_AUTH)
+ *   2. public.profiles — user_id, full_name, phone_number, role, status
+ *   3. public.societies — society record
+ *
  * Secrets Required:
  *   - SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
- *   - DATABASE_URL (Neon DB Connection String)
+ *   - NEON_DATABASE_URL (preferred) or DATABASE_URL → *.neon.tech
  * ============================================================================
  */
 
@@ -27,11 +27,52 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const SUPABASE_MANAGED_AUTH = 'SUPABASE_MANAGED_AUTH'
+
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     status,
   })
+}
+
+/**
+ * Resolve Neon connection string — never use Supabase-hosted Postgres for app data.
+ * Priority: NEON_DATABASE_URL → DATABASE_URL (must point at *.neon.tech).
+ */
+function resolveNeonDatabaseUrl(): { url: string | null; error: string | null } {
+  const neonUrl = Deno.env.get('NEON_DATABASE_URL')?.trim()
+  const databaseUrl = Deno.env.get('DATABASE_URL')?.trim()
+  const candidate = neonUrl || databaseUrl
+
+  if (!candidate) {
+    return {
+      url: null,
+      error:
+        'NEON_DATABASE_URL (or DATABASE_URL pointing to Neon) is missing in Edge Function secrets.',
+    }
+  }
+
+  const lower = candidate.toLowerCase()
+
+  if (lower.includes('supabase.co') || lower.includes('pooler.supabase.com')) {
+    return {
+      url: null,
+      error:
+        'Database URL appears to be Supabase Postgres. Set NEON_DATABASE_URL to your @ep-....neon.tech connection string.',
+    }
+  }
+
+  if (!lower.includes('neon.tech')) {
+    console.warn(
+      '[CONFIG WARN] Database URL does not contain neon.tech — verify this is your Neon cluster.',
+    )
+  }
+
+  const source = neonUrl ? 'NEON_DATABASE_URL' : 'DATABASE_URL'
+  console.log(`[INFO] Using Neon database connection from ${source}`)
+
+  return { url: candidate, error: null }
 }
 
 function serializeError(err: unknown): Record<string, unknown> {
@@ -108,6 +149,41 @@ async function rollbackAuthUser(
   }
 }
 
+/** Step 1: root credential row in Neon public.users */
+async function upsertNeonUserCredential(
+  sql: ReturnType<typeof postgres>,
+  userId: string,
+  email: string,
+): Promise<void> {
+  await sql`
+    INSERT INTO public.users (id, email, password_hash)
+    VALUES (${userId}, ${email}, ${SUPABASE_MANAGED_AUTH})
+    ON CONFLICT (id) DO UPDATE SET
+      email = EXCLUDED.email
+  `
+}
+
+/** Step 2: profile metadata in Neon public.profiles */
+async function upsertNeonUserProfile(
+  sql: ReturnType<typeof postgres>,
+  userId: string,
+  fullName: string,
+  phoneNumber: string | null,
+  role: string,
+  status: string,
+): Promise<void> {
+  await sql`
+    INSERT INTO public.profiles (user_id, full_name, phone_number, role, status)
+    VALUES (${userId}, ${fullName}, ${phoneNumber}, ${role}, ${status})
+    ON CONFLICT (user_id) DO UPDATE SET
+      full_name = EXCLUDED.full_name,
+      phone_number = EXCLUDED.phone_number,
+      role = EXCLUDED.role,
+      status = EXCLUDED.status,
+      updated_at = NOW()
+  `
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -119,14 +195,14 @@ Deno.serve(async (req: Request) => {
   let userId: string | null = null
 
   try {
-    const dbUrl = Deno.env.get('DATABASE_URL')
-    if (!dbUrl) {
-      console.error('[CONFIG ERROR] DATABASE_URL secret is missing.')
+    const { url: dbUrl, error: dbConfigError } = resolveNeonDatabaseUrl()
+    if (!dbUrl || dbConfigError) {
+      console.error('[CONFIG ERROR]', dbConfigError)
       return jsonResponse(
         {
           success: false,
           stage: 'configuration',
-          error: 'DATABASE_URL secret is missing in Supabase Edge Functions environment.',
+          error: dbConfigError,
         },
         500,
       )
@@ -147,7 +223,7 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    sql = postgres(dbUrl)
+    sql = postgres(dbUrl, { ssl: 'require' })
     supabaseClient = createClient(supabaseUrl, serviceRoleKey)
 
     const payload = await req.json()
@@ -157,7 +233,7 @@ Deno.serve(async (req: Request) => {
     const password = payload.password
     const societyName = payload.societyName || payload.society_name || payload.name
     const fullName = payload.fullName || payload.full_name || payload.adminName || societyName
-    const phone = payload.phone || null
+    const phone = payload.phone || payload.phone_number || null
     const address = payload.address || null
     const city = payload.city || null
     const state = payload.state || null
@@ -193,7 +269,7 @@ Deno.serve(async (req: Request) => {
         )
       }
 
-      console.log(`[INFO] Provisioning auth account for email: ${email}`)
+      console.log(`[INFO] Provisioning Supabase Auth account for email: ${email}`)
       const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
         email,
         password,
@@ -234,34 +310,18 @@ Deno.serve(async (req: Request) => {
 
       userId = authData.user.id
       createdAuthUser = true
-      console.log(`[INFO] Supabase Auth user created (${userId}); provisioning Neon users + society...`)
+      console.log(`[INFO] Supabase Auth user created (${userId}); provisioning Neon users + profiles + society...`)
     }
 
-    const userStatus = existingUserId ? 'pending' : 'active'
+    const profileStatus = existingUserId ? 'pending' : 'active'
     const userRole = 'SOCIETY_ADMIN'
 
     try {
-      console.log(`[INFO] Upserting Neon public.users id=${userId} status=${userStatus}`)
+      console.log(`[INFO] Upserting Neon public.users credential id=${userId}`)
+      await upsertNeonUserCredential(sql, userId, email)
 
-      await sql`
-        INSERT INTO public.users (id, email, full_name, phone_number, role, status, updated_at)
-        VALUES (
-          ${userId},
-          ${email},
-          ${fullName},
-          ${phone},
-          ${userRole},
-          ${userStatus},
-          NOW()
-        )
-        ON CONFLICT (id) DO UPDATE SET
-          email = EXCLUDED.email,
-          full_name = EXCLUDED.full_name,
-          phone_number = EXCLUDED.phone_number,
-          role = EXCLUDED.role,
-          status = EXCLUDED.status,
-          updated_at = NOW()
-      `
+      console.log(`[INFO] Upserting Neon public.profiles user_id=${userId} status=${profileStatus}`)
+      await upsertNeonUserProfile(sql, userId, fullName, phone, userRole, profileStatus)
 
       console.log(`[INFO] Inserting society record "${societyName}" into public.societies...`)
 
@@ -332,6 +392,7 @@ Deno.serve(async (req: Request) => {
             email,
             societyName,
             authUserRolledBack: createdAuthUser,
+            neonConnection: Deno.env.get('NEON_DATABASE_URL') ? 'NEON_DATABASE_URL' : 'DATABASE_URL',
           },
         },
         databaseErrorStatus(serialized as { code?: string }),

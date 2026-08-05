@@ -270,13 +270,9 @@ CREATE TABLE IF NOT EXISTS ${SCHEMA}.societies (
 CREATE TABLE IF NOT EXISTS ${SCHEMA}.users (
   id uuid PRIMARY KEY,
   email text,
-  full_name text,
-  phone_number text,
-  role text,
-  status text NOT NULL DEFAULT 'pending',
+  password_hash text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT users_status_check CHECK (status IN ('pending', 'active', 'suspended'))
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 `.trim(),
     }),
@@ -289,6 +285,8 @@ CREATE TABLE IF NOT EXISTS ${SCHEMA}.profiles (
   user_id uuid NOT NULL UNIQUE,
   full_name text,
   phone text,
+  phone_number text,
+  role text,
   avatar_url text,
   date_of_birth date,
   status text NOT NULL DEFAULT 'pending',
