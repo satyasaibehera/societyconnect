@@ -265,17 +265,18 @@ CREATE TABLE IF NOT EXISTS ${SCHEMA}.societies (
     }),
     entry({
       id: "table.users",
-      description: "Create tenant-local users table",
+      description: "Create application users table (Neon, keyed by auth UUID)",
       sql: `
 CREATE TABLE IF NOT EXISTS ${SCHEMA}.users (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email text UNIQUE,
-  phone text,
+  id uuid PRIMARY KEY,
+  email text,
   full_name text,
-  password_hash text,
-  is_active boolean NOT NULL DEFAULT true,
+  phone_number text,
+  role text,
+  status text NOT NULL DEFAULT 'pending',
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT users_status_check CHECK (status IN ('pending', 'active', 'suspended'))
 );
 `.trim(),
     }),

@@ -8,10 +8,10 @@
  *   2. Validates mandatory registration fields (email, password, society name).
  *   3. Provisions Supabase Auth credentials ONLY (or reuses an existing user_id).
  *   4. Writes application data to Neon PostgreSQL via DATABASE_URL:
- *      a) public.profiles (keyed by auth UUID; contact + lifecycle status)
+ *      a) public.users (keyed by auth UUID; contact + lifecycle status)
  *      b) public.societies (created_by references auth.users UUID)
  *
- * Supabase Auth is never used for application profile/contact storage. *
+ * Supabase Auth is never used for application profile/contact storage.
  * Secrets Required:
  *   - SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
@@ -234,33 +234,33 @@ Deno.serve(async (req: Request) => {
 
       userId = authData.user.id
       createdAuthUser = true
-      console.log(`[INFO] Supabase Auth user created (${userId}); provisioning Neon profile + society...`)
+      console.log(`[INFO] Supabase Auth user created (${userId}); provisioning Neon users + society...`)
     }
 
-    const profileStatus = existingUserId ? 'pending' : 'active'
+    const userStatus = existingUserId ? 'pending' : 'active'
+    const userRole = 'SOCIETY_ADMIN'
 
     try {
-      console.log(`[INFO] Upserting Neon public.profiles for user_id: ${userId} (status=${profileStatus})`)
+      console.log(`[INFO] Upserting Neon public.users id=${userId} status=${userStatus}`)
 
       await sql`
-        INSERT INTO public.profiles (
-          user_id,
-          full_name,
-          phone,
-          status
-        )
+        INSERT INTO public.users (id, email, full_name, phone_number, role, status, updated_at)
         VALUES (
           ${userId},
+          ${email},
           ${fullName},
           ${phone},
-          ${profileStatus}
+          ${userRole},
+          ${userStatus},
+          NOW()
         )
-        ON CONFLICT (user_id) DO UPDATE
-        SET
+        ON CONFLICT (id) DO UPDATE SET
+          email = EXCLUDED.email,
           full_name = EXCLUDED.full_name,
-          phone = COALESCE(EXCLUDED.phone, public.profiles.phone),
-          status = COALESCE(public.profiles.status, EXCLUDED.status),
-          updated_at = now()
+          phone_number = EXCLUDED.phone_number,
+          role = EXCLUDED.role,
+          status = EXCLUDED.status,
+          updated_at = NOW()
       `
 
       console.log(`[INFO] Inserting society record "${societyName}" into public.societies...`)
