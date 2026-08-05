@@ -89,10 +89,6 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
       }
 
       if (result.mode === "platform_admin") {
-        toast({
-          title: "Platform Admin account initialized and approved!",
-          description: "You can now log in directly using the password you just set.",
-        });
         setSubmittedMode("platform_admin");
       } else {
         setSubmittedMode("standard");
@@ -113,10 +109,10 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
           <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
             <CheckCircle2 className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="font-display text-xl font-bold">Platform Admin Ready</h2>
-          <p className="text-sm text-muted-foreground">
-            Platform Admin account initialized and approved! You can now log in directly using the
-            password you just set.
+          <h2 className="font-display text-xl font-bold">Registration Successful</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Registration successful! Your platform admin account has been activated. Please proceed
+            to log in.
           </p>
           <Button onClick={onBack} variant="outline" className="w-full">
             Back to Sign In
@@ -130,11 +126,10 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
         <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
           <CheckCircle2 className="h-8 w-8 text-primary" />
         </div>
-        <h2 className="font-display text-xl font-bold">Society Onboarding Request Submitted!</h2>
+        <h2 className="font-display text-xl font-bold">Registration Submitted</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          We have sent a verification link to your email address. Please verify your email to
-          complete the initial step. Once verified, your society onboarding request will be
-          forwarded to the Platform Administration team for review and approval.
+          Registration submitted successfully! A platform admin will be reviewing your society
+          onboarding request and contact details for approval.
         </p>
         <Button onClick={onBack} variant="outline" className="w-full">
           Back to Sign In

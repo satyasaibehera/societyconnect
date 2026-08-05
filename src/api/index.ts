@@ -6,6 +6,7 @@ import registerRouter from "./routes/register";
 import residentsRouter from "./routes/residents";
 import societiesRouter from "./routes/societies";
 import tenantDataRouter from "./routes/tenantData";
+import usersRouter from "./routes/users";
 import { requireAuthUnlessPublic, requireTenantDb } from "./middleware/requireAuth";
 
 /**
@@ -28,6 +29,7 @@ export function createApiApp(): Express {
   app.use("/api/societies", societiesRouter);
   app.use("/api/buildings", buildingsRouter);
   app.use("/api/register", registerRouter);
+  app.use("/api/users", usersRouter);
   app.use("/api/residents", requireTenantDb, residentsRouter);
   app.use("/api/addition-requests", additionRequestsRouter);
   app.use("/api/data", requireTenantDb, tenantDataRouter);

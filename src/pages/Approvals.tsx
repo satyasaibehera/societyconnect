@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, X, UserCheck, Users, Wrench, Car, Shield, Loader2, PackageOpen, Eye, Home } from "lucide-react";
 import { tenantDb } from "@/services/tenantDb";
+import { activateUser } from "@/services/userService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ApprovalDetailDialog } from "@/components/approvals/ApprovalDetailDialog";
@@ -318,6 +319,11 @@ const Approvals = () => {
             user_id: req.requester_id,
             role: req.requested_role as any,
           });
+
+          const { error: lifecycleError } = await activateUser(req.requester_id);
+          if (lifecycleError) {
+            console.warn("[Approvals] User lifecycle activate sync:", lifecycleError.message);
+          }
         }
       }
 

@@ -290,8 +290,10 @@ CREATE TABLE IF NOT EXISTS ${SCHEMA}.profiles (
   phone text,
   avatar_url text,
   date_of_birth date,
+  status text NOT NULL DEFAULT 'pending',
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT profiles_status_check CHECK (status IN ('pending', 'active', 'suspended'))
 );
 `.trim(),
     }),

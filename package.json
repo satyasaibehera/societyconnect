@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
+"scripts": {
     "dev": "concurrently -k -n api,web -c cyan,magenta \"bun src/api/server.ts\" \"vite\"",
     "dev:api": "bun src/api/server.ts",
     "dev:web": "vite",
@@ -13,7 +13,10 @@
     "preview": "vite preview",
     "type-check": "tsc -p tsconfig.app.json --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "functions:serve": "supabase functions serve",
+    "functions:deploy": "supabase functions deploy",
+    "functions:deploy:single": "supabase functions deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -47,7 +50,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@supabase/supabase-js": "^2.98.0",
     "@tanstack/react-query": "^5.83.0",
-    "baseline-browser-mapping": "^2.10.43",
+    "baseline-browser-mapping": "^2.11.12",
     "caniuse-lite": "^1.0.30001806",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -98,6 +101,7 @@
     "jsdom": "^20.0.3",
     "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.6",
+    "supabase": "^2.111.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
