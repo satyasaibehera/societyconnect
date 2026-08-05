@@ -5,7 +5,7 @@
  * ============================================================================
  *
  * Auth: Supabase Auth ONLY (admin.createUser / deleteUser).
- * Data: Neon PostgreSQL ONLY via NEON_DATABASE_URL (or DATABASE_URL @ neon.tech).
+ * Data: Neon PostgreSQL ONLY via NEON_DATABASE_URL → *.neon.tech
  *
  * Dual-table upsert on Neon:
  *   1. public.users   — id, email, password_hash (SUPABASE_MANAGED_AUTH)
@@ -15,7 +15,7 @@
  * Secrets Required:
  *   - SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
- *   - NEON_DATABASE_URL (preferred) or DATABASE_URL → *.neon.tech
+ *   - NEON_DATABASE_URL (required — direct Neon @ep-....neon.tech connection)
  * ============================================================================
  */
 
@@ -36,43 +36,63 @@ function jsonResponse(body: Record<string, unknown>, status: number) {
   })
 }
 
+const NEON_CONNECTION_LABEL = 'NEON_DATABASE_URL'
+
+function diagnosticContext(extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return { neonConnection: NEON_CONNECTION_LABEL, ...extra }
+}
+
+/** Ensure sslmode=require is present on the Neon connection string. */
+function ensureSslRequire(connectionUrl: string): string {
+  if (/sslmode=/i.test(connectionUrl)) {
+    return connectionUrl
+  }
+  const separator = connectionUrl.includes('?') ? '&' : '?'
+  return `${connectionUrl}${separator}sslmode=require`
+}
+
 /**
- * Resolve Neon connection string — never use Supabase-hosted Postgres for app data.
- * Priority: NEON_DATABASE_URL → DATABASE_URL (must point at *.neon.tech).
+ * Resolve Neon connection string — strictly NEON_DATABASE_URL only.
  */
 function resolveNeonDatabaseUrl(): { url: string | null; error: string | null } {
   const neonUrl = Deno.env.get('NEON_DATABASE_URL')?.trim()
-  const databaseUrl = Deno.env.get('DATABASE_URL')?.trim()
-  const candidate = neonUrl || databaseUrl
 
-  if (!candidate) {
+  if (!neonUrl) {
     return {
       url: null,
-      error:
-        'NEON_DATABASE_URL (or DATABASE_URL pointing to Neon) is missing in Edge Function secrets.',
+      error: 'NEON_DATABASE_URL is missing in Edge Function secrets.',
     }
   }
 
-  const lower = candidate.toLowerCase()
+  const lower = neonUrl.toLowerCase()
 
   if (lower.includes('supabase.co') || lower.includes('pooler.supabase.com')) {
     return {
       url: null,
       error:
-        'Database URL appears to be Supabase Postgres. Set NEON_DATABASE_URL to your @ep-....neon.tech connection string.',
+        'NEON_DATABASE_URL must not point at Supabase Postgres. Use your @ep-....neon.tech connection string.',
     }
   }
 
   if (!lower.includes('neon.tech')) {
-    console.warn(
-      '[CONFIG WARN] Database URL does not contain neon.tech — verify this is your Neon cluster.',
-    )
+    return {
+      url: null,
+      error: 'NEON_DATABASE_URL must point to a Neon host (*.neon.tech).',
+    }
   }
 
-  const source = neonUrl ? 'NEON_DATABASE_URL' : 'DATABASE_URL'
-  console.log(`[INFO] Using Neon database connection from ${source}`)
+  const url = ensureSslRequire(neonUrl)
+  console.log('[DIAG] Neon driver initialization', diagnosticContext({ ssl: 'require' }))
 
-  return { url: candidate, error: null }
+  return { url, error: null }
+}
+
+/** Create postgres.js client against Neon with SSL required. */
+function createNeonSqlClient(connectionUrl: string): ReturnType<typeof postgres> {
+  return postgres(connectionUrl, {
+    ssl: 'require',
+    connect_timeout: 15,
+  })
 }
 
 function serializeError(err: unknown): Record<string, unknown> {
@@ -203,6 +223,7 @@ Deno.serve(async (req: Request) => {
           success: false,
           stage: 'configuration',
           error: dbConfigError,
+          context: diagnosticContext(),
         },
         500,
       )
@@ -223,7 +244,7 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    sql = postgres(dbUrl, { ssl: 'require' })
+    sql = createNeonSqlClient(dbUrl)
     supabaseClient = createClient(supabaseUrl, serviceRoleKey)
 
     const payload = await req.json()
@@ -360,6 +381,7 @@ Deno.serve(async (req: Request) => {
             id: userId,
             email,
           },
+          context: diagnosticContext({ userId }),
         },
         200,
       )
@@ -387,13 +409,12 @@ Deno.serve(async (req: Request) => {
           table: serialized.table ?? null,
           constraint: serialized.constraint ?? null,
           details: serialized,
-          context: {
+          context: diagnosticContext({
             userId,
             email,
             societyName,
             authUserRolledBack: createdAuthUser,
-            neonConnection: Deno.env.get('NEON_DATABASE_URL') ? 'NEON_DATABASE_URL' : 'DATABASE_URL',
-          },
+          }),
         },
         databaseErrorStatus(serialized as { code?: string }),
       )
@@ -421,6 +442,7 @@ Deno.serve(async (req: Request) => {
             ? serialized.message
             : 'An unexpected error occurred during society enrollment.',
         details: serialized,
+        context: diagnosticContext(),
       },
       500,
     )

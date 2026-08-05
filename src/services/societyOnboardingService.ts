@@ -66,6 +66,33 @@ export function isSuperAdminEnrollmentEmail(email: string): boolean {
   return email.trim().toLowerCase() === APP_CONFIG.superAdminEmail;
 }
 
+type EnrollSocietyResponse = {
+  success?: boolean;
+  error?: string;
+  society_id?: string | null;
+  context?: { neonConnection?: string };
+};
+
+function isEnrollSocietyFailure(
+  data: EnrollSocietyResponse | null | undefined,
+  invokeError: Error | null,
+): boolean {
+  if (invokeError) return true;
+  if (!data) return false;
+  if (data.success === false) return true;
+  return Boolean(data.error);
+}
+
+function enrollSocietyErrorMessage(
+  data: EnrollSocietyResponse | null | undefined,
+  invokeError: Error | null,
+  fallback: string,
+): string {
+  if (invokeError?.message) return invokeError.message;
+  if (typeof data?.error === "string" && data.error.trim()) return data.error;
+  return fallback;
+}
+
 /**
  * Enroll a society admin — Platform Admin bootstrap (email match only) or standard pending onboarding.
  * Bootstrap password is always the form password; never an env password.
@@ -92,29 +119,27 @@ export async function onboardSociety(
         },
       });
 
-      if (error) {
-        const duplicateAccount = isDuplicateRegistrationError(error);
+      const enrollData = data as EnrollSocietyResponse | null;
+
+      if (isEnrollSocietyFailure(enrollData, error)) {
+        await signOut();
+        const duplicateAccount = isDuplicateRegistrationError(
+          error ?? new Error(enrollData?.error || "Platform Admin bootstrap failed"),
+        );
         return {
           success: false,
           societyId: null,
           mode: "platform_admin",
           status: null,
-          routerResponse: data,
+          routerResponse: enrollData,
           provision: null,
-          error: duplicateAccount ? undefined : error.message || "Platform Admin bootstrap failed",
-          duplicateAccount,
-        };
-      }
-      if (data?.error) {
-        const duplicateAccount = isDuplicateRegistrationError(String(data.error));
-        return {
-          success: false,
-          societyId: null,
-          mode: "platform_admin",
-          status: null,
-          routerResponse: data,
-          provision: null,
-          error: duplicateAccount ? undefined : String(data.error),
+          error: duplicateAccount
+            ? undefined
+            : enrollSocietyErrorMessage(
+                enrollData,
+                error,
+                "Platform Admin bootstrap failed",
+              ),
           duplicateAccount,
         };
       }
@@ -123,10 +148,10 @@ export async function onboardSociety(
 
       return {
         success: true,
-        societyId: data?.society_id ?? null,
+        societyId: enrollData?.society_id ?? null,
         mode: "platform_admin",
         status: "APPROVED",
-        routerResponse: data,
+        routerResponse: enrollData,
         provision: null,
       };
     }
@@ -193,20 +218,28 @@ export async function onboardSociety(
       },
     });
 
-    if (error || data?.error) {
+    const enrollData = data as EnrollSocietyResponse | null;
+
+    if (isEnrollSocietyFailure(enrollData, error)) {
+      await signOut();
       return {
         success: false,
         societyId: null,
         mode: "standard",
         status: null,
-        routerResponse: data,
+        routerResponse: enrollData,
         provision: null,
-        error: error?.message || String(data?.error || "Failed to save society enrollment"),
+        error: enrollSocietyErrorMessage(
+          enrollData,
+          error,
+          "Failed to save society enrollment",
+        ),
       };
     }
 
     // Best-effort router / tenant provision (non-blocking for auth flow)
-    const societyId = (data?.society_id as string | undefined) || createSocietyId(payload.societyId);
+    const societyId =
+      (enrollData?.society_id as string | undefined) || createSocietyId(payload.societyId);
     if (payload.provisionDatabase !== false) {
       try {
         await provisionViaRouter(payload, societyId);
@@ -222,7 +255,7 @@ export async function onboardSociety(
       societyId,
       mode: "standard",
       status: "PENDING_APPROVAL",
-      routerResponse: data,
+      routerResponse: enrollData,
       provision: null,
     };
   } catch (err) {

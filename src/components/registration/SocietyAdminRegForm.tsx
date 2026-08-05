@@ -85,7 +85,12 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
           navigate("/login");
           return;
         }
-        throw new Error(result.error || "Society registration failed");
+        toast({
+          title: "Registration failed",
+          description: result.error || "Society registration failed",
+          variant: "destructive",
+        });
+        return;
       }
 
       if (result.mode === "platform_admin") {
