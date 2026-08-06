@@ -70,7 +70,7 @@ type EnrollSocietyResponse = {
   success?: boolean;
   error?: string;
   society_id?: string | null;
-  context?: { databaseConnection?: string };
+  context?: { neonConnection?: string };
 };
 
 function isEnrollSocietyFailure(

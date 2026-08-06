@@ -5,7 +5,7 @@
  * ============================================================================
  *
  * Auth: Supabase Auth ONLY (admin.createUser / deleteUser).
- * Data: Application PostgreSQL via DATABASE_URL (direct pooler connection).
+ * Data: Application PostgreSQL via NEON_DATABASE_URL (direct pooler connection).
  *
  * Dual-table upsert on Neon:
  *   1. public.users   — id, email, password_hash (SUPABASE_MANAGED_AUTH)
@@ -15,7 +15,7 @@
  * Secrets Required:
  *   - SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
- *   - DATABASE_URL (required — application database connection string)
+ *   - NEON_DATABASE_URL (required — Neon application database connection string)
  * ============================================================================
  */
 
@@ -36,10 +36,10 @@ function jsonResponse(body: Record<string, unknown>, status: number) {
   })
 }
 
-const DATABASE_CONNECTION_LABEL = 'DATABASE_URL'
+const NEON_CONNECTION_LABEL = 'NEON_DATABASE_URL'
 
 function diagnosticContext(extra: Record<string, unknown> = {}): Record<string, unknown> {
-  return { databaseConnection: DATABASE_CONNECTION_LABEL, ...extra }
+  return { neonConnection: NEON_CONNECTION_LABEL, ...extra }
 }
 
 /** Ensure sslmode=require is present on the connection string. */
@@ -51,14 +51,14 @@ function ensureSslRequire(connectionUrl: string): string {
   return `${connectionUrl}${separator}sslmode=require`
 }
 
-/** Resolve application database connection string from DATABASE_URL. */
+/** Resolve Neon application database connection string from NEON_DATABASE_URL. */
 function resolveDatabaseUrl(): { url: string | null; error: string | null } {
-  const databaseUrl = Deno.env.get('DATABASE_URL')?.trim()
+  const databaseUrl = Deno.env.get('NEON_DATABASE_URL')?.trim()
 
   if (!databaseUrl) {
     return {
       url: null,
-      error: 'DATABASE_URL is missing in Edge Function secrets.',
+      error: 'NEON_DATABASE_URL is missing in Edge Function secrets.',
     }
   }
 
@@ -68,7 +68,7 @@ function resolveDatabaseUrl(): { url: string | null; error: string | null } {
     return {
       url: null,
       error:
-        'DATABASE_URL must not point at Supabase Postgres. Use your application database connection string.',
+        'NEON_DATABASE_URL must not point at Supabase Postgres. Use your Neon application database connection string.',
     }
   }
 
