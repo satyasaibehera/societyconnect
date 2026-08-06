@@ -21,9 +21,12 @@ jobs:
       - name: Ping Neon DB & All Supabase Projects
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          
+          # Supabase URLs
           SUPABASE_URL_SSB: ${{ secrets.SUPABASE_URL_SSB }}
-          SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}     
-          # Supabase Publishable Keys (Safe low-privilege keys for API Gateway pinging)     
+          SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}
+          
+          # Supabase Publishable Keys (Safe low-privilege keys for API Gateway pinging)
           SUPABASE_KEY_SSB: ${{ secrets.SUPABASE_KEY_SSB }}
           SUPABASE_KEY_CLIENTS: ${{ secrets.SUPABASE_KEY_CLIENTS }}
         run: |
@@ -53,13 +56,21 @@ jobs:
 
             for (const item of supabaseList) {
               if (!item.url || !item.key) {
-                console.warn(`⚠️ Skipping ${item.name}: Missing URL or Key secret.`);
+                console.error(`❌ Supabase [${item.name}] failed: Missing URL or Key in secrets!`);
+                hasError = true;
                 continue;
               }
 
               try {
                 const targetUrl = `${item.url.replace(/\/$/, "")}/rest/v1/`;
-                const res = await fetch(targetUrl, { headers: { "apikey": item.key } });
+                
+                // Pass both mandatory apikey AND Authorization headers
+                const res = await fetch(targetUrl, {
+                  headers: {
+                    "apikey": item.key,
+                    "Authorization": `Bearer ${item.key}`
+                  }
+                });
                 
                 if (res.ok || res.status === 200 || res.status === 204) {
                   console.log(`✅ Supabase [${item.name}] ping successful! (Status: ${res.status})`);
