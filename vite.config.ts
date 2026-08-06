@@ -25,4 +25,32 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+
+          if (
+            /node_modules[/\\]react[/\\]/.test(id) ||
+            /node_modules[/\\]react-dom[/\\]/.test(id) ||
+            /node_modules[/\\]react-router-dom[/\\]/.test(id) ||
+            /node_modules[/\\]react-router[/\\]/.test(id)
+          ) {
+            return "vendor-react";
+          }
+
+          if (id.includes("@supabase")) {
+            return "vendor-supabase";
+          }
+
+          if (id.includes("lucide-react")) {
+            return "vendor-icons";
+          }
+
+          return "vendor-utils";
+        },
+      },
+    },
+  },
 }));
