@@ -25,7 +25,6 @@ jobs:
           SUPABASE_URL_SSB: ${{ secrets.SUPABASE_URL_SSB }}
           SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}
           
-          # Supabase Publishable Keys
           SUPABASE_KEY_SSB: ${{ secrets.SUPABASE_KEY_SSB }}
           SUPABASE_KEY_CLIENTS: ${{ secrets.SUPABASE_KEY_CLIENTS }}
         run: |
@@ -37,19 +36,29 @@ jobs:
             let hasError = false;
 
             // 1. Ping Neon DB
-            try {
-              const client = new Client({ connectionString: process.env.DATABASE_URL });
-              await client.connect();
-              const res = await client.query("SELECT 1 as ping;");
-              await client.end();
-              if (res.rows && res.rows[0].ping === 1) {
-                console.log("✅ Neon DB project ping successful!");
-              } else {
-                throw new Error("Unexpected query result from Neon DB");
-              }
-            } catch (err) {
-              console.error("❌ Neon DB ping failed:", err.message);
+            if (!process.env.DATABASE_URL) {
+              console.error("❌ Neon DB ping failed: DATABASE_URL secret is missing!");
               hasError = true;
+            } else {
+              try {
+                const client = new Client({
+                  connectionString: process.env.DATABASE_URL,
+                  connectionTimeoutMillis: 10000 // 10s connection timeout guard
+                });
+                
+                await client.connect();
+                const res = await client.query("SELECT 1 as ping;");
+                await client.end();
+
+                if (res.rows && res.rows.length > 0) {
+                  console.log("✅ Neon DB project ping successful!");
+                } else {
+                  throw new Error("No rows returned from Neon DB");
+                }
+              } catch (err) {
+                console.error("❌ Neon DB ping failed:", err.message);
+                hasError = true;
+              }
             }
 
             // 2. Ping Supabase Projects
@@ -66,12 +75,10 @@ jobs:
               }
 
               try {
-                // Initialize client with stateless options for Node environment
                 const supabase = createClient(item.url, item.key, {
                   auth: { persistSession: false, autoRefreshToken: false }
                 });
 
-                // Light network request to Supabase Storage API
                 const { data, error } = await supabase.storage.listBuckets();
                 
                 if (error && error.status !== 401) {
@@ -89,5 +96,8 @@ jobs:
             if (hasError) process.exit(1);
           }
 
-          pingAll();
+          pingAll().catch(err => {
+            console.error("❌ Unhandled execution error:", err);
+            process.exit(1);
+          });
           '
