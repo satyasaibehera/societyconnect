@@ -15,14 +15,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install pg client
-        run: npm install pg
+      - name: Install dependencies
+        run: npm install pg @supabase/supabase-js
 
       - name: Ping Neon DB & All Supabase Projects
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           
-          # Supabase URLs
           SUPABASE_URL_SSB: ${{ secrets.SUPABASE_URL_SSB }}
           SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}
           
@@ -32,6 +31,7 @@ jobs:
         run: |
           node -e '
           const { Client } = require("pg");
+          const { createClient } = require("@supabase/supabase-js");
 
           async function pingAll() {
             let hasError = false;
@@ -40,44 +40,43 @@ jobs:
             try {
               const client = new Client({ connectionString: process.env.DATABASE_URL });
               await client.connect();
-              await client.query("SELECT 1;");
+              const res = await client.query("SELECT 1 as ping;");
               await client.end();
-              console.log("✅ Neon DB project ping successful!");
+              if (res.rows && res.rows[0].ping === 1) {
+                console.log("✅ Neon DB project ping successful!");
+              } else {
+                throw new Error("Unexpected query result from Neon DB");
+              }
             } catch (err) {
               console.error("❌ Neon DB ping failed:", err.message);
               hasError = true;
             }
 
-            // 2. Ping Supabase Projects
+            // 2. Ping Supabase Projects using Official SDK
             const supabaseList = [
               { name: "SSB Project", url: process.env.SUPABASE_URL_SSB, key: process.env.SUPABASE_KEY_SSB },
               { name: "Clients Project", url: process.env.SUPABASE_URL_CLIENTS, key: process.env.SUPABASE_KEY_CLIENTS }
             ];
 
             for (const item of supabaseList) {
-              if (!item.url) {
-                console.error(`❌ Supabase [${item.name}] failed: Missing URL in secrets!`);
+              if (!item.url || !item.key) {
+                console.error(`❌ Supabase [${item.name}] failed: Missing URL or Key in secrets!`);
                 hasError = true;
                 continue;
               }
 
               try {
-                const baseUrl = item.url.replace(/\/$/, "");
-                // Ping the official public Auth health endpoint
-                const healthUrl = `${baseUrl}/auth/v1/health`;
+                const supabase = createClient(item.url, item.key);
+                const { data, error } = await supabase.auth.getSession();
                 
-                const headers = item.key ? { "apikey": item.key } : {};
-                const res = await fetch(healthUrl, { headers });
-                
-                if (res.ok || res.status === 200) {
-                  console.log(`✅ Supabase [${item.name}] ping successful! (Status: ${res.status})`);
+                if (error) {
+                  console.error(`❌ Supabase [${item.name}] returned error:`, error.message);
+                  hasError = true;
                 } else {
-                  // Fallback: ping root endpoint
-                  const rootRes = await fetch(baseUrl);
-                  console.log(`✅ Supabase [${item.name}] root ping registered! (Status: ${rootRes.status})`);
+                  console.log(`✅ Supabase [${item.name}] ping successful! End-to-end connection verified.`);
                 }
               } catch (err) {
-                console.error(`❌ Supabase [${item.name}] ping failed:`, err.message);
+                console.error(`❌ Supabase [${item.name}] exception:`, err.message);
                 hasError = true;
               }
             }
