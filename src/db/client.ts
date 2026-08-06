@@ -6,20 +6,15 @@ import * as schema from "./schema";
 /**
  * neon() HTTP driver posts to https://api.neon.tech/sql.
  * That host is unreachable in some local networks (ConnectionRefused).
- * Pool + WebSocket talks directly to the Neon host in DATABASE_URL instead.
+ * Pool + WebSocket talks directly to the host in DATABASE_URL instead.
  */
 neonConfig.webSocketConstructor = ws;
 
 function getDatabaseUrl(): string {
-  const url =
-    process.env.DATABASE_URL ||
-    process.env.NEON_DATABASE_URL ||
-    process.env.VITE_DATABASE_URL;
+  const url = process.env.DATABASE_URL;
 
   if (!url?.trim()) {
-    throw new Error(
-      "Missing DATABASE_URL (or NEON_DATABASE_URL) for Drizzle / Neon connection",
-    );
+    throw new Error("Missing DATABASE_URL for database connection");
   }
 
   return url.trim();
@@ -28,7 +23,7 @@ function getDatabaseUrl(): string {
 type AppDb = ReturnType<typeof drizzle<typeof schema>>;
 
 /**
- * Lazy Neon Pool + Drizzle client so importing route modules does not
+ * Lazy Pool + Drizzle client so importing route modules does not
  * require env vars until a handler actually runs.
  */
 let _db: AppDb | null = null;
@@ -43,7 +38,7 @@ export function getDb(): AppDb {
   return _db;
 }
 
-/** Underlying Neon Pool (creates the shared client if needed). */
+/** Underlying Pool (creates the shared client if needed). */
 export function getPool(): Pool {
   getDb();
   if (!_pool) {

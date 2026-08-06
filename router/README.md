@@ -41,7 +41,7 @@ Internal fields such as `created_by` are omitted.
 
 ## Required env (Netlify)
 
-- `DATABASE_URL` or `NEON_DATABASE_URL` — root Neon connection string
+- `DATABASE_URL` — application database connection string
 
 ## Local
 

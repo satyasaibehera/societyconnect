@@ -5,7 +5,7 @@
  * ============================================================================
  *
  * Auth: Supabase Auth ONLY (admin.createUser / deleteUser).
- * Data: Neon PostgreSQL ONLY via NEON_DATABASE_URL → *.neon.tech
+ * Data: Application PostgreSQL via DATABASE_URL (direct pooler connection).
  *
  * Dual-table upsert on Neon:
  *   1. public.users   — id, email, password_hash (SUPABASE_MANAGED_AUTH)
@@ -15,7 +15,7 @@
  * Secrets Required:
  *   - SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
- *   - NEON_DATABASE_URL (required — direct Neon @ep-....neon.tech connection)
+ *   - DATABASE_URL (required — application database connection string)
  * ============================================================================
  */
 
@@ -36,13 +36,13 @@ function jsonResponse(body: Record<string, unknown>, status: number) {
   })
 }
 
-const NEON_CONNECTION_LABEL = 'NEON_DATABASE_URL'
+const DATABASE_CONNECTION_LABEL = 'DATABASE_URL'
 
 function diagnosticContext(extra: Record<string, unknown> = {}): Record<string, unknown> {
-  return { neonConnection: NEON_CONNECTION_LABEL, ...extra }
+  return { databaseConnection: DATABASE_CONNECTION_LABEL, ...extra }
 }
 
-/** Ensure sslmode=require is present on the Neon connection string. */
+/** Ensure sslmode=require is present on the connection string. */
 function ensureSslRequire(connectionUrl: string): string {
   if (/sslmode=/i.test(connectionUrl)) {
     return connectionUrl
@@ -51,44 +51,35 @@ function ensureSslRequire(connectionUrl: string): string {
   return `${connectionUrl}${separator}sslmode=require`
 }
 
-/**
- * Resolve Neon connection string — strictly NEON_DATABASE_URL only.
- */
-function resolveNeonDatabaseUrl(): { url: string | null; error: string | null } {
-  const neonUrl = Deno.env.get('NEON_DATABASE_URL')?.trim()
+/** Resolve application database connection string from DATABASE_URL. */
+function resolveDatabaseUrl(): { url: string | null; error: string | null } {
+  const databaseUrl = Deno.env.get('DATABASE_URL')?.trim()
 
-  if (!neonUrl) {
+  if (!databaseUrl) {
     return {
       url: null,
-      error: 'NEON_DATABASE_URL is missing in Edge Function secrets.',
+      error: 'DATABASE_URL is missing in Edge Function secrets.',
     }
   }
 
-  const lower = neonUrl.toLowerCase()
+  const lower = databaseUrl.toLowerCase()
 
   if (lower.includes('supabase.co') || lower.includes('pooler.supabase.com')) {
     return {
       url: null,
       error:
-        'NEON_DATABASE_URL must not point at Supabase Postgres. Use your @ep-....neon.tech connection string.',
+        'DATABASE_URL must not point at Supabase Postgres. Use your application database connection string.',
     }
   }
 
-  if (!lower.includes('neon.tech')) {
-    return {
-      url: null,
-      error: 'NEON_DATABASE_URL must point to a Neon host (*.neon.tech).',
-    }
-  }
-
-  const url = ensureSslRequire(neonUrl)
-  console.log('[DIAG] Neon driver initialization', diagnosticContext({ ssl: 'require' }))
+  const url = ensureSslRequire(databaseUrl)
+  console.log('[DIAG] Database driver initialization', diagnosticContext({ ssl: 'require' }))
 
   return { url, error: null }
 }
 
-/** Create postgres.js client against Neon with SSL required. */
-function createNeonSqlClient(connectionUrl: string): ReturnType<typeof postgres> {
+/** Create postgres.js client with SSL required. */
+function createSqlClient(connectionUrl: string): ReturnType<typeof postgres> {
   return postgres(connectionUrl, {
     ssl: 'require',
     connect_timeout: 15,
@@ -215,7 +206,7 @@ Deno.serve(async (req: Request) => {
   let userId: string | null = null
 
   try {
-    const { url: dbUrl, error: dbConfigError } = resolveNeonDatabaseUrl()
+    const { url: dbUrl, error: dbConfigError } = resolveDatabaseUrl()
     if (!dbUrl || dbConfigError) {
       console.error('[CONFIG ERROR]', dbConfigError)
       return jsonResponse(
@@ -244,7 +235,7 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    sql = createNeonSqlClient(dbUrl)
+    sql = createSqlClient(dbUrl)
     supabaseClient = createClient(supabaseUrl, serviceRoleKey)
 
     const payload = await req.json()

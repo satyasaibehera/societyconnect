@@ -18,16 +18,10 @@ export type PublicBuilding = {
 };
 
 function getDatabaseUrl(): string {
-  const url =
-    process.env.DATABASE_URL ||
-    process.env.NEON_DATABASE_URL ||
-    process.env.NETLIFY_DATABASE_URL ||
-    process.env.ROOT_NEON_DATABASE_URL;
+  const url = process.env.DATABASE_URL;
 
   if (!url?.trim()) {
-    throw new Error(
-      "Missing DATABASE_URL (or NEON_DATABASE_URL) for root Neon buildings/units access",
-    );
+    throw new Error("Missing DATABASE_URL for buildings/units access");
   }
 
   return url.trim();

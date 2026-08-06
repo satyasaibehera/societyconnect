@@ -10,16 +10,10 @@ export type PublicSociety = {
 };
 
 function getDatabaseUrl(): string {
-  const url =
-    process.env.DATABASE_URL ||
-    process.env.NEON_DATABASE_URL ||
-    process.env.NETLIFY_DATABASE_URL ||
-    process.env.ROOT_NEON_DATABASE_URL;
+  const url = process.env.DATABASE_URL;
 
   if (!url?.trim()) {
-    throw new Error(
-      "Missing DATABASE_URL (or NEON_DATABASE_URL) for root Neon public.societies access",
-    );
+    throw new Error("Missing DATABASE_URL for public.societies access");
   }
 
   return url.trim();
