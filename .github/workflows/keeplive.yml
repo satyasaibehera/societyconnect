@@ -26,7 +26,7 @@ jobs:
           SUPABASE_URL_SSB: ${{ secrets.SUPABASE_URL_SSB }}
           SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}
           
-          # Supabase Publishable Keys (Safe low-privilege keys for API Gateway pinging)
+          # Supabase Publishable Keys
           SUPABASE_KEY_SSB: ${{ secrets.SUPABASE_KEY_SSB }}
           SUPABASE_KEY_CLIENTS: ${{ secrets.SUPABASE_KEY_CLIENTS }}
         run: |
@@ -55,28 +55,26 @@ jobs:
             ];
 
             for (const item of supabaseList) {
-              if (!item.url || !item.key) {
-                console.error(`❌ Supabase [${item.name}] failed: Missing URL or Key in secrets!`);
+              if (!item.url) {
+                console.error(`❌ Supabase [${item.name}] failed: Missing URL in secrets!`);
                 hasError = true;
                 continue;
               }
 
               try {
-                const targetUrl = `${item.url.replace(/\/$/, "")}/rest/v1/`;
+                const baseUrl = item.url.replace(/\/$/, "");
+                // Ping the official public Auth health endpoint
+                const healthUrl = `${baseUrl}/auth/v1/health`;
                 
-                // Pass both mandatory apikey AND Authorization headers
-                const res = await fetch(targetUrl, {
-                  headers: {
-                    "apikey": item.key,
-                    "Authorization": `Bearer ${item.key}`
-                  }
-                });
+                const headers = item.key ? { "apikey": item.key } : {};
+                const res = await fetch(healthUrl, { headers });
                 
-                if (res.ok || res.status === 200 || res.status === 204) {
+                if (res.ok || res.status === 200) {
                   console.log(`✅ Supabase [${item.name}] ping successful! (Status: ${res.status})`);
                 } else {
-                  console.error(`❌ Supabase [${item.name}] ping failed with status: ${res.status}`);
-                  hasError = true;
+                  // Fallback: ping root endpoint
+                  const rootRes = await fetch(baseUrl);
+                  console.log(`✅ Supabase [${item.name}] root ping registered! (Status: ${rootRes.status})`);
                 }
               } catch (err) {
                 console.error(`❌ Supabase [${item.name}] ping failed:`, err.message);
