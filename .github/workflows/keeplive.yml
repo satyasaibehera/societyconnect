@@ -22,7 +22,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL_SSB: ${{ secrets.SUPABASE_URL_SSB }}
-          SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}
+          SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}     
+          # Supabase Publishable Keys (Safe low-privilege keys for API Gateway pinging)     
+          SUPABASE_KEY_SSB: ${{ secrets.SUPABASE_KEY_SSB }}
+          SUPABASE_KEY_CLIENTS: ${{ secrets.SUPABASE_KEY_CLIENTS }}
         run: |
           node -e '
           const { Client } = require("pg");
@@ -30,7 +33,7 @@ jobs:
           async function pingAll() {
             let hasError = false;
 
-            // 1. Ping Neon DB (Keeps the entire project & all tenant DBs awake)
+            // 1. Ping Neon DB
             try {
               const client = new Client({ connectionString: process.env.DATABASE_URL });
               await client.connect();
@@ -42,23 +45,24 @@ jobs:
               hasError = true;
             }
 
-            // 2. Ping All Supabase Projects
-            const supabaseUrls = [
-              { name: "SSB Project", url: process.env.SUPABASE_URL_SSB },
-              { name: "Clients Project", url: process.env.SUPABASE_URL_CLIENTS }
+            // 2. Ping Supabase Projects
+            const supabaseList = [
+              { name: "SSB Project", url: process.env.SUPABASE_URL_SSB, key: process.env.SUPABASE_KEY_SSB },
+              { name: "Clients Project", url: process.env.SUPABASE_URL_CLIENTS, key: process.env.SUPABASE_KEY_CLIENTS }
             ];
 
-            for (const item of supabaseUrls) {
-              if (!item.url) {
-                console.warn(`⚠️ Skipping ${item.name}: Secret not configured.`);
+            for (const item of supabaseList) {
+              if (!item.url || !item.key) {
+                console.warn(`⚠️ Skipping ${item.name}: Missing URL or Key secret.`);
                 continue;
               }
 
               try {
-                const healthUrl = `${item.url.replace(/\/$/, "")}/auth/v1/health`;
-                const res = await fetch(healthUrl);
-                if (res.ok) {
-                  console.log(`✅ Supabase [${item.name}] ping successful!`);
+                const targetUrl = `${item.url.replace(/\/$/, "")}/rest/v1/`;
+                const res = await fetch(targetUrl, { headers: { "apikey": item.key } });
+                
+                if (res.ok || res.status === 200 || res.status === 204) {
+                  console.log(`✅ Supabase [${item.name}] ping successful! (Status: ${res.status})`);
                 } else {
                   console.error(`❌ Supabase [${item.name}] ping failed with status: ${res.status}`);
                   hasError = true;
