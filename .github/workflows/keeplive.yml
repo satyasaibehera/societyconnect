@@ -1,4 +1,4 @@
-name: Database Keep-Alive
+name: Project Keep-Alive
 
 on:
   schedule:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch: # Allows manual trigger from GitHub UI
 
 jobs:
-  ping-db:
+  ping-services:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Node.js
@@ -18,21 +18,59 @@ jobs:
       - name: Install pg client
         run: npm install pg
 
-      - name: Ping Database
+      - name: Ping Neon DB & All Supabase Projects
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL_SSB: ${{ secrets.SUPABASE_URL_SSB }}
+          SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}
         run: |
           node -e '
           const { Client } = require("pg");
-          const client = new Client({ connectionString: process.env.DATABASE_URL });
-          client.connect()
-            .then(() => client.query("SELECT 1;"))
-            .then(() => {
-              console.log("Database ping successful!");
-              return client.end();
-            })
-            .catch(err => {
-              console.error("Database ping failed:", err);
-              process.exit(1);
-            });
+
+          async function pingAll() {
+            let hasError = false;
+
+            // 1. Ping Neon DB (Keeps the entire project & all tenant DBs awake)
+            try {
+              const client = new Client({ connectionString: process.env.DATABASE_URL });
+              await client.connect();
+              await client.query("SELECT 1;");
+              await client.end();
+              console.log("✅ Neon DB project ping successful!");
+            } catch (err) {
+              console.error("❌ Neon DB ping failed:", err.message);
+              hasError = true;
+            }
+
+            // 2. Ping All Supabase Projects
+            const supabaseUrls = [
+              { name: "SSB Project", url: process.env.SUPABASE_URL_SSB },
+              { name: "Clients Project", url: process.env.SUPABASE_URL_CLIENTS }
+            ];
+
+            for (const item of supabaseUrls) {
+              if (!item.url) {
+                console.warn(`⚠️ Skipping ${item.name}: Secret not configured.`);
+                continue;
+              }
+
+              try {
+                const healthUrl = `${item.url.replace(/\/$/, "")}/auth/v1/health`;
+                const res = await fetch(healthUrl);
+                if (res.ok) {
+                  console.log(`✅ Supabase [${item.name}] ping successful!`);
+                } else {
+                  console.error(`❌ Supabase [${item.name}] ping failed with status: ${res.status}`);
+                  hasError = true;
+                }
+              } catch (err) {
+                console.error(`❌ Supabase [${item.name}] ping failed:`, err.message);
+                hasError = true;
+              }
+            }
+
+            if (hasError) process.exit(1);
+          }
+
+          pingAll();
           '
