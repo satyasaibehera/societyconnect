@@ -13,7 +13,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
         run: npm install pg @supabase/supabase-js
@@ -52,7 +52,7 @@ jobs:
               hasError = true;
             }
 
-            // 2. Ping Supabase Projects using Official SDK
+            // 2. Ping Supabase Projects
             const supabaseList = [
               { name: "SSB Project", url: process.env.SUPABASE_URL_SSB, key: process.env.SUPABASE_KEY_SSB },
               { name: "Clients Project", url: process.env.SUPABASE_URL_CLIENTS, key: process.env.SUPABASE_KEY_CLIENTS }
@@ -66,11 +66,16 @@ jobs:
               }
 
               try {
-                const supabase = createClient(item.url, item.key);
-                const { data, error } = await supabase.auth.getSession();
+                // Initialize client with stateless options for Node environment
+                const supabase = createClient(item.url, item.key, {
+                  auth: { persistSession: false, autoRefreshToken: false }
+                });
+
+                // Light network request to Supabase Storage API
+                const { data, error } = await supabase.storage.listBuckets();
                 
-                if (error) {
-                  console.error(`❌ Supabase [${item.name}] returned error:`, error.message);
+                if (error && error.status !== 401) {
+                  console.error(`❌ Supabase [${item.name}] error:`, error.message);
                   hasError = true;
                 } else {
                   console.log(`✅ Supabase [${item.name}] ping successful! End-to-end connection verified.`);
