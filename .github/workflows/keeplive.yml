@@ -67,9 +67,7 @@ jobs:
 
               try {
                 const supabase = createClient(item.url, item.key);
-                # const { data, error } = await supabase.auth.getSession();
-                // Ping storage buckets list - returns 200 OK for valid publishable keys
-                const { data, error } = await supabase.storage.listBuckets();
+                const { data, error } = await supabase.auth.getSession();
                 
                 if (error) {
                   console.error(`❌ Supabase [${item.name}] returned error:`, error.message);
