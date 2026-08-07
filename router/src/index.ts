@@ -89,7 +89,7 @@ const isDirectRun =
   /[\\/](src[\\/])?index\.(ts|js)$/.test(process.argv[1]);
 
 if (isDirectRun && process.env.NETLIFY !== "true") {
-  const port = Number(process.env.PORT || 8787);
+  const port = Number(process.env.PORT || 8888);
   const app = createApp();
   app.listen(port, () => {
     console.log(`[universal-tenant-router] listening on :${port}`);
