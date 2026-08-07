@@ -3,6 +3,7 @@ import express from "express";
 import { requireAuthUnlessPublic } from "./middleware/auth.js";
 import { listActiveSocieties } from "./routes/societies.js";
 import { listBuildingsForSociety } from "./routes/buildings.js";
+import { handleSocietyEnroll } from "./routes/enroll.js";
 
 export function createApp() {
   const app = express();
@@ -65,6 +66,11 @@ export function createApp() {
   app.post("/api/auth/register", (_req, res) => {
     res.status(501).json({ error: "Auth register handler not wired in this package snapshot" });
   });
+
+  /**
+   * Public society admin enrollment (proxies enroll-society edge function).
+   */
+  app.post("/api/v1/auth/enroll", handleSocietyEnroll);
 
   app.use((req, res) => {
     res.status(404).json({ error: `No route for ${req.method} ${req.path}` });

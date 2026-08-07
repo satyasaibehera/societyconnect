@@ -1,13 +1,12 @@
 /**
  * Central application identity — branding, tenant routing, and access isolation.
  */
+import { getTenantRouterUrl } from "@/lib/api/tenantRouterUrl";
+
 export const APP_CONFIG = {
   appName: import.meta.env.VITE_APP_NAME || "Society Connect",
   appId: import.meta.env.VITE_APP_ID || "society_connect",
-  routerBaseUrl:
-    import.meta.env.VITE_TENANT_ROUTER_URL ||
-    import.meta.env.VITE_ROUTER_API_URL ||
-    "https://universal-tenant-router.netlify.app",
+  routerBaseUrl: getTenantRouterUrl(),
   superAdminEmail: (
     import.meta.env.VITE_SUPER_ADMIN_EMAIL || "superadmin@societyconnect.com"
   )

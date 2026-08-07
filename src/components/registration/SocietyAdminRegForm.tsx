@@ -36,6 +36,7 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
     address: "",
     city: "",
     state: "",
+    pincode: "",
   });
 
   const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
@@ -69,6 +70,7 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
         address: form.address,
         city: form.city,
         state: form.state,
+        pincode: form.pincode || undefined,
         isActive: false,
         provisionDatabase: true,
         admin: {
@@ -241,6 +243,14 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
             <Label>State</Label>
             <Input placeholder="e.g. Odisha" value={form.state} onChange={(e) => update("state", e.target.value)} />
           </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Pincode</Label>
+          <Input
+            placeholder="e.g. 751001"
+            value={form.pincode}
+            onChange={(e) => update("pincode", e.target.value)}
+          />
         </div>
       </div>
 

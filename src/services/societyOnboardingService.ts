@@ -1,16 +1,13 @@
 /**
  * Society onboarding orchestration.
  *
- * - Platform Admin bootstrap (email === VITE_SUPER_ADMIN_EMAIL only — no env password):
- *   edge function creates a confirmed SUPER_ADMIN / PLATFORM_ADMIN with the form password.
- * - Standard enrollment: client signUp (confirmation email) + edge function
- *   saves society + admin role_request as PENDING_APPROVAL.
+ * Enrollment is submitted to the Universal Tenant Router:
+ *   POST ${TENANT_ROUTER_URL}/api/v1/auth/enroll
  */
 
-import { supabase } from "@/integrations/supabase/client";
-import { signOut, signUp } from "@/services/authService";
+import { signOut } from "@/services/authService";
 import { APP_CONFIG } from "@/config/appConfig";
-import { isDuplicateRegistrationError } from "@/lib/authErrors";
+import { submitEnrollment } from "@/lib/api/enrollment";
 import {
   buildTenantSchemaManifest,
   provisionTenantDatabase,
@@ -34,6 +31,7 @@ export interface SocietyOnboardingPayload {
   address?: string;
   city?: string;
   state?: string;
+  pincode?: string;
   admin: SocietyOnboardingAdmin;
   provisionDatabase?: boolean;
   connectionConfig?: TenantConnectionConfig;
@@ -46,6 +44,7 @@ export type SocietyOnboardingMode = "platform_admin" | "standard";
 export interface SocietyOnboardingResult {
   success: boolean;
   societyId: string | null;
+  userId: string | null;
   mode: SocietyOnboardingMode | null;
   status: "APPROVED" | "PENDING_APPROVAL" | null;
   routerResponse: unknown;
@@ -66,36 +65,8 @@ export function isSuperAdminEnrollmentEmail(email: string): boolean {
   return email.trim().toLowerCase() === APP_CONFIG.superAdminEmail;
 }
 
-type EnrollSocietyResponse = {
-  success?: boolean;
-  error?: string;
-  society_id?: string | null;
-  context?: { neonConnection?: string };
-};
-
-function isEnrollSocietyFailure(
-  data: EnrollSocietyResponse | null | undefined,
-  invokeError: Error | null,
-): boolean {
-  if (invokeError) return true;
-  if (!data) return false;
-  if (data.success === false) return true;
-  return Boolean(data.error);
-}
-
-function enrollSocietyErrorMessage(
-  data: EnrollSocietyResponse | null | undefined,
-  invokeError: Error | null,
-  fallback: string,
-): string {
-  if (invokeError?.message) return invokeError.message;
-  if (typeof data?.error === "string" && data.error.trim()) return data.error;
-  return fallback;
-}
-
 /**
- * Enroll a society admin — Platform Admin bootstrap (email match only) or standard pending onboarding.
- * Bootstrap password is always the form password; never an env password.
+ * Enroll a society admin via the Universal Tenant Router.
  */
 export async function onboardSociety(
   payload: SocietyOnboardingPayload,
@@ -104,142 +75,41 @@ export async function onboardSociety(
   const isPlatformAdmin = isSuperAdminEnrollmentEmail(email);
 
   try {
-    if (isPlatformAdmin) {
-      const formPassword = payload.admin.password;
-      const { data, error } = await supabase.functions.invoke("enroll-society", {
-        body: {
-          email,
-          password: formPassword,
-          full_name: payload.admin.full_name,
-          phone: payload.admin.phone || null,
-          society_name: payload.society_name,
-          address: payload.address ?? null,
-          city: payload.city ?? null,
-          state: payload.state ?? null,
-        },
-      });
-
-      const enrollData = data as EnrollSocietyResponse | null;
-
-      if (isEnrollSocietyFailure(enrollData, error)) {
-        await signOut();
-        const duplicateAccount = isDuplicateRegistrationError(
-          error ?? new Error(enrollData?.error || "Platform Admin bootstrap failed"),
-        );
-        return {
-          success: false,
-          societyId: null,
-          mode: "platform_admin",
-          status: null,
-          routerResponse: enrollData,
-          provision: null,
-          error: duplicateAccount
-            ? undefined
-            : enrollSocietyErrorMessage(
-                enrollData,
-                error,
-                "Platform Admin bootstrap failed",
-              ),
-          duplicateAccount,
-        };
-      }
-
-      await signOut();
-
-      return {
-        success: true,
-        societyId: enrollData?.society_id ?? null,
-        mode: "platform_admin",
-        status: "APPROVED",
-        routerResponse: enrollData,
-        provision: null,
-      };
-    }
-
-    // Standard path: native Supabase signUp → confirmation email
-    const emailRedirectTo = `${window.location.origin}/auth/callback`;
-    const { data: signUpData, error: signUpError } = await signUp({
+    const enrollResult = await submitEnrollment({
       email,
       password: payload.admin.password,
-      options: {
-        emailRedirectTo,
-        data: {
-          full_name: payload.admin.full_name,
-          phone: payload.admin.phone || null,
-          onboarding: {
-            type: "society_admin",
-            society_name: payload.society_name,
-            address: payload.address ?? null,
-            city: payload.city ?? null,
-            state: payload.state ?? null,
-          },
-        },
-      },
+      full_name: payload.admin.full_name,
+      phone_number: payload.admin.phone || null,
+      society_name: payload.society_name,
+      address: payload.address ?? null,
+      city: payload.city ?? null,
+      state: payload.state ?? null,
+      pincode: payload.pincode ?? null,
     });
 
-    if (signUpError) {
-      const duplicateAccount = isDuplicateRegistrationError(signUpError);
+    if (!enrollResult.success) {
+      const failed = enrollResult;
+      if (failed.duplicateAccount) {
+        await signOut();
+      }
+
       return {
         success: false,
         societyId: null,
-        mode: "standard",
+        userId: null,
+        mode: isPlatformAdmin ? "platform_admin" : "standard",
         status: null,
-        routerResponse: null,
+        routerResponse: failed.raw,
         provision: null,
-        error: duplicateAccount ? undefined : signUpError.message,
-        duplicateAccount,
+        error: failed.duplicateAccount ? undefined : failed.error,
+        duplicateAccount: failed.duplicateAccount,
       };
     }
 
-    const userId = signUpData?.user?.id;
-    if (!userId) {
-      return {
-        success: false,
-        societyId: null,
-        mode: "standard",
-        status: null,
-        routerResponse: signUpData,
-        provision: null,
-        error: "Signup did not return a user id",
-      };
-    }
-
-    const { data, error } = await supabase.functions.invoke("enroll-society", {
-      body: {
-        email,
-        password: payload.admin.password,
-        full_name: payload.admin.full_name,
-        phone: payload.admin.phone || null,
-        society_name: payload.society_name,
-        address: payload.address ?? null,
-        city: payload.city ?? null,
-        state: payload.state ?? null,
-        user_id: userId,
-      },
-    });
-
-    const enrollData = data as EnrollSocietyResponse | null;
-
-    if (isEnrollSocietyFailure(enrollData, error)) {
-      await signOut();
-      return {
-        success: false,
-        societyId: null,
-        mode: "standard",
-        status: null,
-        routerResponse: enrollData,
-        provision: null,
-        error: enrollSocietyErrorMessage(
-          enrollData,
-          error,
-          "Failed to save society enrollment",
-        ),
-      };
-    }
-
-    // Best-effort router / tenant provision (non-blocking for auth flow)
     const societyId =
-      (enrollData?.society_id as string | undefined) || createSocietyId(payload.societyId);
+      enrollResult.data.societyId || createSocietyId(payload.societyId);
+    const userId = enrollResult.data.userId;
+
     if (payload.provisionDatabase !== false) {
       try {
         await provisionViaRouter(payload, societyId);
@@ -253,15 +123,17 @@ export async function onboardSociety(
     return {
       success: true,
       societyId,
-      mode: "standard",
-      status: "PENDING_APPROVAL",
-      routerResponse: enrollData,
+      userId,
+      mode: isPlatformAdmin ? "platform_admin" : "standard",
+      status: isPlatformAdmin ? "APPROVED" : "PENDING_APPROVAL",
+      routerResponse: enrollResult.raw,
       provision: null,
     };
   } catch (err) {
     return {
       success: false,
       societyId: null,
+      userId: null,
       mode: isPlatformAdmin ? "platform_admin" : "standard",
       status: null,
       routerResponse: null,
@@ -386,6 +258,7 @@ export async function provisionSocietyTenant(input: {
         return {
           success: false,
           societyId: input.societyId,
+          userId: null,
           mode: null,
           status: null,
           routerResponse,
@@ -397,6 +270,7 @@ export async function provisionSocietyTenant(input: {
       return {
         success: false,
         societyId: input.societyId,
+        userId: null,
         mode: null,
         status: null,
         routerResponse,
@@ -408,6 +282,7 @@ export async function provisionSocietyTenant(input: {
     return {
       success: false,
       societyId: input.societyId,
+      userId: null,
       mode: null,
       status: null,
       routerResponse,
@@ -426,6 +301,7 @@ export async function provisionSocietyTenant(input: {
       return {
         success: false,
         societyId: input.societyId,
+        userId: null,
         mode: null,
         status: null,
         routerResponse,
@@ -438,6 +314,7 @@ export async function provisionSocietyTenant(input: {
   return {
     success: true,
     societyId: input.societyId,
+    userId: null,
     mode: null,
     status: null,
     routerResponse,

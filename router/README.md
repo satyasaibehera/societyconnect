@@ -42,6 +42,32 @@ Internal fields such as `created_by` are omitted.
 ## Required env (Netlify)
 
 - `DATABASE_URL` — application database connection string
+- `SUPABASE_URL` — Supabase project URL (for `/api/v1/auth/enroll` proxy)
+- `SUPABASE_SERVICE_ROLE_KEY` — service role key (enroll-society proxy)
+
+## Society enrollment
+
+`POST /api/v1/auth/enroll` (public, no JWT) accepts:
+
+```json
+{
+  "email": "admin@society.com",
+  "password": "••••••",
+  "full_name": "Jane Admin",
+  "phone_number": "+911234567890",
+  "society_name": "Green Valley",
+  "address": "123 Main St",
+  "city": "Bhubaneswar",
+  "state": "Odisha",
+  "pincode": "751001"
+}
+```
+
+Success (`201`):
+
+```json
+{ "success": true, "data": { "userId": "...", "societyId": "..." } }
+```
 
 ## Local
 

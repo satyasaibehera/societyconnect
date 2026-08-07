@@ -20,6 +20,7 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   { method: "GET", path: "/api/buildings" },
   { method: "POST", path: "/api/auth/login" },
   { method: "POST", path: "/api/auth/register" },
+  { method: "POST", path: "/api/v1/auth/enroll" },
   { method: "POST", path: "/api/auth/send-otp" },
   { method: "POST", path: "/api/auth/verify-otp" },
 ];
