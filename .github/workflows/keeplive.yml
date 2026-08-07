@@ -20,7 +20,7 @@ jobs:
 
       - name: Ping Neon DB & All Supabase Projects
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           
           SUPABASE_URL_SSB: ${{ secrets.SUPABASE_URL_SSB }}
           SUPABASE_URL_CLIENTS: ${{ secrets.SUPABASE_URL_CLIENTS }}
@@ -36,13 +36,13 @@ jobs:
             let hasError = false;
 
             // 1. Ping Neon DB
-            if (!process.env.DATABASE_URL) {
-              console.error("❌ Neon DB ping failed: DATABASE_URL secret is missing!");
+            if (!process.env.NEON_DATABASE_URL) {
+              console.error("❌ Neon DB ping failed: NEON_DATABASE_URL secret is missing!");
               hasError = true;
             } else {
               try {
                 const client = new Client({
-                  connectionString: process.env.DATABASE_URL,
+                  connectionString: process.env.NEON_DATABASE_URL,
                   connectionTimeoutMillis: 10000 // 10s connection timeout guard
                 });
                 

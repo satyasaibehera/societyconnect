@@ -7,10 +7,11 @@
  * Auth: Supabase Auth ONLY (admin.createUser / deleteUser).
  * Data: Application PostgreSQL via NEON_DATABASE_URL (direct pooler connection).
  *
- * Dual-table upsert on Neon:
- *   1. public.users   — id, email, password_hash (SUPABASE_MANAGED_AUTH)
- *   2. public.profiles — user_id, full_name, phone_number, role, status
- *   3. public.societies — society record
+ * Atomic Neon transaction:
+ *   1. public.users        — id, email, password_hash (SUPABASE_MANAGED_AUTH)
+ *   2. public.profiles     — user_id, full_name, phone_number, role, status
+ *   3. public.societies    — society record
+ *   4. public.role_requests — pending admin approval (standard enrollment)
  *
  * Secrets Required:
  *   - SUPABASE_URL
@@ -28,6 +29,8 @@ const corsHeaders = {
 }
 
 const SUPABASE_MANAGED_AUTH = 'SUPABASE_MANAGED_AUTH'
+const DUPLICATE_ACCOUNT_MESSAGE =
+  'An account with this email already exists. Please log in to your account.'
 
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), {
@@ -146,6 +149,25 @@ function databaseErrorStatus(dbError: { code?: string }): number {
   return 500
 }
 
+function formatDatabaseError(serialized: Record<string, unknown>): string {
+  const message = typeof serialized.message === 'string' ? serialized.message : ''
+  const code = serialized.code
+
+  if (code === '23505') {
+    return 'A record with this information already exists. Please log in or contact support.'
+  }
+  if (code === '23503') {
+    return 'Enrollment could not be completed because a related record is missing or invalid.'
+  }
+  if (message.toLowerCase().includes('connection')) {
+    return 'Unable to reach the application database. Please try again shortly.'
+  }
+  if (message.trim()) {
+    return message
+  }
+  return 'Unable to complete society enrollment. Please try again or contact support.'
+}
+
 async function rollbackAuthUser(
   supabaseClient: ReturnType<typeof createClient>,
   userId: string,
@@ -160,39 +182,143 @@ async function rollbackAuthUser(
   }
 }
 
-/** Step 1: root credential row in Neon public.users */
-async function upsertNeonUserCredential(
+/** True when the email is present in Neon public.users and Supabase Auth. */
+async function isEmailFullyRegistered(
   sql: ReturnType<typeof postgres>,
-  userId: string,
+  supabaseClient: ReturnType<typeof createClient>,
   email: string,
-): Promise<void> {
-  await sql`
-    INSERT INTO public.users (id, email, password_hash)
-    VALUES (${userId}, ${email}, ${SUPABASE_MANAGED_AUTH})
-    ON CONFLICT (id) DO UPDATE SET
-      email = EXCLUDED.email
+): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase()
+
+  const neonRows = await sql`
+    SELECT id FROM public.users
+    WHERE lower(trim(email)) = ${normalizedEmail}
+    LIMIT 1
   `
+
+  if (neonRows.length === 0) {
+    return false
+  }
+
+  const neonUserId = neonRows[0].id as string
+
+  const { data: authById, error: authByIdError } = await supabaseClient.auth.admin.getUserById(neonUserId)
+  if (!authByIdError && authById?.user) {
+    return true
+  }
+
+  let page = 1
+  const perPage = 200
+
+  while (page <= 10) {
+    const { data, error } = await supabaseClient.auth.admin.listUsers({ page, perPage })
+    if (error) {
+      console.warn('[WARN] Auth listUsers failed during duplicate check:', error.message)
+      return false
+    }
+
+    const match = data.users.find((user) => user.email?.trim().toLowerCase() === normalizedEmail)
+    if (match) {
+      return true
+    }
+
+    if (data.users.length < perPage) {
+      break
+    }
+    page++
+  }
+
+  return false
 }
 
-/** Step 2: profile metadata in Neon public.profiles */
-async function upsertNeonUserProfile(
+type EnrollmentTxParams = {
+  userId: string
+  email: string
+  fullName: string
+  phone: string | null
+  userRole: string
+  profileStatus: string
+  societyName: string
+  address: string | null
+  city: string | null
+  state: string | null
+  isActive: boolean
+  includeRoleRequest: boolean
+}
+
+/** All Neon writes in one atomic transaction (auto-ROLLBACK on any failure). */
+async function enrollSocietyInTransaction(
   sql: ReturnType<typeof postgres>,
-  userId: string,
-  fullName: string,
-  phoneNumber: string | null,
-  role: string,
-  status: string,
-): Promise<void> {
-  await sql`
-    INSERT INTO public.profiles (user_id, full_name, phone_number, role, status)
-    VALUES (${userId}, ${fullName}, ${phoneNumber}, ${role}, ${status})
-    ON CONFLICT (user_id) DO UPDATE SET
-      full_name = EXCLUDED.full_name,
-      phone_number = EXCLUDED.phone_number,
-      role = EXCLUDED.role,
-      status = EXCLUDED.status,
-      updated_at = NOW()
-  `
+  params: EnrollmentTxParams,
+): Promise<Record<string, unknown>> {
+  return sql.begin(async (tx) => {
+    console.log(`[INFO] [TX] Upserting public.users id=${params.userId}`)
+    await tx`
+      INSERT INTO public.users (id, email, password_hash)
+      VALUES (${params.userId}, ${params.email}, ${SUPABASE_MANAGED_AUTH})
+      ON CONFLICT (email) DO UPDATE SET
+        id = EXCLUDED.id,
+        updated_at = NOW()
+    `
+
+    console.log(`[INFO] [TX] Upserting public.profiles user_id=${params.userId}`)
+    await tx`
+      INSERT INTO public.profiles (user_id, full_name, phone_number, role, status)
+      VALUES (${params.userId}, ${params.fullName}, ${params.phone}, ${params.userRole}, ${params.profileStatus})
+      ON CONFLICT (user_id) DO UPDATE SET
+        phone_number = EXCLUDED.phone_number,
+        full_name = EXCLUDED.full_name,
+        updated_at = NOW()
+    `
+
+    console.log(`[INFO] [TX] Inserting society "${params.societyName}" into public.societies`)
+    const societyResult = await tx`
+      INSERT INTO public.societies (
+        name,
+        address,
+        city,
+        state,
+        created_by,
+        is_active
+      )
+      VALUES (
+        ${params.societyName},
+        ${params.address},
+        ${params.city},
+        ${params.state},
+        ${params.userId},
+        ${params.isActive}
+      )
+      RETURNING *
+    `
+
+    const society = societyResult[0]
+    if (!society) {
+      throw new Error('Society insert did not return a row.')
+    }
+
+    if (params.includeRoleRequest) {
+      console.log(`[INFO] [TX] Inserting role_request for user_id=${params.userId}`)
+      await tx`
+        INSERT INTO public.role_requests (
+          requester_id,
+          requested_role,
+          society_id,
+          reason,
+          status
+        )
+        VALUES (
+          ${params.userId},
+          ${'admin'},
+          ${society.id},
+          ${`New society registration: ${params.societyName}`},
+          ${'pending'}
+        )
+      `
+    }
+
+    return society as Record<string, unknown>
+  })
 }
 
 Deno.serve(async (req: Request) => {
@@ -281,6 +407,19 @@ Deno.serve(async (req: Request) => {
         )
       }
 
+      const alreadyRegistered = await isEmailFullyRegistered(sql, supabaseClient, email)
+      if (alreadyRegistered) {
+        console.warn(`[VALIDATION ERROR] Email already registered in Neon + Supabase Auth: ${email}`)
+        return jsonResponse(
+          {
+            success: false,
+            stage: 'validation',
+            error: DUPLICATE_ACCOUNT_MESSAGE,
+          },
+          400,
+        )
+      }
+
       console.log(`[INFO] Provisioning Supabase Auth account for email: ${email}`)
       const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
         email,
@@ -322,52 +461,37 @@ Deno.serve(async (req: Request) => {
 
       userId = authData.user.id
       createdAuthUser = true
-      console.log(`[INFO] Supabase Auth user created (${userId}); provisioning Neon users + profiles + society...`)
+      console.log(`[INFO] Supabase Auth user created (${userId}); starting atomic Neon transaction...`)
     }
 
     const profileStatus = existingUserId ? 'pending' : 'active'
     const userRole = 'SOCIETY_ADMIN'
+    const isActive = payload.is_active ?? payload.isActive ?? (existingUserId ? false : true)
 
     try {
-      console.log(`[INFO] Upserting Neon public.users credential id=${userId}`)
-      await upsertNeonUserCredential(sql, userId, email)
+      const society = await enrollSocietyInTransaction(sql, {
+        userId: userId!,
+        email,
+        fullName,
+        phone,
+        userRole,
+        profileStatus,
+        societyName,
+        address,
+        city,
+        state,
+        isActive,
+        includeRoleRequest: Boolean(existingUserId),
+      })
 
-      console.log(`[INFO] Upserting Neon public.profiles user_id=${userId} status=${profileStatus}`)
-      await upsertNeonUserProfile(sql, userId, fullName, phone, userRole, profileStatus)
-
-      console.log(`[INFO] Inserting society record "${societyName}" into public.societies...`)
-
-      const isActive =
-        payload.is_active ?? payload.isActive ?? (existingUserId ? false : true)
-
-      const societyResult = await sql`
-        INSERT INTO public.societies (
-          name,
-          address,
-          city,
-          state,
-          created_by,
-          is_active
-        )
-        VALUES (
-          ${societyName},
-          ${address},
-          ${city},
-          ${state},
-          ${userId},
-          ${isActive}
-        )
-        RETURNING *
-      `
-
-      console.log('[INFO] Society successfully created:', societyResult[0])
+      console.log('[INFO] Society successfully created (transaction committed):', society)
 
       return jsonResponse(
         {
           success: true,
           message: 'Society enrolled successfully!',
-          society: societyResult[0],
-          society_id: societyResult[0]?.id ?? null,
+          society,
+          society_id: society?.id ?? null,
           user: {
             id: userId,
             email,
@@ -377,23 +501,19 @@ Deno.serve(async (req: Request) => {
         200,
       )
     } catch (dbError) {
-      console.error('[DATABASE ERROR] Neon PostgreSQL operation failed — full error object:')
+      console.error('[DATABASE ERROR] Neon transaction failed — full error object:')
       console.error(dbError)
       console.error('[DATABASE ERROR] Serialized:', JSON.stringify(serializeError(dbError), null, 2))
 
       await rollbackAuthUser(supabaseClient, userId!, createdAuthUser)
 
       const serialized = serializeError(dbError)
-      const dbMessage =
-        typeof serialized.message === 'string'
-          ? serialized.message
-          : 'Neon database operation failed during society enrollment.'
 
       return jsonResponse(
         {
           success: false,
           stage: 'database',
-          error: dbMessage,
+          error: formatDatabaseError(serialized),
           code: serialized.code ?? null,
           detail: serialized.detail ?? null,
           hint: serialized.hint ?? null,
