@@ -46,11 +46,11 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <AuthProvider>
           <AuthRouteGuard>
             <Routes>
               <Route path="/" element={<Navigate to="/login" replace />} />
@@ -104,9 +104,9 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthRouteGuard>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 

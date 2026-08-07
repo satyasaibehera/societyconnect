@@ -1,6 +1,10 @@
 import { APP_CONFIG } from "@/config/appConfig";
 import { supabase } from "@/integrations/supabase/client";
-import { getTenantDbName } from "@/services/tenantContext";
+import {
+  getSessionAccessToken,
+  getTenantDbName,
+  setSessionAccessToken,
+} from "@/services/tenantContext";
 
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
@@ -13,8 +17,15 @@ export type ApiResult<T> = {
 };
 
 async function getAccessToken(): Promise<string | null> {
+  const cached = getSessionAccessToken();
+  if (cached) return cached;
+
   const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+  const token = data.session?.access_token?.trim() ?? null;
+  if (token) {
+    setSessionAccessToken(token);
+  }
+  return token;
 }
 
 export async function apiFetch<T = unknown>(

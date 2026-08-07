@@ -1,12 +1,11 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { isPublicAuthPath } from "@/lib/authRoutes";
 import {
   isApprovedStatus,
   isPendingApprovalStatus,
   isSuperAdminRole,
 } from "@/lib/roleMapping";
-
-const PUBLIC_PATHS = new Set(["/login", "/auth/callback", "/reset-password"]);
 
 /**
  * Enforces post-auth navigation based on tenant-router role resolution.
@@ -32,14 +31,14 @@ export function AuthRouteGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    if (PUBLIC_PATHS.has(pathname)) {
+    if (isPublicAuthPath(pathname)) {
       return <>{children}</>;
     }
     return <Navigate to="/login" replace state={{ from: pathname }} />;
   }
 
   if (!tenantRole) {
-    if (PUBLIC_PATHS.has(pathname)) {
+    if (isPublicAuthPath(pathname)) {
       return <>{children}</>;
     }
     return <Navigate to="/login" replace state={{ from: pathname }} />;

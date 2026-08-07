@@ -88,6 +88,8 @@ export interface ProvisionTenantOptions {
   context?: Partial<Omit<ManifestContext, "societyId">> & { societyId?: string };
   /** Logger hook; defaults to console. */
   logger?: (message: string, meta?: Record<string, unknown>) => void;
+  /** When false, allow browser provisioning without an auth session (e.g. enrollment). Default true. */
+  requireAuth?: boolean;
 }
 
 export type MigrationStepStatus = "pending" | "success" | "failed" | "skipped";

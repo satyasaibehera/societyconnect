@@ -1,4 +1,5 @@
 import { APP_CONFIG } from "@/config/appConfig";
+import { getTenantRouterUrl } from "@/lib/api/tenantRouterUrl";
 
 export const TENANT_MAPPING_NOT_FOUND = "TENANT_MAPPING_NOT_FOUND";
 export const INVALID_AUTH_TOKEN = "INVALID_AUTH_TOKEN";
@@ -43,9 +44,11 @@ export class TenantRouterError extends Error {
 }
 
 function routerHeaders(accessToken: string): HeadersInit {
+  const token = accessToken.trim();
   return {
-    Authorization: `Bearer ${accessToken}`,
+    Authorization: `Bearer ${token}`,
     Accept: "application/json",
+    "Content-Type": "application/json",
     "X-App-Id": APP_CONFIG.appId,
   };
 }
@@ -140,14 +143,23 @@ function throwForErrorResponse(status: number, errorData: TenantRouterErrorData)
  * Throws {@link TenantRouterError} when the router returns a non-200 response.
  */
 export async function resolveUserRole(accessToken: string): Promise<TenantUserRole> {
-  const url = `${APP_CONFIG.routerBaseUrl.replace(/\/$/, "")}/api/v1/tenant/resolve-user-role`;
+  const token = accessToken?.trim();
+  if (!token) {
+    throw new TenantRouterError(401, {
+      code: INVALID_AUTH_TOKEN,
+      message: "Missing access token for role resolution.",
+      error: INVALID_AUTH_TOKEN,
+    });
+  }
+
+  const url = `${getTenantRouterUrl()}/api/v1/tenant/resolve-user-role`;
 
   let response: Response;
 
   try {
     response = await fetch(url, {
       method: "GET",
-      headers: routerHeaders(accessToken),
+      headers: routerHeaders(token),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to reach tenant router";

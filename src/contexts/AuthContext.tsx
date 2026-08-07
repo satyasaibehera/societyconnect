@@ -7,13 +7,19 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import { useLocation } from "react-router-dom";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { AlertTriangle, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { APP_CONFIG } from "@/config/appConfig";
+import { isPublicAuthPath } from "@/lib/authRoutes";
 import { supabase } from "@/integrations/supabase/client";
 import { clearStaleAuthTokens, signOut as authSignOut } from "@/services/authService";
-import { setTenantDbName } from "@/services/tenantContext";
+import {
+  clearTenantContext,
+  setSessionAccessToken,
+  setTenantDbName,
+} from "@/services/tenantContext";
 import {
   INVALID_AUTH_TOKEN,
   LOGIN_BANNER_INVALID_CREDENTIALS,
@@ -46,6 +52,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
   refreshTenantRole: () => Promise<void>;
+  /** Apply a fresh Supabase session immediately after password login. */
+  completeSignIn: (session: Session) => Promise<void>;
   clearLoginBannerError: () => void;
   setLoginBannerError: (message: string | null) => void;
 }
@@ -62,6 +70,7 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   signOut: async () => {},
   refreshTenantRole: async () => {},
+  completeSignIn: async () => {},
   clearLoginBannerError: () => {},
   setLoginBannerError: () => {},
 });
@@ -79,6 +88,34 @@ function isInvalidAccessTokenError(err: TenantRouterError): boolean {
     .join(" ")
     .toLowerCase();
   return haystack.includes("invalid access token");
+}
+
+function syncSessionToken(session: Session | null): void {
+  setSessionAccessToken(session?.access_token ?? null);
+}
+
+function shouldResolveTenantRole(
+  event: AuthChangeEvent | "MANUAL",
+  pathname: string,
+  session: Session | null,
+): boolean {
+  const token = session?.access_token?.trim();
+  if (!token) return false;
+
+  if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+    return true;
+  }
+
+  if (event === "MANUAL") {
+    return true;
+  }
+
+  // INITIAL_SESSION / PASSWORD_RECOVERY / etc. — skip on public auth screens.
+  if (isPublicAuthPath(pathname)) {
+    return false;
+  }
+
+  return true;
 }
 
 function AuthResolutionErrorBanner({
@@ -105,6 +142,7 @@ function AuthResolutionErrorBanner({
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [roleLoading, setRoleLoading] = useState(false);
@@ -116,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearTenantRole = useCallback(() => {
     setTenantRole(null);
-    setTenantDbName(null);
+    clearTenantContext();
   }, []);
 
   const resetAuthErrors = useCallback(() => {
@@ -136,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleInvalidSession = useCallback(async () => {
     await clearStaleAuthTokens();
     setSession(null);
+    syncSessionToken(null);
     resetAuthErrors();
     clearTenantRole();
     finishLoading();
@@ -143,19 +182,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadTenantRole = useCallback(
     async (activeSession: Session | null) => {
-      if (!activeSession?.access_token) {
+      const accessToken = activeSession?.access_token?.trim();
+
+      if (!accessToken) {
+        syncSessionToken(null);
         clearTenantRole();
         resetAuthErrors();
         finishLoading();
         return;
       }
 
+      syncSessionToken(accessToken);
       setRoleLoading(true);
       resetAuthErrors();
       accessDeniedHandled.current = false;
 
       try {
-        const data = await resolveUserRole(activeSession.access_token);
+        const data = await resolveUserRole(accessToken);
         setTenantRole(data);
         setTenantDbName(data.tenantDbName || APP_CONFIG.appId);
         clearLoginBannerError();
@@ -165,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearTenantRole();
           await authSignOut();
           setSession(null);
+          syncSessionToken(null);
           resetAuthErrors();
           return;
         }
@@ -185,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearTenantRole();
           await authSignOut();
           setSession(null);
+          syncSessionToken(null);
           return;
         }
 
@@ -211,26 +256,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { session: currentSession },
     } = await supabase.auth.getSession();
     setSession(currentSession);
+    syncSessionToken(currentSession?.access_token ?? null);
     await loadTenantRole(currentSession);
   }, [loadTenantRole]);
 
+  const completeSignIn = useCallback(
+    async (nextSession: Session) => {
+      setSession(nextSession);
+      syncSessionToken(nextSession.access_token ?? null);
+      setLoading(false);
+      await loadTenantRole(nextSession);
+    },
+    [loadTenantRole],
+  );
+
   useEffect(() => {
+    const pathname = location.pathname;
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      syncSessionToken(nextSession?.access_token ?? null);
       setLoading(false);
+
+      if (!shouldResolveTenantRole(event, pathname, nextSession)) {
+        if (!nextSession?.access_token?.trim()) {
+          clearTenantRole();
+        }
+        finishLoading();
+        return;
+      }
+
       void loadTenantRole(nextSession);
     });
 
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       setSession(initialSession);
+      syncSessionToken(initialSession?.access_token ?? null);
       setLoading(false);
+
+      if (!shouldResolveTenantRole("INITIAL_SESSION", pathname, initialSession)) {
+        if (!initialSession?.access_token?.trim()) {
+          clearTenantRole();
+        }
+        finishLoading();
+        return;
+      }
+
       void loadTenantRole(initialSession);
     });
 
     return () => subscription.unsubscribe();
-  }, [loadTenantRole]);
+  }, [clearTenantRole, finishLoading, loadTenantRole, location.pathname]);
 
   const signOut = async () => {
     resetAuthErrors();
@@ -238,9 +316,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     finishLoading();
     await authSignOut();
     setSession(null);
+    syncSessionToken(null);
   };
 
-  const isAuthenticated = session !== null;
+  const isAuthenticated = Boolean(session?.access_token?.trim());
   const showResolutionErrorBanner =
     authErrorCode === "ROLE_RESOLUTION_FAILED" && Boolean(authError);
 
@@ -256,6 +335,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated,
     signOut,
     refreshTenantRole,
+    completeSignIn,
     clearLoginBannerError,
     setLoginBannerError,
   };

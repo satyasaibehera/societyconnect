@@ -17,6 +17,7 @@ import type {
   SqlParameter,
   TenantConnectionConfig,
 } from "./types";
+import { hasAuthenticatedSession } from "@/services/tenantContext";
 import { resolveConnectionString } from "./types";
 
 type NeonQueryResult = { rows?: unknown[] };
@@ -95,6 +96,17 @@ export async function provisionTenantDatabase(
   manifestArray: SchemaManifest | SchemaManifestEntry[] = TENANT_SCHEMA_MANIFEST,
   options: ProvisionTenantOptions = {},
 ): Promise<ProvisionTenantResult> {
+  if (typeof window !== "undefined" && options.requireAuth !== false && !hasAuthenticatedSession()) {
+    return {
+      success: false,
+      societyId: options.context?.societyId ?? "",
+      steps: [],
+      error: "Not authenticated — tenant provisioning requires a signed-in session.",
+      startedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    };
+  }
+
   const logger = options.logger ?? defaultLogger;
   const startedAt = new Date().toISOString();
   const societyId =

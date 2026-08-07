@@ -28,6 +28,7 @@ const Login = () => {
     loginBannerError,
     clearLoginBannerError,
     setLoginBannerError,
+    completeSignIn,
   } = useAuth();
 
   const [view, setView] = useState<View>("login");
@@ -57,9 +58,13 @@ const Login = () => {
     setSubmitting(true);
     clearLoginBannerError();
     try {
-      const { error } = await signIn({ email, password });
+      const { data, error } = await signIn({ email, password });
       if (error) throw error;
-      // AuthContext resolves tenant role; AuthRouteGuard handles navigation.
+
+      if (data?.session?.access_token) {
+        await completeSignIn(data.session);
+      }
+      // AuthRouteGuard handles navigation once tenantRole resolves.
     } catch (error: unknown) {
       setLoginBannerError(LOGIN_BANNER_INVALID_CREDENTIALS);
       const message = error instanceof Error ? error.message : AUTH_MESSAGES.signInFailed;

@@ -183,6 +183,7 @@ async function provisionViaRouter(
     await provisionTenantDatabase(payload.connectionConfig, manifest, {
       runSeeds: true,
       context: ctx,
+      requireAuth: false,
     });
   }
 }
