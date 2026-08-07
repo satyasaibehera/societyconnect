@@ -4,33 +4,34 @@
  * Supabase Edge Function: enroll-society
  * ============================================================================
  *
- * Auth: Supabase Auth ONLY (admin.createUser / deleteUser).
- * Data: Application PostgreSQL via NEON_DATABASE_URL (direct pooler connection).
+ * Auth: Supabase Auth (admin.createUser / deleteUser).
+ * Data: Neon PostgreSQL via NEON_DATABASE_URL.
  *
- * Atomic Neon transaction:
- *   1. public.users        — id, email, password_hash (SUPABASE_MANAGED_AUTH)
- *   2. public.profiles     — user_id, full_name, phone_number, role, status
- *   3. public.societies    — society record
- *   4. public.role_requests — pending admin approval (standard enrollment)
+ * Flow:
+ *   1. Pre-check duplicate email (Neon + Supabase Auth)
+ *   2. Bcrypt-hash password for Neon public.users.password
+ *   3. Create Supabase Auth user (when user_id not supplied)
+ *   4. Atomic Neon transaction: users → profiles → societies → role_requests
+ *   5. On Neon failure: delete orphaned Supabase Auth user
  *
  * Secrets Required:
  *   - SUPABASE_URL
  *   - SUPABASE_SERVICE_ROLE_KEY
- *   - NEON_DATABASE_URL (required — Neon application database connection string)
+ *   - NEON_DATABASE_URL
  * ============================================================================
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import postgres from 'https://deno.land/x/postgresjs@v3.4.4/mod.js'
+import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const SUPABASE_MANAGED_AUTH = 'SUPABASE_MANAGED_AUTH'
 const DUPLICATE_ACCOUNT_MESSAGE =
-  'An account with this email already exists. Please log in to your account.'
+  'An account with this email already exists. Please log in.'
 
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), {
@@ -87,6 +88,11 @@ function createSqlClient(connectionUrl: string): ReturnType<typeof postgres> {
     ssl: 'require',
     connect_timeout: 15,
   })
+}
+
+async function hashPassword(rawPassword: string): Promise<string> {
+  const salt = await bcrypt.genSalt(10)
+  return bcrypt.hash(rawPassword, salt)
 }
 
 function serializeError(err: unknown): Record<string, unknown> {
@@ -234,6 +240,7 @@ async function isEmailFullyRegistered(
 type EnrollmentTxParams = {
   userId: string
   email: string
+  passwordHash: string
   fullName: string
   phone: string | null
   userRole: string
@@ -242,8 +249,9 @@ type EnrollmentTxParams = {
   address: string | null
   city: string | null
   state: string | null
-  isActive: boolean
-  includeRoleRequest: boolean
+  pincode: string | null
+  societyStatus: string
+  requestedRole: string
 }
 
 /** All Neon writes in one atomic transaction (auto-ROLLBACK on any failure). */
@@ -254,9 +262,10 @@ async function enrollSocietyInTransaction(
   return sql.begin(async (tx) => {
     console.log(`[INFO] [TX] Upserting public.users id=${params.userId}`)
     await tx`
-      INSERT INTO public.users (id, email, password_hash)
-      VALUES (${params.userId}, ${params.email}, ${SUPABASE_MANAGED_AUTH})
+      INSERT INTO public.users (id, email, password)
+      VALUES (${params.userId}, ${params.email}, ${params.passwordHash})
       ON CONFLICT (email) DO UPDATE SET
+        password = EXCLUDED.password,
         id = EXCLUDED.id,
         updated_at = NOW()
     `
@@ -278,6 +287,8 @@ async function enrollSocietyInTransaction(
         address,
         city,
         state,
+        pincode,
+        status,
         created_by,
         is_active
       )
@@ -286,8 +297,10 @@ async function enrollSocietyInTransaction(
         ${params.address},
         ${params.city},
         ${params.state},
+        ${params.pincode},
+        ${params.societyStatus},
         ${params.userId},
-        ${params.isActive}
+        ${false}
       )
       RETURNING *
     `
@@ -297,25 +310,23 @@ async function enrollSocietyInTransaction(
       throw new Error('Society insert did not return a row.')
     }
 
-    if (params.includeRoleRequest) {
-      console.log(`[INFO] [TX] Inserting role_request for user_id=${params.userId}`)
-      await tx`
-        INSERT INTO public.role_requests (
-          requester_id,
-          requested_role,
-          society_id,
-          reason,
-          status
-        )
-        VALUES (
-          ${params.userId},
-          ${'admin'},
-          ${society.id},
-          ${`New society registration: ${params.societyName}`},
-          ${'pending'}
-        )
-      `
-    }
+    console.log(`[INFO] [TX] Inserting role_request for user_id=${params.userId}`)
+    await tx`
+      INSERT INTO public.role_requests (
+        requester_id,
+        requested_role,
+        society_id,
+        reason,
+        status
+      )
+      VALUES (
+        ${params.userId},
+        ${params.requestedRole},
+        ${society.id},
+        ${`New society registration: ${params.societyName}`},
+        ${'pending'}
+      )
+    `
 
     return society as Record<string, unknown>
   })
@@ -368,13 +379,14 @@ Deno.serve(async (req: Request) => {
     console.log('[INFO] Incoming enrollment payload received:', JSON.stringify(payload))
 
     const email = payload.email
-    const password = payload.password
+    const rawPassword = payload.password
     const societyName = payload.societyName || payload.society_name || payload.name
     const fullName = payload.fullName || payload.full_name || payload.adminName || societyName
     const phone = payload.phone || payload.phone_number || null
     const address = payload.address || null
     const city = payload.city || null
     const state = payload.state || null
+    const pincode = payload.pincode || payload.pin_code || null
     const existingUserId = payload.user_id || payload.userId || null
 
     if (!email || !societyName) {
@@ -392,21 +404,19 @@ Deno.serve(async (req: Request) => {
       )
     }
 
-    if (existingUserId) {
-      userId = existingUserId
-      console.log(`[INFO] Reusing existing auth user id from payload: ${userId}`)
-    } else {
-      if (!password) {
-        return jsonResponse(
-          {
-            success: false,
-            stage: 'validation',
-            error: 'Missing required field: password is mandatory when user_id is not provided.',
-          },
-          400,
-        )
-      }
+    if (!rawPassword) {
+      return jsonResponse(
+        {
+          success: false,
+          stage: 'validation',
+          error: 'Missing required field: password is mandatory.',
+        },
+        400,
+      )
+    }
 
+    // Pre-check before creating a new Supabase Auth user (platform admin path).
+    if (!existingUserId) {
       const alreadyRegistered = await isEmailFullyRegistered(sql, supabaseClient, email)
       if (alreadyRegistered) {
         console.warn(`[VALIDATION ERROR] Email already registered in Neon + Supabase Auth: ${email}`)
@@ -419,11 +429,19 @@ Deno.serve(async (req: Request) => {
           400,
         )
       }
+    }
 
+    console.log('[INFO] Hashing password for Neon public.users')
+    const passwordHash = await hashPassword(rawPassword)
+
+    if (existingUserId) {
+      userId = existingUserId
+      console.log(`[INFO] Reusing existing auth user id from payload: ${userId}`)
+    } else {
       console.log(`[INFO] Provisioning Supabase Auth account for email: ${email}`)
       const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
         email,
-        password,
+        password: rawPassword,
         email_confirm: true,
         user_metadata: {
           role: 'SOCIETY_ADMIN',
@@ -466,12 +484,15 @@ Deno.serve(async (req: Request) => {
 
     const profileStatus = existingUserId ? 'pending' : 'active'
     const userRole = 'SOCIETY_ADMIN'
-    const isActive = payload.is_active ?? payload.isActive ?? (existingUserId ? false : true)
+    const societyStatus = 'PENDING'
+    // app_role enum: super_admin (platform bootstrap) | admin (standard society admin)
+    const requestedRole = existingUserId ? 'admin' : 'super_admin'
 
     try {
       const society = await enrollSocietyInTransaction(sql, {
         userId: userId!,
         email,
+        passwordHash,
         fullName,
         phone,
         userRole,
@@ -480,8 +501,9 @@ Deno.serve(async (req: Request) => {
         address,
         city,
         state,
-        isActive,
-        includeRoleRequest: Boolean(existingUserId),
+        pincode,
+        societyStatus,
+        requestedRole,
       })
 
       console.log('[INFO] Society successfully created (transaction committed):', society)
