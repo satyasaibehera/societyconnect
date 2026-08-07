@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Mail, Lock, User, Loader2, CheckCircle2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Mail, Lock, User, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import {
   PasswordVisibilityIcon,
   passwordInputTypeFromVisible,
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { onboardSociety } from "@/services/societyOnboardingService";
-import { AUTH_MESSAGES } from "@/lib/authErrors";
+import type { EnrollmentApiError } from "@/lib/api/enrollment";
 import { useToast } from "@/hooks/use-toast";
 import { PhoneInput, fullPhone } from "./PhoneInput";
 
@@ -19,6 +19,13 @@ interface SocietyAdminRegFormProps {
 
 type SubmittedMode = "platform_admin" | "standard" | null;
 
+function enrollmentToastDescription(apiError: EnrollmentApiError): string {
+  if (apiError.support_hint) {
+    return `${apiError.message}\n\n${apiError.support_hint}`;
+  }
+  return apiError.message;
+}
+
 export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -26,6 +33,7 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submittedMode, setSubmittedMode] = useState<SubmittedMode>(null);
+  const [registrationError, setRegistrationError] = useState<EnrollmentApiError | null>(null);
   const [countryCode, setCountryCode] = useState("+91");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [form, setForm] = useState({
@@ -64,6 +72,7 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
     }
 
     setSubmitting(true);
+    setRegistrationError(null);
     try {
       const result = await onboardSociety({
         society_name: form.society_name,
@@ -82,16 +91,21 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
       });
 
       if (!result.success) {
-        if (result.duplicateAccount) {
-          toast({ description: AUTH_MESSAGES.duplicateRegistration });
-          navigate("/login");
-          return;
-        }
+        const apiError = result.enrollmentError ?? {
+          message: result.error || "Society registration failed",
+        };
+
+        setRegistrationError(apiError);
+
         toast({
-          title: "Registration failed",
-          description: result.error || "Society registration failed",
+          title: "Registration Failed",
+          description: enrollmentToastDescription(apiError),
           variant: "destructive",
         });
+
+        if (result.duplicateAccount && apiError.action !== "LOGIN_OR_RESET") {
+          navigate("/login");
+        }
         return;
       }
 
@@ -156,6 +170,41 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
           <p className="text-xs text-muted-foreground">Register as a Society Admin</p>
         </div>
       </div>
+
+      {registrationError && (
+        <div
+          role="alert"
+          className="w-full bg-red-50 border border-red-200 text-red-700 p-3.5 rounded-lg text-sm space-y-3"
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="space-y-1 leading-snug">
+              <p className="font-medium">{registrationError.message}</p>
+              {registrationError.support_hint && (
+                <p className="text-red-600/90 whitespace-pre-line">{registrationError.support_hint}</p>
+              )}
+            </div>
+          </div>
+
+          {registrationError.action === "LOGIN_OR_RESET" && (
+            <div className="flex flex-wrap gap-3 pl-6 text-sm">
+              <Link
+                to="/login"
+                className="font-medium text-red-800 underline underline-offset-2 hover:text-red-900"
+                onClick={() => onBack()}
+              >
+                Sign in
+              </Link>
+              <Link
+                to="/reset-password"
+                className="font-medium text-red-800 underline underline-offset-2 hover:text-red-900"
+              >
+                Reset password
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-3">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Account</p>

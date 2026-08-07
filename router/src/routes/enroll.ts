@@ -80,12 +80,37 @@ export async function handleSocietyEnroll(req: Request, res: Response): Promise<
 
     if (!upstream.ok || payload?.success === false) {
       const status = upstream.status >= 400 && upstream.status < 600 ? upstream.status : 400;
+      const upstreamError =
+        typeof payload?.error === "string"
+          ? payload.error
+          : typeof payload?.message === "string"
+            ? payload.message
+            : "Society enrollment failed.";
+
+      const isAccountExists =
+        payload?.code === "ACCOUNT_EXISTS" ||
+        /already exists|already registered|account with this email/i.test(upstreamError);
+
+      const message =
+        typeof payload?.message === "string" && payload.message.trim()
+          ? payload.message.trim()
+          : upstreamError;
+
       res.status(status).json({
         success: false,
-        error:
-          typeof payload?.error === "string"
-            ? payload.error
-            : "Society enrollment failed.",
+        message,
+        error: upstreamError,
+        code:
+          (typeof payload?.code === "string" && payload.code) ||
+          (isAccountExists ? "ACCOUNT_EXISTS" : undefined),
+        support_hint:
+          (typeof payload?.support_hint === "string" && payload.support_hint) ||
+          (isAccountExists
+            ? "If you already registered, sign in with your password or use password reset."
+            : undefined),
+        action:
+          (typeof payload?.action === "string" && payload.action) ||
+          (isAccountExists ? "LOGIN_OR_RESET" : undefined),
       });
       return;
     }

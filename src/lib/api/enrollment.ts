@@ -17,29 +17,69 @@ export type EnrollmentSuccessData = {
   societyId: string | null;
 };
 
+export type EnrollmentApiError = {
+  message: string;
+  support_hint?: string;
+  action?: string;
+  code?: string;
+};
+
 export type EnrollmentResult =
   | { success: true; data: EnrollmentSuccessData; raw: unknown }
-  | { success: false; error: string; status: number; duplicateAccount?: boolean; raw: unknown };
+  | {
+      success: false;
+      error: string;
+      apiError: EnrollmentApiError;
+      status: number;
+      duplicateAccount?: boolean;
+      raw: unknown;
+    };
 
 function getRouterApiUrl(): string | null {
   const url = import.meta.env.VITE_ROUTER_API_URL?.trim();
   return url ? url.replace(/\/$/, "") : null;
 }
 
-function extractErrorMessage(body: unknown, fallback: string): string {
-  if (body && typeof body === "object") {
-    const record = body as Record<string, unknown>;
-    if (typeof record.error === "string" && record.error.trim()) {
-      return record.error.trim();
-    }
-    if (typeof record.message === "string" && record.message.trim()) {
-      return record.message.trim();
-    }
+export function parseEnrollmentApiError(body: unknown, fallback: string): EnrollmentApiError {
+  const record =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+
+  const message =
+    (typeof record.message === "string" && record.message.trim()) ||
+    (typeof record.error === "string" && record.error.trim()) ||
+    (typeof body === "string" && body.trim()) ||
+    fallback;
+
+  const support_hint =
+    typeof record.support_hint === "string" && record.support_hint.trim()
+      ? record.support_hint.trim()
+      : undefined;
+
+  const action =
+    typeof record.action === "string" && record.action.trim()
+      ? record.action.trim()
+      : undefined;
+
+  const code =
+    typeof record.code === "string" && record.code.trim()
+      ? record.code.trim()
+      : undefined;
+
+  return { message, support_hint, action, code };
+}
+
+function isDuplicateEnrollmentError(apiError: EnrollmentApiError): boolean {
+  if (apiError.code === "ACCOUNT_EXISTS") return true;
+  return isDuplicateRegistrationError(new Error(apiError.message));
+}
+
+function formatEnrollmentErrorDescription(apiError: EnrollmentApiError): string {
+  if (apiError.support_hint) {
+    return `${apiError.message}\n\n${apiError.support_hint}`;
   }
-  if (typeof body === "string" && body.trim()) {
-    return body.trim();
-  }
-  return fallback;
+  return apiError.message;
 }
 
 async function parseResponseBody(response: Response): Promise<unknown> {
@@ -65,9 +105,13 @@ async function parseResponseBody(response: Response): Promise<unknown> {
 export async function submitEnrollment(payload: EnrollmentPayload): Promise<EnrollmentResult> {
   const routerBaseUrl = getRouterApiUrl();
   if (!routerBaseUrl) {
+    const apiError: EnrollmentApiError = {
+      message: "Enrollment service is not configured (VITE_ROUTER_API_URL is missing).",
+    };
     return {
       success: false,
-      error: "Enrollment service is not configured (VITE_ROUTER_API_URL is missing).",
+      error: apiError.message,
+      apiError,
       status: 0,
       raw: null,
     };
@@ -98,7 +142,8 @@ export async function submitEnrollment(payload: EnrollmentPayload): Promise<Enro
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unable to reach enrollment service";
-    return { success: false, error: message, status: 0, raw: null };
+    const apiError: EnrollmentApiError = { message };
+    return { success: false, error: message, apiError, status: 0, raw: null };
   }
 
   const raw = await parseResponseBody(response);
@@ -119,26 +164,32 @@ export async function submitEnrollment(payload: EnrollmentPayload): Promise<Enro
       }
     }
 
+    const apiError = parseEnrollmentApiError(
+      raw,
+      "Enrollment completed but returned an unexpected response.",
+    );
     return {
       success: false,
-      error: extractErrorMessage(raw, "Enrollment completed but returned an unexpected response."),
+      error: formatEnrollmentErrorDescription(apiError),
+      apiError,
       status: response.status,
       raw,
     };
   }
 
-  const errorMessage = extractErrorMessage(
-    raw,
+  const fallback =
     response.status >= 500
       ? "Enrollment service is temporarily unavailable. Please try again."
-      : "Society enrollment failed. Please check your details and try again.",
-  );
+      : "Society enrollment failed. Please check your details and try again.";
+
+  const apiError = parseEnrollmentApiError(raw, fallback);
 
   return {
     success: false,
-    error: errorMessage,
+    error: formatEnrollmentErrorDescription(apiError),
+    apiError,
     status: response.status,
-    duplicateAccount: isDuplicateRegistrationError(new Error(errorMessage)),
+    duplicateAccount: isDuplicateEnrollmentError(apiError),
     raw,
   };
 }

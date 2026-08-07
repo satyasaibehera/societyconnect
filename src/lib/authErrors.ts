@@ -27,6 +27,10 @@ export function isDuplicateRegistrationError(
   httpStatus?: number,
 ): boolean {
   if (httpStatus === 422) return true;
+  if (error && typeof error === "object" && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    if (code === "ACCOUNT_EXISTS") return true;
+  }
   const message = error instanceof Error ? error.message : String(error ?? "");
   return DUPLICATE_REGISTRATION_PATTERNS.some((pattern) => pattern.test(message));
 }

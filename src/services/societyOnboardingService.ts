@@ -7,7 +7,10 @@
 
 import { signOut } from "@/services/authService";
 import { APP_CONFIG } from "@/config/appConfig";
-import { submitEnrollment } from "@/lib/api/enrollment";
+import {
+  submitEnrollment,
+  type EnrollmentApiError,
+} from "@/lib/api/enrollment";
 import {
   buildTenantSchemaManifest,
   provisionTenantDatabase,
@@ -50,6 +53,7 @@ export interface SocietyOnboardingResult {
   routerResponse: unknown;
   provision: ProvisionTenantResult | null;
   error?: string;
+  enrollmentError?: EnrollmentApiError;
   duplicateAccount?: boolean;
 }
 
@@ -101,7 +105,8 @@ export async function onboardSociety(
         status: null,
         routerResponse: failed.raw,
         provision: null,
-        error: failed.duplicateAccount ? undefined : failed.error,
+        error: failed.error,
+        enrollmentError: failed.apiError,
         duplicateAccount: failed.duplicateAccount,
       };
     }
