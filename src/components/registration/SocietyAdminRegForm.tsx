@@ -104,7 +104,7 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
         });
 
         if (result.duplicateAccount && apiError.action !== "LOGIN_OR_RESET") {
-          navigate("/login");
+          navigate(`/login?email=${encodeURIComponent(form.email)}`);
         }
         return;
       }
@@ -187,17 +187,16 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
           </div>
 
           {registrationError.action === "LOGIN_OR_RESET" && (
-            <div className="flex flex-wrap gap-3 pl-6 text-sm">
+            <div className="flex flex-wrap gap-4 pl-6 text-sm">
               <Link
-                to="/login"
-                className="font-medium text-red-800 underline underline-offset-2 hover:text-red-900"
-                onClick={() => onBack()}
+                to={`/login?email=${encodeURIComponent(form.email)}`}
+                className="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-sm"
               >
                 Sign in
               </Link>
               <Link
                 to="/reset-password"
-                className="font-medium text-red-800 underline underline-offset-2 hover:text-red-900"
+                className="font-medium text-blue-600 underline underline-offset-2 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-sm"
               >
                 Reset password
               </Link>

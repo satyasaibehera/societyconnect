@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Building2, Lock, ArrowRight, Eye, EyeOff, Mail, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ type View = "login" | "register_choice" | "register_society";
 
 const Login = () => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const {
     loading,
     roleLoading,
@@ -37,6 +39,14 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const emailParam = searchParams.get("email")?.trim();
+    if (emailParam) {
+      setEmail(emailParam);
+      setView("login");
+    }
+  }, [searchParams]);
 
   if (loading || (isAuthenticated && roleLoading)) {
     return (
