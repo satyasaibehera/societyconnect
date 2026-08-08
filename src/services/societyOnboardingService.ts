@@ -123,7 +123,11 @@ export async function onboardSociety(
       }
     }
 
-    await signOut();
+    try {
+      await signOut();
+    } catch (err) {
+      console.warn("[onboardSociety] signOut after enrollment skipped:", err);
+    }
 
     return {
       success: true,

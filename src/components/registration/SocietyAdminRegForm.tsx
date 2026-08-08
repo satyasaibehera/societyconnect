@@ -109,12 +109,15 @@ export function SocietyAdminRegForm({ onBack }: SocietyAdminRegFormProps) {
         return;
       }
 
-      if (result.mode === "platform_admin") {
-        setSubmittedMode("platform_admin");
-      } else {
-        setSubmittedMode("standard");
-      }
-      setSubmitted(true);
+      toast({
+        title: "Enrollment successful!",
+        description: "Please log in to your account.",
+        className:
+          "border-green-200 bg-green-50 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100",
+      });
+
+      navigate(`/login?email=${encodeURIComponent(form.email)}`);
+      return;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Registration failed";
       toast({ title: "Registration failed", description: message, variant: "destructive" });

@@ -98,6 +98,54 @@ async function parseResponseBody(response: Response): Promise<unknown> {
   }
 }
 
+function extractEnrollmentSuccessData(raw: unknown): EnrollmentSuccessData {
+  const empty: EnrollmentSuccessData = { userId: null, societyId: null };
+  if (!raw || typeof raw !== "object") return empty;
+
+  const body = raw as Record<string, unknown>;
+  const dataBlock =
+    body.data && typeof body.data === "object" && !Array.isArray(body.data)
+      ? (body.data as Record<string, unknown>)
+      : body;
+
+  const userRecord =
+    dataBlock.user && typeof dataBlock.user === "object"
+      ? (dataBlock.user as Record<string, unknown>)
+      : null;
+
+  const societyRecord =
+    dataBlock.society && typeof dataBlock.society === "object"
+      ? (dataBlock.society as Record<string, unknown>)
+      : null;
+
+  const userId =
+    (typeof dataBlock.userId === "string" && dataBlock.userId) ||
+    (typeof dataBlock.user_id === "string" && dataBlock.user_id) ||
+    (typeof userRecord?.id === "string" && userRecord.id) ||
+    null;
+
+  const societyId =
+    (typeof dataBlock.societyId === "string" && dataBlock.societyId) ||
+    (typeof dataBlock.society_id === "string" && dataBlock.society_id) ||
+    (typeof societyRecord?.id === "string" && societyRecord.id) ||
+    null;
+
+  return { userId, societyId };
+}
+
+/** Treat HTTP 200/201 as success unless the body explicitly reports failure. */
+function isSuccessfulEnrollmentResponse(status: number, raw: unknown): boolean {
+  if (status !== 200 && status !== 201) return false;
+  if (!raw || typeof raw !== "object") return true;
+
+  const body = raw as Record<string, unknown>;
+  if (body.success === false) return false;
+  if (body.success === true) return true;
+
+  const data = extractEnrollmentSuccessData(raw);
+  return Boolean(data.userId || data.societyId || body.data);
+}
+
 /**
  * Submit society admin enrollment to the Universal Tenant Router.
  * POST ${VITE_ROUTER_API_URL}/api/v1/auth/enroll
@@ -148,22 +196,15 @@ export async function submitEnrollment(payload: EnrollmentPayload): Promise<Enro
 
   const raw = await parseResponseBody(response);
 
-  if (response.ok) {
-    if (raw && typeof raw === "object") {
-      const body = raw as Record<string, unknown>;
-      if (body.success === true) {
-        const dataBlock = body.data as Record<string, unknown> | undefined;
-        return {
-          success: true,
-          data: {
-            userId: typeof dataBlock?.userId === "string" ? dataBlock.userId : null,
-            societyId: typeof dataBlock?.societyId === "string" ? dataBlock.societyId : null,
-          },
-          raw,
-        };
-      }
-    }
+  if (isSuccessfulEnrollmentResponse(response.status, raw)) {
+    return {
+      success: true,
+      data: extractEnrollmentSuccessData(raw),
+      raw,
+    };
+  }
 
+  if (response.ok) {
     const apiError = parseEnrollmentApiError(
       raw,
       "Enrollment completed but returned an unexpected response.",
