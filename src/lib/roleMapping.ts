@@ -4,6 +4,7 @@ export type AppRole = "super_admin" | "admin" | "office_bearer" | "resident" | "
 
 const ROUTER_ROLE_MAP: Record<string, AppRole> = {
   SUPER_ADMIN: "super_admin",
+  PLATFORM_SUPER_ADMIN: "super_admin",
   ADMIN: "admin",
   SOCIETY_ADMIN: "admin",
   OFFICE_BEARER: "office_bearer",
