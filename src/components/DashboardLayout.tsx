@@ -4,6 +4,7 @@ import { Search, LogOut, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useUserRole } from "@/hooks/useUserRole";
+import { mapToDisplayRole } from "@/utils/roleMapping";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +27,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { roles } = useUserRole();
 
   const roleLabel = roles.length > 0
-    ? roles.map(r => r.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())).join(", ")
+    ? roles.map((r) => mapToDisplayRole(r)).join(", ")
     : "Member";
 
   const handleLogout = async () => {

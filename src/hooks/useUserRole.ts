@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { mapRouterRole, residentSubRoles, type AppRole } from "@/lib/roleMapping";
+import {
+  mapRouterRole,
+  residentSubRoles,
+  staffSubRoles,
+} from "@/utils/roleMapping";
+import type { AppRole } from "@/types/auth";
 
 export type { AppRole };
 
@@ -15,6 +20,7 @@ export function useUserRole() {
   const hasRole = (...check: AppRole[]) => check.some((r) => roles.includes(r));
   const isManagement = hasRole("super_admin", "admin");
   const isSecurity = hasRole("security");
+  const isStaff = hasRole("staff");
 
   return {
     roles,
@@ -22,6 +28,7 @@ export function useUserRole() {
     hasRole,
     isManagement,
     isSecurity,
+    isStaff,
     tenantRole,
   };
 }
@@ -32,7 +39,10 @@ export function useEffectiveRoles(): { roles: string[]; loading: boolean } {
 
   const roles = useMemo(() => {
     const effective = mapRouterRole(tenantRole?.role);
-    const subRoles = residentSubRoles(tenantRole?.role);
+    const subRoles = [
+      ...residentSubRoles(tenantRole?.role),
+      ...staffSubRoles(tenantRole?.role),
+    ];
     return [...new Set([...effective, ...subRoles])];
   }, [tenantRole?.role]);
 

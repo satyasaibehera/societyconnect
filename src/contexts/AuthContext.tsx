@@ -32,12 +32,15 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import type { AppRole } from "@/types/auth";
 
-export type { TenantUserRole };
+export type { TenantUserRole } from "@/services/tenantRouterService";
+export type { AppRole };
 export {
   LOGIN_BANNER_INVALID_CREDENTIALS,
   LOGIN_BANNER_TENANT_MAPPING,
 } from "@/services/tenantRouterService";
+export { mapToDisplayRole } from "@/utils/roleMapping";
 
 interface AuthContextType {
   session: Session | null;

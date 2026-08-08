@@ -1,5 +1,5 @@
 import type { TenantUserRole } from "@/services/tenantRouterService";
-import { mapRouterRole } from "@/lib/roleMapping";
+import { mapRouterRole } from "@/utils/roleMapping";
 
 function normalizeRole(role: string | null | undefined): string {
   return role?.trim().toUpperCase() ?? "";
