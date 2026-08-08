@@ -4,12 +4,10 @@ import { isPublicAuthPath } from "@/lib/authRoutes";
 import {
   isApprovedStatus,
   isPendingApprovalStatus,
-  isSuperAdminRole,
 } from "@/lib/roleMapping";
 
 /**
  * Enforces post-auth navigation based on tenant-router role resolution.
- * - SUPER_ADMIN → /platform-admin
  * - PENDING_APPROVAL → /awaiting-approval
  * - Approved roles → main application (dashboard)
  */
@@ -44,14 +42,7 @@ export function AuthRouteGuard({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace state={{ from: pathname }} />;
   }
 
-  const { role, status } = tenantRole;
-
-  if (isSuperAdminRole(role)) {
-    if (pathname !== "/platform-admin") {
-      return <Navigate to="/platform-admin" replace />;
-    }
-    return <>{children}</>;
-  }
+  const { status } = tenantRole;
 
   if (isPendingApprovalStatus(status)) {
     if (pathname !== "/awaiting-approval") {

@@ -40,7 +40,6 @@ import AuthCallback from "./pages/AuthCallback";
 import AccessControl from "./pages/AccessControl";
 import NotFound from "./pages/NotFound";
 import PendingApproval from "./pages/PendingApproval";
-import PlatformAdmin from "./pages/PlatformAdmin";
 
 const queryClient = new QueryClient();
 
@@ -65,14 +64,7 @@ const App = () => (
                   </SessionRoute>
                 }
               />
-              <Route
-                path="/platform-admin"
-                element={
-                  <SessionRoute>
-                    <PlatformAdmin />
-                  </SessionRoute>
-                }
-              />
+              <Route path="/platform-admin" element={<Navigate to="/dashboard" replace />} />
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
             <Route path="/register-resident" element={<ProtectedRoute><RegisterResident /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

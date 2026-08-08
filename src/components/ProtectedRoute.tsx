@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   isApprovedStatus,
   isPendingApprovalStatus,
-  isSuperAdminRole,
 } from "@/lib/roleMapping";
 
 /**
@@ -33,10 +32,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (isSuperAdminRole(tenantRole.role)) {
-    return <Navigate to="/platform-admin" replace />;
-  }
-
   if (isPendingApprovalStatus(tenantRole.status)) {
     return <Navigate to="/awaiting-approval" replace />;
   }
@@ -49,7 +44,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Requires a session but allows any resolved role (pending, super admin, approved).
+ * Requires a session but allows any resolved role (pending or approved).
  */
 export function SessionRoute({ children }: { children: React.ReactNode }) {
   const { loading, roleLoading, isAuthenticated, authErrorCode } = useAuth();

@@ -180,7 +180,7 @@ export function PlatformOverviewWidget() {
             <Button
               variant="outline"
               className="w-full justify-start gap-2"
-              onClick={() => navigate("/platform-admin")}
+              onClick={() => navigate("/dashboard")}
             >
               <Shield className="h-4 w-4" />
               Manage Societies
