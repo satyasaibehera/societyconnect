@@ -55,7 +55,7 @@ const Dashboard = () => {
             <AlertDescription className="flex items-start gap-2">
               <Building2 className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
               <span>
-                Select a society from the top navigation bar to view resident and operational
+                Select a society from your profile menu to view resident and operational
                 data. Platform metrics below reflect global system status only.
               </span>
             </AlertDescription>

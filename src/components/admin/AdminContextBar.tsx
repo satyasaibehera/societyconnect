@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, Loader2, RotateCcw, Shield, UserCircle } from "lucide-react";
+import { Building2, Loader2, RotateCcw, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -23,6 +23,9 @@ import {
 } from "@/lib/api/platform";
 import type { AppRole } from "@/types/auth";
 
+/**
+ * Platform admin context controls — rendered inside the profile menu popover.
+ */
 export function AdminContextBar() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const {
@@ -55,7 +58,7 @@ export function AdminContextBar() {
       const rows = await fetchPlatformSocieties();
       setSocieties(rows);
     } catch (err) {
-      console.error("[AdminContextBar] Failed to load societies from /api/societies:", err);
+      console.warn("[AdminContextBar] Failed to load societies from /api/societies:", err);
       setSocietyError(err instanceof Error ? err.message : "Failed to load societies");
       setSocieties([]);
     } finally {
@@ -79,7 +82,6 @@ export function AdminContextBar() {
     }
   };
 
-  // Residents: fetch only after society is chosen while impersonating resident.
   useEffect(() => {
     if (!showUserSelector || !selectedTenantId || authLoading || !isAuthenticated) {
       setResidents([]);
@@ -98,7 +100,7 @@ export function AdminContextBar() {
       })
       .catch((err) => {
         if (!cancelled) {
-          console.error("[AdminContextBar] Failed to load society residents:", err);
+          console.warn("[AdminContextBar] Failed to load society residents:", err);
           setResidentError(err instanceof Error ? err.message : "Failed to load residents");
         }
       })
@@ -125,108 +127,122 @@ export function AdminContextBar() {
   const defaultRoleLabel = mapToDisplayRole("super_admin");
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-2 py-1.5">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-primary shrink-0 pointer-events-none">
-        <Shield className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Admin Context</span>
-      </div>
-
-      <Select value={contextRole} onValueChange={handleRoleChange}>
-        <SelectTrigger
-          aria-label="Select admin context role"
-          className="h-8 w-[160px] sm:w-[190px] text-xs bg-background cursor-pointer"
-        >
-          <SelectValue placeholder={defaultRoleLabel} />
-        </SelectTrigger>
-        <SelectContent className="z-[100]">
-          {roleOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value} className="text-xs cursor-pointer">
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {showSocietySelector && (
-        <Select value={selectedTenantId ?? undefined} onValueChange={setSelectedTenantId}>
+    <div
+      className="space-y-2 px-2 py-2"
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Admin Context Role
+        </p>
+        <Select value={contextRole} onValueChange={handleRoleChange}>
           <SelectTrigger
-            aria-label="Select target society"
-            className="h-8 w-[180px] sm:w-[220px] text-xs bg-background cursor-pointer"
+            aria-label="Select admin context role"
+            className="h-9 w-full text-xs bg-background cursor-pointer"
           >
-            <SelectValue placeholder="Select Target Society..." />
+            <SelectValue placeholder={defaultRoleLabel} />
           </SelectTrigger>
-          <SelectContent className="z-[100]">
-            {loadingSocieties && (
-              <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading societies...
-              </div>
-            )}
-            {!loadingSocieties &&
-              societies.map((society) => (
-                <SelectItem key={society.id} value={society.id} className="text-xs cursor-pointer">
-                  <span className="flex items-center gap-1.5">
-                    <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
-                    {society.name}
-                    {society.city ? ` · ${society.city}` : ""}
-                  </span>
-                </SelectItem>
-              ))}
-            {!loadingSocieties && societies.length === 0 && (
-              <div className="px-2 py-2 text-xs text-muted-foreground">
-                {societyError || "No active societies found"}
-              </div>
-            )}
+          <SelectContent className="z-[200]">
+            {roleOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value} className="text-xs cursor-pointer">
+                {option.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
-      )}
+      </div>
 
-      {showUserSelector && (
-        <Select value={selectedUserId ?? undefined} onValueChange={setSelectedUserId}>
-          <SelectTrigger
-            aria-label="Select target resident"
-            className="h-8 w-[180px] sm:w-[220px] text-xs bg-background cursor-pointer"
-          >
-            <SelectValue placeholder="Select Target Resident..." />
-          </SelectTrigger>
-          <SelectContent className="z-[100]">
-            {loadingResidents && (
-              <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Loading residents...
-              </div>
-            )}
-            {!loadingResidents &&
-              residents
-                .filter((resident) => resident.user_id)
-                .map((resident) => (
-                  <SelectItem
-                    key={resident.id}
-                    value={resident.user_id!}
-                    className="text-xs cursor-pointer"
-                  >
+      {showSocietySelector && (
+        <div className="space-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Target Society
+          </p>
+          <Select value={selectedTenantId ?? undefined} onValueChange={setSelectedTenantId}>
+            <SelectTrigger
+              aria-label="Select target society"
+              className="h-9 w-full text-xs bg-background cursor-pointer"
+            >
+              <SelectValue placeholder="Select Target Society..." />
+            </SelectTrigger>
+            <SelectContent className="z-[200]">
+              {loadingSocieties && (
+                <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading societies...
+                </div>
+              )}
+              {!loadingSocieties &&
+                societies.map((society) => (
+                  <SelectItem key={society.id} value={society.id} className="text-xs cursor-pointer">
                     <span className="flex items-center gap-1.5">
-                      <UserCircle className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      {resident.full_name}
-                      <span className="text-muted-foreground">· {resident.resident_type}</span>
+                      <Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />
+                      {society.name}
+                      {society.city ? ` · ${society.city}` : ""}
                     </span>
                   </SelectItem>
                 ))}
-            {!loadingResidents && residents.filter((r) => r.user_id).length === 0 && (
-              <div className="px-2 py-2 text-xs text-muted-foreground">
-                {residentError || "No approved residents in this society"}
-              </div>
-            )}
-          </SelectContent>
-        </Select>
+              {!loadingSocieties && societies.length === 0 && (
+                <div className="px-2 py-2 text-xs text-muted-foreground">
+                  {societyError || "No active societies found"}
+                </div>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {showUserSelector && (
+        <div className="space-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Target Resident
+          </p>
+          <Select value={selectedUserId ?? undefined} onValueChange={setSelectedUserId}>
+            <SelectTrigger
+              aria-label="Select target resident"
+              className="h-9 w-full text-xs bg-background cursor-pointer"
+            >
+              <SelectValue placeholder="Select Target Resident..." />
+            </SelectTrigger>
+            <SelectContent className="z-[200]">
+              {loadingResidents && (
+                <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading residents...
+                </div>
+              )}
+              {!loadingResidents &&
+                residents
+                  .filter((resident) => resident.user_id)
+                  .map((resident) => (
+                    <SelectItem
+                      key={resident.id}
+                      value={resident.user_id!}
+                      className="text-xs cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <UserCircle className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        {resident.full_name}
+                        <span className="text-muted-foreground">· {resident.resident_type}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+              {!loadingResidents && residents.filter((r) => r.user_id).length === 0 && (
+                <div className="px-2 py-2 text-xs text-muted-foreground">
+                  {residentError || "No approved residents in this society"}
+                </div>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       )}
 
       {hasActiveContext && (
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+          className="h-8 w-full text-xs gap-1.5"
           onClick={handleReset}
         >
           <RotateCcw className="h-3.5 w-3.5" />

@@ -13,10 +13,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { APP_CONFIG } from "@/config/appConfig";
-import { fetchPlatformSocieties } from "@/lib/api/platform";
 import { tenantDb } from "@/services/tenantDb";
 import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
-import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
 interface RecentEnrollment {
@@ -28,7 +26,6 @@ interface RecentEnrollment {
 
 export function PlatformOverviewWidget() {
   const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
   const canLoadTenantData = useCanLoadTenantData();
   const [loading, setLoading] = useState(true);
   const [activeSocieties, setActiveSocieties] = useState(0);
@@ -39,13 +36,10 @@ export function PlatformOverviewWidget() {
   const [recentEnrollments, setRecentEnrollments] = useState<RecentEnrollment[]>([]);
 
   useEffect(() => {
-    if (authLoading) return;
-
     const fetchPlatformMetrics = async () => {
       setLoading(true);
 
       const routerBase = APP_CONFIG.routerBaseUrl.replace(/\/$/, "");
-      let societiesCount = 0;
       let status: typeof platformStatus = "offline";
 
       try {
@@ -55,20 +49,6 @@ export function PlatformOverviewWidget() {
         }
       } catch {
         status = "offline";
-      }
-
-      if (isAuthenticated) {
-        try {
-          const societies = await fetchPlatformSocieties();
-          societiesCount = societies.length;
-          if (status === "operational" && societiesCount === 0) {
-            status = "degraded";
-          }
-        } catch {
-          if (status === "operational") {
-            status = "degraded";
-          }
-        }
       }
 
       let userCount = 0;
@@ -87,7 +67,7 @@ export function PlatformOverviewWidget() {
         enrollments = enrollmentsResult.data || [];
       }
 
-      setActiveSocieties(societiesCount);
+      setActiveSocieties(0);
       setSystemUsers(userCount || 0);
       setPlatformStatus(status);
       setRecentEnrollments(enrollments || []);
@@ -95,7 +75,7 @@ export function PlatformOverviewWidget() {
     };
 
     void fetchPlatformMetrics();
-  }, [authLoading, canLoadTenantData, isAuthenticated]);
+  }, [canLoadTenantData]);
 
   const statusLabel = {
     operational: "Operational",
@@ -125,7 +105,14 @@ export function PlatformOverviewWidget() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Active Societies</p>
-              <p className="text-2xl font-bold font-display mt-1">{activeSocieties}</p>
+              <p className="text-2xl font-bold font-display mt-1">
+                {canLoadTenantData ? activeSocieties : "—"}
+              </p>
+              {!canLoadTenantData && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Select a society-scoped role in profile menu
+                </p>
+              )}
             </div>
             <Building2 className="h-5 w-5 text-primary" />
           </div>
