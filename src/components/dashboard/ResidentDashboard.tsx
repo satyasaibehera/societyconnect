@@ -16,7 +16,9 @@ import {
 } from "lucide-react";
 import { tenantDb } from "@/services/tenantDb";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminContextOptional } from "@/contexts/AdminContext";
 import { useAccessControl } from "@/hooks/useAccessControl";
+import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
 
 type QuickAction = {
   label: string;
@@ -58,7 +60,10 @@ interface ActiveVisitor {
 export function ResidentDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const adminContext = useAdminContextOptional();
   const { hasAccess } = useAccessControl();
+  const canLoadTenantData = useCanLoadTenantData();
+  const effectiveUserId = adminContext?.selectedUserId ?? user?.id ?? null;
   const [loading, setLoading] = useState(true);
   const [unitLabel, setUnitLabel] = useState<string | null>(null);
   const [residentType, setResidentType] = useState<string | null>(null);
@@ -67,20 +72,24 @@ export function ResidentDashboard() {
   const [activeVisitors, setActiveVisitors] = useState<ActiveVisitor[]>([]);
 
   const fetchDashboardData = useCallback(async () => {
-    if (!user) {
+    if (!effectiveUserId || !canLoadTenantData) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
 
-    const { data: resident } = await tenantDb
+    let residentQuery = tenantDb
       .from("residents")
-      .select("id, unit_id, resident_type")
-      .eq("user_id", user.id)
-      .eq("status", "approved")
-      .limit(1)
-      .maybeSingle();
+      .select("id, unit_id, resident_type, society_id")
+      .eq("user_id", effectiveUserId)
+      .eq("status", "approved");
+
+    if (adminContext?.selectedTenantId) {
+      residentQuery = residentQuery.eq("society_id", adminContext.selectedTenantId);
+    }
+
+    const { data: resident } = await residentQuery.limit(1).maybeSingle();
 
     if (!resident?.unit_id) {
       setLoading(false);
@@ -118,7 +127,7 @@ export function ResidentDashboard() {
     setNotices(noticeRows || []);
     setActiveVisitors(visitorRows || []);
     setLoading(false);
-  }, [user]);
+  }, [adminContext?.selectedTenantId, canLoadTenantData, effectiveUserId]);
 
   useEffect(() => {
     void fetchDashboardData();
@@ -128,6 +137,10 @@ export function ResidentDashboard() {
     () => QUICK_ACTIONS.filter((action) => hasAccess(action.moduleKey)),
     [hasAccess],
   );
+
+  if (!canLoadTenantData) {
+    return null;
+  }
 
   if (loading) {
     return (

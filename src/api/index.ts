@@ -1,5 +1,6 @@
 import cors from "cors";
 import express, { type Express } from "express";
+import platformRouter from "./routes/platform";
 import additionRequestsRouter from "./routes/additionRequests";
 import buildingsRouter from "./routes/buildings";
 import registerRouter from "./routes/register";
@@ -27,6 +28,7 @@ export function createApiApp(): Express {
   app.use(requireAuthUnlessPublic);
 
   app.use("/api/societies", societiesRouter);
+  app.use("/api/platform", platformRouter);
   app.use("/api/buildings", buildingsRouter);
   app.use("/api/register", registerRouter);
   app.use("/api/users", usersRouter);

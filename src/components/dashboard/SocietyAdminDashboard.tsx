@@ -17,6 +17,7 @@ import {
 import { tenantDb } from "@/services/tenantDb";
 import { useAccessControl } from "@/hooks/useAccessControl";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
 
 const stats = [
   { label: "Total Residents", value: "—", trend: "up" as const, icon: Users },
@@ -46,6 +47,7 @@ export function SocietyAdminDashboard() {
   const navigate = useNavigate();
   const { hasAccess } = useAccessControl();
   const { hasRole } = useUserRole();
+  const canLoadTenantData = useCanLoadTenantData();
   const [pendingCounts, setPendingCounts] = useState({
     visitors: 0,
     residents: 0,
@@ -56,6 +58,8 @@ export function SocietyAdminDashboard() {
   const [liveStats, setLiveStats] = useState(stats);
 
   useEffect(() => {
+    if (!canLoadTenantData) return;
+
     const fetchCounts = async () => {
       const [visitors, residents, helpers, vehicles, roleReqs] = await Promise.all([
         tenantDb.from("visitors").select("id", { count: "exact", head: true }).eq("status", "pending"),
@@ -89,7 +93,11 @@ export function SocietyAdminDashboard() {
     };
 
     void fetchCounts();
-  }, []);
+  }, [canLoadTenantData]);
+
+  if (!canLoadTenantData) {
+    return null;
+  }
 
   const totalPending = Object.values(pendingCounts).reduce((a, b) => a + b, 0);
 

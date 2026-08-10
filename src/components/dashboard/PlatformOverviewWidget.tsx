@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { APP_CONFIG } from "@/config/appConfig";
 import { tenantDb } from "@/services/tenantDb";
+import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
 import { format } from "date-fns";
 
 interface RecentEnrollment {
@@ -25,6 +26,7 @@ interface RecentEnrollment {
 
 export function PlatformOverviewWidget() {
   const navigate = useNavigate();
+  const canLoadTenantData = useCanLoadTenantData();
   const [loading, setLoading] = useState(true);
   const [activeSocieties, setActiveSocieties] = useState(0);
   const [systemUsers, setSystemUsers] = useState(0);
@@ -59,14 +61,21 @@ export function PlatformOverviewWidget() {
         status = "offline";
       }
 
-      const [{ count: userCount }, { data: enrollments }] = await Promise.all([
-        tenantDb.from("residents").select("id", { count: "exact", head: true }).eq("status", "approved"),
-        tenantDb
-          .from("role_requests")
-          .select("id, requested_role, status, created_at")
-          .order("created_at", { ascending: false })
-          .limit(5),
-      ]);
+      let userCount = 0;
+      let enrollments: RecentEnrollment[] = [];
+
+      if (canLoadTenantData) {
+        const [residentsResult, enrollmentsResult] = await Promise.all([
+          tenantDb.from("residents").select("id", { count: "exact", head: true }).eq("status", "approved"),
+          tenantDb
+            .from("role_requests")
+            .select("id, requested_role, status, created_at")
+            .order("created_at", { ascending: false })
+            .limit(5),
+        ]);
+        userCount = residentsResult.count || 0;
+        enrollments = enrollmentsResult.data || [];
+      }
 
       setActiveSocieties(societiesCount);
       setSystemUsers(userCount || 0);
@@ -76,7 +85,7 @@ export function PlatformOverviewWidget() {
     };
 
     void fetchPlatformMetrics();
-  }, []);
+  }, [canLoadTenantData]);
 
   const statusLabel = {
     operational: "Operational",

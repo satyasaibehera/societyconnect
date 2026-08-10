@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useUserRole } from "@/hooks/useUserRole";
 import { mapToDisplayRole } from "@/utils/roleMapping";
+import { AdminContextBar } from "@/components/admin/AdminContextBar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -24,7 +25,8 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { roles } = useUserRole();
+  const { roles, hasRole } = useUserRole();
+  const isSuperAdmin = hasRole("super_admin");
 
   const roleLabel = roles.length > 0
     ? roles.map((r) => mapToDisplayRole(r)).join(", ")
@@ -51,7 +53,12 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
                 </h1>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+              {isSuperAdmin && (
+                <div className="hidden lg:block max-w-[calc(100vw-20rem)] overflow-x-auto">
+                  <AdminContextBar />
+                </div>
+              )}
               <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -85,6 +92,11 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
               </DropdownMenu>
             </div>
           </header>
+          {isSuperAdmin && (
+            <div className="lg:hidden border-b bg-card px-4 py-2">
+              <AdminContextBar />
+            </div>
+          )}
           <main className="flex-1 overflow-auto p-6 animate-fade-in">
             {children}
           </main>

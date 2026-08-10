@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AdminContextProvider } from "@/contexts/AdminContext";
 import { AuthRouteGuard } from "@/components/AuthRouteGuard";
 import { ProtectedRoute, SessionRoute } from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
@@ -50,7 +51,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
         <AuthProvider>
-          <AuthRouteGuard>
+          <AdminContextProvider>
+            <AuthRouteGuard>
             <Routes>
               <Route path="/" element={<Navigate to="/login" replace />} />
               <Route path="/login" element={<Login />} />
@@ -95,7 +97,8 @@ const App = () => (
             <Route path="/access-control" element={<ProtectedRoute><AccessControl /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
             </Routes>
-          </AuthRouteGuard>
+            </AuthRouteGuard>
+          </AdminContextProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -5,6 +5,7 @@ import {
   getTenantDbName,
   setSessionAccessToken,
 } from "@/services/tenantContext";
+import { getAdminContextHeaders } from "@/services/adminContextStore";
 
 const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
@@ -42,6 +43,18 @@ export async function apiFetch<T = unknown>(
   headers.set("Accept", "application/json");
   headers.set("Authorization", `Bearer ${token}`);
   headers.set("X-Tenant-Db", tenantDb);
+
+  const adminContext = getAdminContextHeaders();
+  if (adminContext.tenantId) {
+    headers.set("X-Tenant-ID", adminContext.tenantId);
+  }
+  if (adminContext.impersonateRole) {
+    headers.set("X-Impersonate-Role", adminContext.impersonateRole);
+  }
+  if (adminContext.userId) {
+    headers.set("X-Impersonate-User-Id", adminContext.userId);
+  }
+
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
