@@ -28,6 +28,48 @@ const DISPLAY_ROLE_LABELS: Record<AppRole, string> = {
   staff: "Staff",
 };
 
+/** Default platform admin context role on mount. */
+export const DEFAULT_ADMIN_CONTEXT_ROLE: AppRole = "super_admin";
+
+/** Ordered roles shown in the platform admin context role selector. */
+export const ADMIN_CONTEXT_ROLES: readonly AppRole[] = [
+  "super_admin",
+  "admin",
+  "office_bearer",
+  "resident",
+  "security",
+] as const;
+
+/** Society-scoped roles that require a target society selection. */
+export const SOCIETY_SCOPED_APP_ROLES: readonly AppRole[] = [
+  "admin",
+  "office_bearer",
+  "resident",
+  "security",
+] as const;
+
+export type AdminContextRoleOption = {
+  value: AppRole;
+  label: string;
+};
+
+/** Build primary role dropdown options from the central AppRole taxonomy. */
+export function getAdminContextRoleOptions(): AdminContextRoleOption[] {
+  return ADMIN_CONTEXT_ROLES.map((role) => ({
+    value: role,
+    label: mapToDisplayRole(role),
+  }));
+}
+
+export function isPlatformAdminContextRole(role: AppRole): boolean {
+  return role === DEFAULT_ADMIN_CONTEXT_ROLE;
+}
+
+export function isSocietyScopedAppRole(role: AppRole): boolean {
+  return (SOCIETY_SCOPED_APP_ROLES as readonly string[]).includes(role);
+}
+
+
 const RESIDENT_SUB_ROLE_KEYS = new Set(["OWNER", "TENANT", "FAMILY"]);
 const STAFF_SUB_ROLE_KEYS = new Set([
   "STAFF",

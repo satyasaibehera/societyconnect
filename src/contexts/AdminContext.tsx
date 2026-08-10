@@ -9,30 +9,15 @@ import {
 } from "react";
 import type { AppRole } from "@/types/auth";
 import {
+  DEFAULT_ADMIN_CONTEXT_ROLE,
+  isPlatformAdminContextRole,
+  isSocietyScopedAppRole,
+} from "@/config/roleMapping";
+import {
   clearAdminContextSnapshot,
   setAdminContextSnapshot,
 } from "@/services/adminContextStore";
 import { useAuth } from "@/contexts/AuthContext";
-
-export type ImpersonationRoleOption = {
-  label: string;
-  value: AppRole;
-};
-
-export const IMPERSONATION_ROLE_OPTIONS: ImpersonationRoleOption[] = [
-  { label: "Platform Admin", value: "super_admin" },
-  { label: "Society Admin", value: "admin" },
-  { label: "Office Bearer", value: "office_bearer" },
-  { label: "Resident", value: "resident" },
-  { label: "Security Guard", value: "security" },
-];
-
-export const SOCIETY_SCOPED_ROLES: AppRole[] = [
-  "admin",
-  "office_bearer",
-  "resident",
-  "security",
-];
 
 type AdminContextValue = {
   /** Active context role — defaults to platform super_admin view. */
@@ -51,15 +36,13 @@ type AdminContextValue = {
 
 const AdminContext = createContext<AdminContextValue | null>(null);
 
-const DEFAULT_CONTEXT_ROLE: AppRole = "super_admin";
-
 export function AdminContextProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const [contextRole, setContextRoleState] = useState<AppRole>(DEFAULT_CONTEXT_ROLE);
+  const [contextRole, setContextRoleState] = useState<AppRole>(DEFAULT_ADMIN_CONTEXT_ROLE);
   const [selectedTenantId, setSelectedTenantIdState] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserIdState] = useState<string | null>(null);
 
-  const impersonatedRole = contextRole === "super_admin" ? null : contextRole;
+  const impersonatedRole = isPlatformAdminContextRole(contextRole) ? null : contextRole;
 
   const syncStore = useCallback(
     (next: {
@@ -98,7 +81,7 @@ export function AdminContextProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetContext = useCallback(() => {
-    setContextRoleState(DEFAULT_CONTEXT_ROLE);
+    setContextRoleState(DEFAULT_ADMIN_CONTEXT_ROLE);
     setSelectedTenantIdState(null);
     setSelectedUserIdState(null);
   }, []);
@@ -109,8 +92,8 @@ export function AdminContextProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, resetContext]);
 
-  const isPlatformView = contextRole === "super_admin";
-  const showSocietySelector = SOCIETY_SCOPED_ROLES.includes(contextRole);
+  const isPlatformView = contextRole === DEFAULT_ADMIN_CONTEXT_ROLE;
+  const showSocietySelector = isSocietyScopedAppRole(contextRole);
   const showUserSelector = contextRole === "resident" && Boolean(selectedTenantId);
 
   const value = useMemo<AdminContextValue>(

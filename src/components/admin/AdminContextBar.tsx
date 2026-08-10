@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Building2, Loader2, RotateCcw, Shield, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +9,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAdminContext, IMPERSONATION_ROLE_OPTIONS } from "@/contexts/AdminContext";
+import { useAdminContext } from "@/contexts/AdminContext";
+import {
+  getAdminContextRoleOptions,
+  isPlatformAdminContextRole,
+  mapToDisplayRole,
+} from "@/config/roleMapping";
 import {
   fetchPlatformSocieties,
   fetchPlatformSocietyResidents,
@@ -33,6 +38,8 @@ export function AdminContextBar() {
     resetContext,
   } = useAdminContext();
 
+  const roleOptions = useMemo(() => getAdminContextRoleOptions(), []);
+
   const [societies, setSocieties] = useState<PlatformSociety[]>([]);
   const [residents, setResidents] = useState<PlatformResident[]>([]);
   const [loadingSocieties, setLoadingSocieties] = useState(false);
@@ -40,42 +47,39 @@ export function AdminContextBar() {
   const [societyError, setSocietyError] = useState<string | null>(null);
   const [residentError, setResidentError] = useState<string | null>(null);
 
-  const handleRoleChange = (value: string) => {
-    setContextRole(value as AppRole);
-  };
+  const loadSocieties = useCallback(async () => {
+    setLoadingSocieties(true);
+    setSocietyError(null);
 
-  // Lazy-load societies only after switching away from Platform Admin (super_admin).
-  useEffect(() => {
-    if (isPlatformView || !showSocietySelector || authLoading || !isAuthenticated) {
+    try {
+      const rows = await fetchPlatformSocieties();
+      setSocieties(rows);
+    } catch (err) {
+      console.error("[AdminContextBar] Failed to load societies from /api/societies:", err);
+      setSocietyError(err instanceof Error ? err.message : "Failed to load societies");
+      setSocieties([]);
+    } finally {
+      setLoadingSocieties(false);
+    }
+  }, []);
+
+  const handleRoleChange = (value: string) => {
+    const role = value as AppRole;
+    setContextRole(role);
+
+    if (isPlatformAdminContextRole(role)) {
       setSocieties([]);
       setSocietyError(null);
       setLoadingSocieties(false);
       return;
     }
 
-    let cancelled = false;
-    setLoadingSocieties(true);
-    setSocietyError(null);
+    if (!authLoading && isAuthenticated) {
+      void loadSocieties();
+    }
+  };
 
-    fetchPlatformSocieties()
-      .then((rows) => {
-        if (!cancelled) setSocieties(rows);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setSocietyError(err instanceof Error ? err.message : "Failed to load societies");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSocieties(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isPlatformView, showSocietySelector, authLoading, isAuthenticated]);
-
-  // Lazy-load residents only when impersonating resident with a society selected.
+  // Residents: fetch only after society is chosen while impersonating resident.
   useEffect(() => {
     if (!showUserSelector || !selectedTenantId || authLoading || !isAuthenticated) {
       setResidents([]);
@@ -94,6 +98,7 @@ export function AdminContextBar() {
       })
       .catch((err) => {
         if (!cancelled) {
+          console.error("[AdminContextBar] Failed to load society residents:", err);
           setResidentError(err instanceof Error ? err.message : "Failed to load residents");
         }
       })
@@ -106,7 +111,18 @@ export function AdminContextBar() {
     };
   }, [showUserSelector, selectedTenantId, authLoading, isAuthenticated]);
 
+  const handleReset = () => {
+    resetContext();
+    setSocieties([]);
+    setSocietyError(null);
+    setResidents([]);
+    setResidentError(null);
+    setLoadingSocieties(false);
+    setLoadingResidents(false);
+  };
+
   const hasActiveContext = !isPlatformView || Boolean(selectedTenantId);
+  const defaultRoleLabel = mapToDisplayRole("super_admin");
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-2 py-1.5">
@@ -120,10 +136,10 @@ export function AdminContextBar() {
           aria-label="Select admin context role"
           className="h-8 w-[160px] sm:w-[190px] text-xs bg-background cursor-pointer"
         >
-          <SelectValue placeholder="Platform Admin" />
+          <SelectValue placeholder={defaultRoleLabel} />
         </SelectTrigger>
         <SelectContent className="z-[100]">
-          {IMPERSONATION_ROLE_OPTIONS.map((option) => (
+          {roleOptions.map((option) => (
             <SelectItem key={option.value} value={option.value} className="text-xs cursor-pointer">
               {option.label}
             </SelectItem>
@@ -132,11 +148,7 @@ export function AdminContextBar() {
       </Select>
 
       {showSocietySelector && (
-        <Select
-          value={selectedTenantId ?? undefined}
-          onValueChange={setSelectedTenantId}
-          disabled={loadingSocieties}
-        >
+        <Select value={selectedTenantId ?? undefined} onValueChange={setSelectedTenantId}>
           <SelectTrigger
             aria-label="Select target society"
             className="h-8 w-[180px] sm:w-[220px] text-xs bg-background cursor-pointer"
@@ -170,11 +182,7 @@ export function AdminContextBar() {
       )}
 
       {showUserSelector && (
-        <Select
-          value={selectedUserId ?? undefined}
-          onValueChange={setSelectedUserId}
-          disabled={loadingResidents || !selectedTenantId}
-        >
+        <Select value={selectedUserId ?? undefined} onValueChange={setSelectedUserId}>
           <SelectTrigger
             aria-label="Select target resident"
             className="h-8 w-[180px] sm:w-[220px] text-xs bg-background cursor-pointer"
@@ -219,7 +227,7 @@ export function AdminContextBar() {
           variant="ghost"
           size="sm"
           className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-          onClick={resetContext}
+          onClick={handleReset}
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Reset Context
