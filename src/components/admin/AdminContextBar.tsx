@@ -10,7 +10,10 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAdminContext } from "@/contexts/AdminContext";
+import type { AppRole } from "@/types/auth";
+import { APP_ROLE } from "@/types/auth";
 import {
+  DEFAULT_ADMIN_CONTEXT_ROLE,
   getAdminContextRoleOptions,
   isPlatformAdminContextRole,
   mapToDisplayRole,
@@ -19,9 +22,8 @@ import {
   fetchPlatformSocieties,
   fetchPlatformSocietyResidents,
   type PlatformResident,
-  type PlatformSociety,
 } from "@/lib/api/platform";
-import type { AppRole } from "@/types/auth";
+import type { SocietyListItem } from "@/types/society";
 
 /**
  * Platform admin context controls — rendered inside the profile menu popover.
@@ -43,7 +45,7 @@ export function AdminContextBar() {
 
   const roleOptions = useMemo(() => getAdminContextRoleOptions(), []);
 
-  const [societies, setSocieties] = useState<PlatformSociety[]>([]);
+  const [societies, setSocieties] = useState<SocietyListItem[]>([]);
   const [residents, setResidents] = useState<PlatformResident[]>([]);
   const [loadingSocieties, setLoadingSocieties] = useState(false);
   const [loadingResidents, setLoadingResidents] = useState(false);
@@ -124,7 +126,7 @@ export function AdminContextBar() {
   };
 
   const hasActiveContext = !isPlatformView || Boolean(selectedTenantId);
-  const defaultRoleLabel = mapToDisplayRole("super_admin");
+  const defaultRoleLabel = mapToDisplayRole(DEFAULT_ADMIN_CONTEXT_ROLE);
 
   return (
     <div

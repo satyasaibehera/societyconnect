@@ -1,12 +1,8 @@
-const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+import type { SocietyListItem } from "@/types/society";
 
-export type SocietyListItem = {
-  id: string;
-  name: string;
-  code?: string | null;
-  city?: string | null;
-  is_active?: boolean;
-};
+export type { SocietyListItem };
+
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 export type FetchSocietiesResult = {
   societies: SocietyListItem[];

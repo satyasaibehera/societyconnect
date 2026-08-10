@@ -3,16 +3,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   isApprovedStatus,
   isPendingApprovalStatus,
-} from "@/lib/roleMapping";
+} from "@/config/roleMapping";
+import { verifyAppAccess } from "@/services/appAccessService";
+import { AppAccessDenied } from "@/components/AppAccessDenied";
 
 /**
  * Requires an authenticated session with an approved tenant role.
  * Role/status routing is enforced globally by AuthRouteGuard.
  */
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { loading, roleLoading, tenantRole, isAuthenticated, authErrorCode } = useAuth();
+  const { user, loading, roleLoading, tenantRole, isAuthenticated, authErrorCode } = useAuth();
 
-  if (loading || roleLoading) {
+  if (loading || (isAuthenticated && roleLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -20,8 +22,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
+  }
+
+  const access = verifyAppAccess(user);
+  if (!access.allowed) {
+    return <AppAccessDenied reason={access.reason} />;
   }
 
   if (authErrorCode) {
@@ -47,7 +54,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
  * Requires a session but allows any resolved role (pending or approved).
  */
 export function SessionRoute({ children }: { children: React.ReactNode }) {
-  const { loading, roleLoading, isAuthenticated, authErrorCode } = useAuth();
+  const { user, loading, roleLoading, isAuthenticated, authErrorCode } = useAuth();
 
   if (loading || roleLoading) {
     return (
@@ -57,12 +64,17 @@ export function SessionRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (authErrorCode) {
-    return null;
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  const access = verifyAppAccess(user);
+  if (!access.allowed) {
+    return <AppAccessDenied reason={access.reason} />;
+  }
+
+  if (authErrorCode) {
+    return null;
   }
 
   return <>{children}</>;

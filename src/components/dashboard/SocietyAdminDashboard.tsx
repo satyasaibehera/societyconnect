@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { tenantDb } from "@/services/tenantDb";
+import { APP_ROLE } from "@/types/auth";
 import { useAccessControl } from "@/hooks/useAccessControl";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
@@ -113,7 +114,7 @@ export function SocietyAdminDashboard() {
     () =>
       QUICK_ACTIONS.filter((action) => {
         if (action.managementOnly) {
-          return hasRole("super_admin", "admin");
+          return hasRole(APP_ROLE.SUPER_ADMIN, APP_ROLE.ADMIN);
         }
         if (action.moduleKey) {
           return hasAccess(action.moduleKey);

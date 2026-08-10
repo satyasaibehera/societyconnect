@@ -28,6 +28,7 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { APP_CONFIG } from "@/config/appConfig";
+import { APP_ROLE } from "@/types/auth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAccessControl } from "@/hooks/useAccessControl";
 import {
@@ -89,7 +90,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { hasRole, loading: roleLoading } = useUserRole();
   const { hasAccess, loading: accessLoading } = useAccessControl();
-  const isSuperAdmin = hasRole("super_admin");
+  const isSuperAdmin = hasRole(APP_ROLE.SUPER_ADMIN);
   const isActive = (path: string) => location.pathname === path;
 
   const filterItems = (items: MenuItem[]) =>

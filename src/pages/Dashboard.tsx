@@ -4,6 +4,7 @@ import { ResidentDashboard } from "@/components/dashboard/ResidentDashboard";
 import { PlatformOverviewWidget } from "@/components/dashboard/PlatformOverviewWidget";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
+import { APP_ROLE } from "@/types/auth";
 import { resolveDashboardViews } from "@/lib/dashboardRoles";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -18,7 +19,7 @@ const Dashboard = () => {
   const views = resolveDashboardViews(tenantRole);
   const canLoadTenantData = useCanLoadTenantData();
   const effectiveRole = useEffectiveDashboardRole();
-  const isSuperAdmin = hasRole("super_admin");
+  const isSuperAdmin = hasRole(APP_ROLE.SUPER_ADMIN);
 
   if (loading || roleLoading) {
     return (
@@ -35,13 +36,13 @@ const Dashboard = () => {
 
   const showResidentDashboard = canLoadTenantData && (
     isSuperAdmin
-      ? effectiveRole === "resident"
+      ? effectiveRole === APP_ROLE.RESIDENT
       : views.showResidentDashboard
   );
 
   const showAdminDashboard = canLoadTenantData && (
     isSuperAdmin
-      ? effectiveRole !== "resident"
+      ? effectiveRole !== APP_ROLE.RESIDENT
       : views.showAdminDashboard
   );
 

@@ -1,28 +1,36 @@
 import type { TenantUserRole } from "@/services/tenantRouterService";
-import { mapRouterRole } from "@/utils/roleMapping";
+import { APP_ROLE } from "@/types/auth";
+import { mapRouterRole, ROUTER_ROLE } from "@/utils/roleMapping";
 
 function normalizeRole(role: string | null | undefined): string {
   return role?.trim().toUpperCase() ?? "";
 }
 
+const SOCIETY_ADMIN_DASHBOARD_ROUTER_ROLES = new Set<string>([
+  ROUTER_ROLE.SUPER_ADMIN,
+  ROUTER_ROLE.SOCIETY_ADMIN,
+  ROUTER_ROLE.ADMIN,
+  ROUTER_ROLE.OFFICE_BEARER,
+  ROUTER_ROLE.SECURITY,
+]);
+
+const RESIDENT_DASHBOARD_ROUTER_ROLES = new Set<string>([
+  ROUTER_ROLE.RESIDENT,
+  ROUTER_ROLE.TENANT,
+  ROUTER_ROLE.OWNER,
+  ROUTER_ROLE.FAMILY,
+]);
+
 export function isPlatformOverviewRole(role: string | null | undefined): boolean {
-  return normalizeRole(role) === "PLATFORM_SUPER_ADMIN";
+  return normalizeRole(role) === ROUTER_ROLE.PLATFORM_SUPER_ADMIN;
 }
 
 export function isSocietyAdminDashboardRole(role: string | null | undefined): boolean {
-  const normalized = normalizeRole(role);
-  return [
-    "SUPER_ADMIN",
-    "SOCIETY_ADMIN",
-    "ADMIN",
-    "OFFICE_BEARER",
-    "SECURITY",
-  ].includes(normalized);
+  return SOCIETY_ADMIN_DASHBOARD_ROUTER_ROLES.has(normalizeRole(role));
 }
 
 export function isResidentDashboardRole(role: string | null | undefined): boolean {
-  const normalized = normalizeRole(role);
-  return ["RESIDENT", "TENANT", "OWNER", "FAMILY"].includes(normalized);
+  return RESIDENT_DASHBOARD_ROUTER_ROLES.has(normalizeRole(role));
 }
 
 export function resolveDashboardViews(tenantRole: TenantUserRole | null): {
@@ -57,7 +65,7 @@ export function resolveDashboardViews(tenantRole: TenantUserRole | null): {
   }
 
   const appRoles = mapRouterRole(role);
-  if (appRoles.includes("resident")) {
+  if (appRoles.includes(APP_ROLE.RESIDENT)) {
     return {
       showPlatformOverview: false,
       showAdminDashboard: false,

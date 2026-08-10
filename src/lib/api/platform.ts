@@ -1,12 +1,8 @@
 import { apiFetch } from "@/services/apiClient";
 import { tenantDb } from "@/services/tenantDb";
+import type { SocietyListItem } from "@/types/society";
 
-export type PlatformSociety = {
-  id: string;
-  name: string;
-  city?: string | null;
-  code?: string | null;
-};
+export type { SocietyListItem };
 
 export type PlatformResident = {
   id: string;
@@ -17,8 +13,8 @@ export type PlatformResident = {
 };
 
 /** GET /api/societies — Express + Neon (authenticated via apiClient). */
-export async function fetchPlatformSocieties(): Promise<PlatformSociety[]> {
-  const result = await apiFetch<{ societies: PlatformSociety[] }>("/api/societies");
+export async function fetchPlatformSocieties(): Promise<SocietyListItem[]> {
+  const result = await apiFetch<{ societies: SocietyListItem[] }>("/api/societies");
   if (result.error) {
     throw new Error(result.error.message);
   }

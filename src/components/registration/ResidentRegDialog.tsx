@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { signOut, signUp } from "@/services/authService";
-import { fetchActiveSocietiesDetailed, type SocietyListItem } from "@/services/societiesService";
+import { fetchActiveSocietiesDetailed } from "@/services/societiesService";
+import type { SocietyListItem } from "@/types/society";
 import {
   fetchBuildingsForSociety,
   submitRegistration,

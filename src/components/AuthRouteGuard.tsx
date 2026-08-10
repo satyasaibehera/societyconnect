@@ -4,7 +4,7 @@ import { isPublicAuthPath } from "@/lib/authRoutes";
 import {
   isApprovedStatus,
   isPendingApprovalStatus,
-} from "@/lib/roleMapping";
+} from "@/config/roleMapping";
 
 /**
  * Enforces post-auth navigation based on tenant-router role resolution.

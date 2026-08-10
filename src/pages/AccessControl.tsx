@@ -10,16 +10,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 import { Navigate } from "react-router-dom";
-
-const ROLE_COLUMNS = [
-  { key: "super_admin", label: "Super Admin" },
-  { key: "admin", label: "Society Admin" },
-  { key: "office_bearer", label: "Office Bearer" },
-  { key: "owner", label: "House Owner" },
-  { key: "tenant", label: "Tenant" },
-  { key: "family", label: "Family Member" },
-  { key: "security", label: "Security" },
-];
+import { APP_ROLE } from "@/types/auth";
+import {
+  ACCESS_CONTROL_ROLE,
+  ACCESS_CONTROL_ROLE_COLUMNS,
+} from "@/types/accessControl";
 
 const MODULE_GROUPS = [
   {
@@ -113,7 +108,7 @@ const AccessControl = () => {
 
   const togglePermission = (moduleKey: string, roleKey: string) => {
     // Super admin permissions are always on and cannot be toggled
-    if (roleKey === "super_admin") return;
+    if (roleKey === ACCESS_CONTROL_ROLE.SUPER_ADMIN) return;
 
     setDraft((prev) => {
       const next = { ...prev };
@@ -157,7 +152,7 @@ const AccessControl = () => {
     }
   };
 
-  if (!roleLoading && !hasRole("super_admin")) {
+  if (!roleLoading && !hasRole(APP_ROLE.SUPER_ADMIN)) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -187,7 +182,7 @@ const AccessControl = () => {
                     <th className="text-left p-3 font-semibold min-w-[200px] sticky left-0 bg-muted/50 z-10">
                       Module
                     </th>
-                    {ROLE_COLUMNS.map((role) => (
+                    {ACCESS_CONTROL_ROLE_COLUMNS.map((role) => (
                       <th key={role.key} className="p-3 text-center font-semibold min-w-[110px]">
                         <div className="flex flex-col items-center gap-1">
                           <span className="text-xs">{role.label}</span>
@@ -201,7 +196,7 @@ const AccessControl = () => {
                     <>
                       <tr key={group.label}>
                         <td
-                          colSpan={ROLE_COLUMNS.length + 1}
+                          colSpan={ACCESS_CONTROL_ROLE_COLUMNS.length + 1}
                           className="px-3 py-2 bg-primary/5 font-semibold text-xs uppercase tracking-wider text-primary"
                         >
                           {group.label}
@@ -212,9 +207,9 @@ const AccessControl = () => {
                           <td className="p-3 font-medium sticky left-0 bg-background z-10">
                             {mod.label}
                           </td>
-                          {ROLE_COLUMNS.map((role) => {
+                          {ACCESS_CONTROL_ROLE_COLUMNS.map((role) => {
                             const enabled = draft[mod.key]?.[role.key] ?? false;
-                            const isSuperAdmin = role.key === "super_admin";
+                            const isSuperAdmin = role.key === ACCESS_CONTROL_ROLE.SUPER_ADMIN;
                             return (
                               <td key={role.key} className="p-3 text-center">
                                 <div className="flex justify-center">

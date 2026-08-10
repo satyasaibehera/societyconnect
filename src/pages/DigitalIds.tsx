@@ -10,19 +10,21 @@ import { QrCode, Search, Download, Users, Shield, Loader2, Briefcase, Home, Eye,
 import { QRCodeSVG } from "qrcode.react";
 import { tenantDb } from "@/services/tenantDb";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DIGITAL_ID_CATEGORY,
+  type DigitalIdCategory,
+} from "@/types/digitalId";
 
 interface Person {
   id: string;
   name: string;
   phone: string | null;
-  category: ColorKey;
+  category: DigitalIdCategory;
   unitLabel?: string | null;
   designation?: string | null;
 }
 
-type ColorKey = "resident" | "tenant" | "helper" | "visitor" | "security" | "office_bearer";
-
-const colorConfig: Record<ColorKey, {
+const colorConfig: Record<DigitalIdCategory, {
   hex: string; label: string;
   bg: string; text: string; border: string; bgLight: string; borderTop: string;
 }> = {
@@ -39,7 +41,7 @@ const DigitalIds = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<ColorKey>("resident");
+  const [activeTab, setActiveTab] = useState<DigitalIdCategory>(DIGITAL_ID_CATEGORY.RESIDENT);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const qrRef = useRef<HTMLDivElement>(null);
 
@@ -59,8 +61,8 @@ const DigitalIds = () => {
     residents?.forEach((r) => {
       // Skip vacated tenants — they should not get digital IDs
       if (r.resident_type === "tenant" && r.has_vacated) return;
-      let category: ColorKey = "resident";
-      if (r.resident_type === "tenant") category = "tenant";
+      let category: DigitalIdCategory = DIGITAL_ID_CATEGORY.RESIDENT;
+      if (r.resident_type === "tenant") category = DIGITAL_ID_CATEGORY.TENANT;
       const unitLabel = r.unit_id ? unitMap.get(r.unit_id) ?? null : null;
       persons.push({ id: r.id, name: r.full_name, phone: r.phone, category, unitLabel });
     });
@@ -69,7 +71,7 @@ const DigitalIds = () => {
     const { data: staff } = await tenantDb.from("security_staff")
       .select("id, name, phone");
     staff?.forEach((s) =>
-      persons.push({ id: s.id, name: s.name, phone: s.phone, category: "security" })
+      persons.push({ id: s.id, name: s.name, phone: s.phone, category: DIGITAL_ID_CATEGORY.SECURITY })
     );
 
     // Helpers
@@ -77,7 +79,7 @@ const DigitalIds = () => {
       .select("id, name, phone")
       .eq("status", "approved");
     helpers?.forEach((h) =>
-      persons.push({ id: h.id, name: h.name, phone: h.phone, category: "helper" })
+      persons.push({ id: h.id, name: h.name, phone: h.phone, category: DIGITAL_ID_CATEGORY.HELPER })
     );
 
     // Visitors (approved)
@@ -85,7 +87,7 @@ const DigitalIds = () => {
       .select("id, name, phone, visiting_unit_label")
       .eq("status", "approved");
     visitors?.forEach((v) =>
-      persons.push({ id: v.id, name: v.name, phone: v.phone, category: "visitor", unitLabel: v.visiting_unit_label })
+      persons.push({ id: v.id, name: v.name, phone: v.phone, category: DIGITAL_ID_CATEGORY.VISITOR, unitLabel: v.visiting_unit_label })
     );
 
     // Office bearers (from office_bearers table + profiles for names)
@@ -105,7 +107,7 @@ const DigitalIds = () => {
           id: ob.id,
           name: profileMap.get(ob.user_id) || designation,
           phone: ob.phone,
-          category: "office_bearer",
+          category: DIGITAL_ID_CATEGORY.OFFICE_BEARER,
           designation,
         });
       });
@@ -124,7 +126,7 @@ const DigitalIds = () => {
     (p.unitLabel?.toLowerCase().includes(searchLower) ?? false)
   );
 
-  const byCategory = (key: ColorKey) => filtered.filter((p) => p.category === key);
+  const byCategory = (key: DigitalIdCategory) => filtered.filter((p) => p.category === key);
 
   const qrPayload = (person: Person) =>
     JSON.stringify({ id: person.id, name: person.name, type: person.category, ts: Date.now() });
@@ -241,13 +243,13 @@ const DigitalIds = () => {
     );
   };
 
-  const tabData: { key: ColorKey; icon: React.ReactNode }[] = [
-    { key: "resident", icon: <Home className="mr-1.5 h-4 w-4" /> },
-    { key: "tenant", icon: <Users className="mr-1.5 h-4 w-4" /> },
-    { key: "helper", icon: <Briefcase className="mr-1.5 h-4 w-4" /> },
-    { key: "visitor", icon: <Eye className="mr-1.5 h-4 w-4" /> },
-    { key: "security", icon: <Shield className="mr-1.5 h-4 w-4" /> },
-    { key: "office_bearer", icon: <Award className="mr-1.5 h-4 w-4" /> },
+  const tabData: { key: DigitalIdCategory; icon: React.ReactNode }[] = [
+    { key: DIGITAL_ID_CATEGORY.RESIDENT, icon: <Home className="mr-1.5 h-4 w-4" /> },
+    { key: DIGITAL_ID_CATEGORY.TENANT, icon: <Users className="mr-1.5 h-4 w-4" /> },
+    { key: DIGITAL_ID_CATEGORY.HELPER, icon: <Briefcase className="mr-1.5 h-4 w-4" /> },
+    { key: DIGITAL_ID_CATEGORY.VISITOR, icon: <Eye className="mr-1.5 h-4 w-4" /> },
+    { key: DIGITAL_ID_CATEGORY.SECURITY, icon: <Shield className="mr-1.5 h-4 w-4" /> },
+    { key: DIGITAL_ID_CATEGORY.OFFICE_BEARER, icon: <Award className="mr-1.5 h-4 w-4" /> },
   ];
 
   return (
@@ -255,7 +257,7 @@ const DigitalIds = () => {
       <div className="space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          {(Object.keys(colorConfig) as ColorKey[]).map((key) => (
+          {(Object.keys(colorConfig) as DigitalIdCategory[]).map((key) => (
             <Card key={key} className={`p-3 text-center border-t-4 ${colorConfig[key].borderTop}`}>
               <p className={`text-2xl font-bold font-display ${colorConfig[key].text}`}>
                 {people.filter((p) => p.category === key).length}
@@ -281,7 +283,7 @@ const DigitalIds = () => {
             <p className="text-sm">No approved people to generate IDs for.</p>
           </Card>
         ) : (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ColorKey)}>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as DigitalIdCategory)}>
             <TabsList className="flex-wrap h-auto gap-1">
               {tabData.map(({ key, icon }) => (
                 <TabsTrigger key={key} value={key} className={`text-xs ${colorConfig[key].text}`}>

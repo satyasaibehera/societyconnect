@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { tenantDb } from "@/services/tenantDb";
+import { APP_ROLE } from "@/types/auth";
 import { useEffectiveRoles } from "@/hooks/useUserRole";
 import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
 
@@ -50,7 +51,7 @@ export function useAccessControl(options: UseAccessControlOptions = {}) {
         return;
       }
 
-      if (effectiveRoles.includes("super_admin")) {
+      if (effectiveRoles.includes(APP_ROLE.SUPER_ADMIN)) {
         const map: AccessMap = {};
         data.forEach((r) => {
           map[r.module_key as string] = true;
@@ -84,9 +85,9 @@ export function useAccessControl(options: UseAccessControlOptions = {}) {
   }, [effectiveRoles, roleLoading, queriesEnabled]);
 
   const hasAccess = (moduleKey: string): boolean => {
-    if (!queriesEnabled && effectiveRoles.includes("super_admin")) return true;
+    if (!queriesEnabled && effectiveRoles.includes(APP_ROLE.SUPER_ADMIN)) return true;
     if (!queriesEnabled) return false;
-    if (effectiveRoles.includes("super_admin")) return true;
+    if (effectiveRoles.includes(APP_ROLE.SUPER_ADMIN)) return true;
     return accessMap[moduleKey] ?? false;
   };
 

@@ -4,7 +4,7 @@ import { Search, LogOut, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useUserRole } from "@/hooks/useUserRole";
-import { mapToDisplayRole } from "@/utils/roleMapping";
+import { mapToDisplayRole, APP_ROLE } from "@/config/roleMapping";
 import { AdminContextBar } from "@/components/admin/AdminContextBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -25,7 +25,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { roles, hasRole } = useUserRole();
-  const isSuperAdmin = hasRole("super_admin");
+  const isSuperAdmin = hasRole(APP_ROLE.SUPER_ADMIN);
 
   const roleLabel = roles.length > 0
     ? roles.map((r) => mapToDisplayRole(r)).join(", ")

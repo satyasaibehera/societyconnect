@@ -1,16 +1,23 @@
 /**
- * Central role taxonomy for UI and admin context switching.
- * Source of truth lives in `@/utils/roleMapping`.
+ * Public role taxonomy barrel for UI, guards, and admin context switching.
+ * Implementation source of truth: `@/utils/roleMapping`.
  */
-export type { AppRole } from "@/types/auth";
+export { APP_ROLE, type AppRole } from "@/types/auth";
 export type { AdminContextRoleOption } from "@/utils/roleMapping";
 export {
   ADMIN_CONTEXT_ROLES,
   DEFAULT_ADMIN_CONTEXT_ROLE,
+  ROUTER_ROLE,
+  ROUTER_ROLE_MAP,
   SOCIETY_SCOPED_APP_ROLES,
   getAdminContextRoleOptions,
+  isApprovedStatus,
+  isPendingApprovalStatus,
   isPlatformAdminContextRole,
   isSocietyScopedAppRole,
-  mapToDisplayRole,
+  isSuperAdminRole,
   mapRouterRole,
+  mapToDisplayRole,
+  residentSubRoles,
+  staffSubRoles,
 } from "@/utils/roleMapping";

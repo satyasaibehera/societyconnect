@@ -40,7 +40,6 @@ export {
   LOGIN_BANNER_INVALID_CREDENTIALS,
   LOGIN_BANNER_TENANT_MAPPING,
 } from "@/services/tenantRouterService";
-export { mapToDisplayRole } from "@/utils/roleMapping";
 
 interface AuthContextType {
   session: Session | null;

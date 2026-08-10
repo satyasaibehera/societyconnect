@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { APP_ROLE, type AppRole } from "@/types/auth";
 import {
   mapRouterRole,
   residentSubRoles,
   staffSubRoles,
-} from "@/utils/roleMapping";
-import type { AppRole } from "@/types/auth";
+} from "@/config/roleMapping";
 
 export type { AppRole };
 
@@ -18,9 +18,9 @@ export function useUserRole() {
   }, [tenantRole?.role]);
 
   const hasRole = (...check: AppRole[]) => check.some((r) => roles.includes(r));
-  const isManagement = hasRole("super_admin", "admin");
-  const isSecurity = hasRole("security");
-  const isStaff = hasRole("staff");
+  const isManagement = hasRole(APP_ROLE.SUPER_ADMIN, APP_ROLE.ADMIN);
+  const isSecurity = hasRole(APP_ROLE.SECURITY);
+  const isStaff = hasRole(APP_ROLE.STAFF);
 
   return {
     roles,

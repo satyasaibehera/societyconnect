@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { AppRole } from "@/types/auth";
+import { APP_ROLE } from "@/types/auth";
 import {
   DEFAULT_ADMIN_CONTEXT_ROLE,
   isPlatformAdminContextRole,
@@ -94,7 +95,7 @@ export function AdminContextProvider({ children }: { children: ReactNode }) {
 
   const isPlatformView = contextRole === DEFAULT_ADMIN_CONTEXT_ROLE;
   const showSocietySelector = isSocietyScopedAppRole(contextRole);
-  const showUserSelector = contextRole === "resident" && Boolean(selectedTenantId);
+  const showUserSelector = contextRole === APP_ROLE.RESIDENT && Boolean(selectedTenantId);
 
   const value = useMemo<AdminContextValue>(
     () => ({

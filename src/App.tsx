@@ -10,7 +10,6 @@ import { ProtectedRoute, SessionRoute } from "@/components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
 import Settings from "./pages/Settings";
 import Approvals from "./pages/Approvals";
 import Residents from "./pages/Residents";

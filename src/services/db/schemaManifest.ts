@@ -6,18 +6,22 @@
  */
 
 import type { ManifestContext, SchemaManifest, SchemaManifestEntry, SqlParameter } from "./types";
+import {
+  ACCESS_CONTROL_ROLE,
+  RESIDENT_SUB_ROLE,
+} from "@/types/accessControl";
 
 const SCHEMA = "public";
 
 /** Default role keys used by access-control matrix seeding. */
 export const DEFAULT_ROLE_KEYS = [
-  "super_admin",
-  "admin",
-  "office_bearer",
-  "owner",
-  "tenant",
-  "family",
-  "security",
+  ACCESS_CONTROL_ROLE.SUPER_ADMIN,
+  ACCESS_CONTROL_ROLE.ADMIN,
+  ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+  RESIDENT_SUB_ROLE.OWNER,
+  RESIDENT_SUB_ROLE.TENANT,
+  RESIDENT_SUB_ROLE.FAMILY,
+  ACCESS_CONTROL_ROLE.SECURITY,
 ] as const;
 
 /** Default module keys used by access-control matrix seeding. */
@@ -51,27 +55,85 @@ export const DEFAULT_MODULE_KEYS = [
 
 /** Modules that are disabled for most non-admin roles (mirrors production seed). */
 const DISABLED_FOR: Record<string, ReadonlySet<string>> = {
-  approvals: new Set(["office_bearer", "owner", "tenant", "family", "security"]),
-  residents: new Set(["office_bearer", "owner", "tenant", "family", "security"]),
-  visitors: new Set(["office_bearer", "owner", "tenant", "family"]),
-  security: new Set(["office_bearer", "owner", "tenant", "family", "security"]),
-  vehicles: new Set(["office_bearer", "owner", "tenant", "family", "security"]),
-  helpers: new Set(["office_bearer", "owner", "tenant", "family", "security"]),
-  payments: new Set(["office_bearer", "owner", "tenant", "family", "security"]),
-  "my-helpers": new Set(["tenant", "family", "security"]),
-  "my-vehicles": new Set(["family", "security"]),
-  "my-tenants": new Set(["tenant", "family", "security"]),
-  "my-payments": new Set(["family", "security"]),
-  "my-gate-passes": new Set(["family", "security"]),
-  "my-family": new Set(["security"]),
-  "my-visitors": new Set(["security"]),
-  "office-bearers": new Set(["security"]),
-  complaints: new Set(["security"]),
-  voting: new Set(["tenant", "family", "security"]),
-  meetings: new Set(["family", "security"]),
-  resolutions: new Set(["family", "security"]),
-  "vehicle-passes": new Set(["office_bearer", "owner", "tenant", "family"]),
-  settings: new Set(["office_bearer", "security"]),
+  approvals: new Set([
+    ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+    RESIDENT_SUB_ROLE.OWNER,
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  residents: new Set([
+    ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+    RESIDENT_SUB_ROLE.OWNER,
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  visitors: new Set([
+    ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+    RESIDENT_SUB_ROLE.OWNER,
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+  ]),
+  security: new Set([
+    ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+    RESIDENT_SUB_ROLE.OWNER,
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  vehicles: new Set([
+    ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+    RESIDENT_SUB_ROLE.OWNER,
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  helpers: new Set([
+    ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+    RESIDENT_SUB_ROLE.OWNER,
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  payments: new Set([
+    ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+    RESIDENT_SUB_ROLE.OWNER,
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  "my-helpers": new Set([
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  "my-vehicles": new Set([RESIDENT_SUB_ROLE.FAMILY, ACCESS_CONTROL_ROLE.SECURITY]),
+  "my-tenants": new Set([
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  "my-payments": new Set([RESIDENT_SUB_ROLE.FAMILY, ACCESS_CONTROL_ROLE.SECURITY]),
+  "my-gate-passes": new Set([RESIDENT_SUB_ROLE.FAMILY, ACCESS_CONTROL_ROLE.SECURITY]),
+  "my-family": new Set([ACCESS_CONTROL_ROLE.SECURITY]),
+  "my-visitors": new Set([ACCESS_CONTROL_ROLE.SECURITY]),
+  "office-bearers": new Set([ACCESS_CONTROL_ROLE.SECURITY]),
+  complaints: new Set([ACCESS_CONTROL_ROLE.SECURITY]),
+  voting: new Set([
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+    ACCESS_CONTROL_ROLE.SECURITY,
+  ]),
+  meetings: new Set([RESIDENT_SUB_ROLE.FAMILY, ACCESS_CONTROL_ROLE.SECURITY]),
+  resolutions: new Set([RESIDENT_SUB_ROLE.FAMILY, ACCESS_CONTROL_ROLE.SECURITY]),
+  "vehicle-passes": new Set([
+    ACCESS_CONTROL_ROLE.OFFICE_BEARER,
+    RESIDENT_SUB_ROLE.OWNER,
+    RESIDENT_SUB_ROLE.TENANT,
+    RESIDENT_SUB_ROLE.FAMILY,
+  ]),
+  settings: new Set([ACCESS_CONTROL_ROLE.OFFICE_BEARER, ACCESS_CONTROL_ROLE.SECURITY]),
 };
 
 export const DEFAULT_NOTICE_TYPES: ReadonlyArray<{
