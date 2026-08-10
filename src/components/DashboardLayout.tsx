@@ -55,7 +55,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
             </div>
             <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
               {isSuperAdmin && (
-                <div className="hidden lg:block max-w-[calc(100vw-20rem)] overflow-x-auto">
+                <div className="hidden lg:block shrink-0">
                   <AdminContextBar />
                 </div>
               )}

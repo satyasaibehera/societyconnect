@@ -16,15 +16,15 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export type ImpersonationRoleOption = {
   label: string;
-  value: AppRole | "platform";
+  value: AppRole;
 };
 
 export const IMPERSONATION_ROLE_OPTIONS: ImpersonationRoleOption[] = [
-  { label: "Platform Admin (super_admin)", value: "platform" },
-  { label: "Society Admin (admin)", value: "admin" },
-  { label: "Office Bearer (office_bearer)", value: "office_bearer" },
-  { label: "Resident (resident)", value: "resident" },
-  { label: "Security Guard (security)", value: "security" },
+  { label: "Platform Admin", value: "super_admin" },
+  { label: "Society Admin", value: "admin" },
+  { label: "Office Bearer", value: "office_bearer" },
+  { label: "Resident", value: "resident" },
+  { label: "Security Guard", value: "security" },
 ];
 
 export const SOCIETY_SCOPED_ROLES: AppRole[] = [
@@ -35,13 +35,15 @@ export const SOCIETY_SCOPED_ROLES: AppRole[] = [
 ];
 
 type AdminContextValue = {
+  /** Active context role — defaults to platform super_admin view. */
+  contextRole: AppRole;
   impersonatedRole: AppRole | null;
   selectedTenantId: string | null;
   selectedUserId: string | null;
   isPlatformView: boolean;
   showSocietySelector: boolean;
   showUserSelector: boolean;
-  setImpersonatedRole: (role: AppRole | null) => void;
+  setContextRole: (role: AppRole) => void;
   setSelectedTenantId: (tenantId: string | null) => void;
   setSelectedUserId: (userId: string | null) => void;
   resetContext: () => void;
@@ -49,11 +51,15 @@ type AdminContextValue = {
 
 const AdminContext = createContext<AdminContextValue | null>(null);
 
+const DEFAULT_CONTEXT_ROLE: AppRole = "super_admin";
+
 export function AdminContextProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const [impersonatedRole, setImpersonatedRoleState] = useState<AppRole | null>(null);
+  const [contextRole, setContextRoleState] = useState<AppRole>(DEFAULT_CONTEXT_ROLE);
   const [selectedTenantId, setSelectedTenantIdState] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserIdState] = useState<string | null>(null);
+
+  const impersonatedRole = contextRole === "super_admin" ? null : contextRole;
 
   const syncStore = useCallback(
     (next: {
@@ -76,14 +82,11 @@ export function AdminContextProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const setImpersonatedRole = useCallback(
-    (role: AppRole | null) => {
-      setImpersonatedRoleState(role);
-      setSelectedTenantIdState(null);
-      setSelectedUserIdState(null);
-    },
-    [],
-  );
+  const setContextRole = useCallback((role: AppRole) => {
+    setContextRoleState(role);
+    setSelectedTenantIdState(null);
+    setSelectedUserIdState(null);
+  }, []);
 
   const setSelectedTenantId = useCallback((tenantId: string | null) => {
     setSelectedTenantIdState(tenantId);
@@ -95,7 +98,7 @@ export function AdminContextProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetContext = useCallback(() => {
-    setImpersonatedRoleState(null);
+    setContextRoleState(DEFAULT_CONTEXT_ROLE);
     setSelectedTenantIdState(null);
     setSelectedUserIdState(null);
   }, []);
@@ -106,32 +109,33 @@ export function AdminContextProvider({ children }: { children: ReactNode }) {
     }
   }, [isAuthenticated, resetContext]);
 
-  const isPlatformView = impersonatedRole === null;
-  const showSocietySelector =
-    impersonatedRole !== null && SOCIETY_SCOPED_ROLES.includes(impersonatedRole);
-  const showUserSelector = impersonatedRole === "resident" && Boolean(selectedTenantId);
+  const isPlatformView = contextRole === "super_admin";
+  const showSocietySelector = SOCIETY_SCOPED_ROLES.includes(contextRole);
+  const showUserSelector = contextRole === "resident" && Boolean(selectedTenantId);
 
   const value = useMemo<AdminContextValue>(
     () => ({
+      contextRole,
       impersonatedRole,
       selectedTenantId,
       selectedUserId,
       isPlatformView,
       showSocietySelector,
       showUserSelector,
-      setImpersonatedRole,
+      setContextRole,
       setSelectedTenantId,
       setSelectedUserId,
       resetContext,
     }),
     [
+      contextRole,
       impersonatedRole,
       selectedTenantId,
       selectedUserId,
       isPlatformView,
       showSocietySelector,
       showUserSelector,
-      setImpersonatedRole,
+      setContextRole,
       setSelectedTenantId,
       setSelectedUserId,
       resetContext,

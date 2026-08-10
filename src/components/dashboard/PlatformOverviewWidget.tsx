@@ -13,8 +13,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { APP_CONFIG } from "@/config/appConfig";
+import { fetchPlatformSocieties } from "@/lib/api/platform";
 import { tenantDb } from "@/services/tenantDb";
 import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
+import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 
 interface RecentEnrollment {
@@ -26,6 +28,7 @@ interface RecentEnrollment {
 
 export function PlatformOverviewWidget() {
   const navigate = useNavigate();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const canLoadTenantData = useCanLoadTenantData();
   const [loading, setLoading] = useState(true);
   const [activeSocieties, setActiveSocieties] = useState(0);
@@ -36,6 +39,8 @@ export function PlatformOverviewWidget() {
   const [recentEnrollments, setRecentEnrollments] = useState<RecentEnrollment[]>([]);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const fetchPlatformMetrics = async () => {
       setLoading(true);
 
@@ -44,21 +49,26 @@ export function PlatformOverviewWidget() {
       let status: typeof platformStatus = "offline";
 
       try {
-        const [healthRes, societiesRes] = await Promise.all([
-          fetch(`${routerBase}/health`),
-          fetch(`${routerBase}/api/societies`),
-        ]);
-
+        const healthRes = await fetch(`${routerBase}/health`);
         if (healthRes.ok) {
-          status = societiesRes.ok ? "operational" : "degraded";
-        }
-
-        if (societiesRes.ok) {
-          const payload = await societiesRes.json();
-          societiesCount = Array.isArray(payload?.societies) ? payload.societies.length : 0;
+          status = "operational";
         }
       } catch {
         status = "offline";
+      }
+
+      if (isAuthenticated) {
+        try {
+          const societies = await fetchPlatformSocieties();
+          societiesCount = societies.length;
+          if (status === "operational" && societiesCount === 0) {
+            status = "degraded";
+          }
+        } catch {
+          if (status === "operational") {
+            status = "degraded";
+          }
+        }
       }
 
       let userCount = 0;
@@ -85,7 +95,7 @@ export function PlatformOverviewWidget() {
     };
 
     void fetchPlatformMetrics();
-  }, [canLoadTenantData]);
+  }, [authLoading, canLoadTenantData, isAuthenticated]);
 
   const statusLabel = {
     operational: "Operational",

@@ -1,17 +1,33 @@
 import { useEffect, useState } from "react";
 import { tenantDb } from "@/services/tenantDb";
 import { useEffectiveRoles } from "@/hooks/useUserRole";
+import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
 
 interface AccessMap {
   [moduleKey: string]: boolean;
 }
 
-export function useAccessControl() {
+type UseAccessControlOptions = {
+  /** When false, skips tenant access_controls fetch (e.g. platform admin without society). */
+  enabled?: boolean;
+};
+
+export function useAccessControl(options: UseAccessControlOptions = {}) {
+  const { enabled = true } = options;
   const { roles: effectiveRoles, loading: roleLoading } = useEffectiveRoles();
+  const canLoadTenantData = useCanLoadTenantData();
+  const queriesEnabled = enabled && canLoadTenantData;
+
   const [accessMap, setAccessMap] = useState<AccessMap>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!queriesEnabled) {
+      setAccessMap({});
+      setLoading(false);
+      return;
+    }
+
     if (roleLoading) return;
 
     if (effectiveRoles.length === 0) {
@@ -20,10 +36,14 @@ export function useAccessControl() {
       return;
     }
 
+    let cancelled = false;
+
     const fetchAccessControls = async () => {
       const { data } = await tenantDb
         .from("access_controls")
         .select("module_key, role_key, is_enabled");
+
+      if (cancelled) return;
 
       if (!data) {
         setLoading(false);
@@ -55,13 +75,20 @@ export function useAccessControl() {
       setLoading(false);
     };
 
+    setLoading(true);
     void fetchAccessControls();
-  }, [effectiveRoles, roleLoading]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveRoles, roleLoading, queriesEnabled]);
 
   const hasAccess = (moduleKey: string): boolean => {
+    if (!queriesEnabled && effectiveRoles.includes("super_admin")) return true;
+    if (!queriesEnabled) return false;
     if (effectiveRoles.includes("super_admin")) return true;
     return accessMap[moduleKey] ?? false;
   };
 
-  return { hasAccess, loading, effectiveRoles };
+  return { hasAccess, loading: queriesEnabled && (loading || roleLoading), effectiveRoles };
 }

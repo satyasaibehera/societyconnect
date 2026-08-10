@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { tenantDb } from "@/services/tenantDb";
 import { APP_SCHEMA } from "@/config/appConfig";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCanLoadTenantData } from "@/hooks/useCanLoadTenantData";
 import { format } from "date-fns";
 
 interface Notification {
@@ -180,6 +181,7 @@ function NotificationDetailModal({
 
 export function NotificationBell() {
   const { user } = useAuth();
+  const canLoadTenantData = useCanLoadTenantData();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [open, setOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
@@ -195,7 +197,12 @@ export function NotificationBell() {
   };
 
   useEffect(() => {
-    fetchNotifications();
+    if (!user || !canLoadTenantData) {
+      setNotifications([]);
+      return;
+    }
+
+    void fetchNotifications();
 
     const channel = supabase
       .channel("user-notifications")
@@ -209,7 +216,7 @@ export function NotificationBell() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, canLoadTenantData]);
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
